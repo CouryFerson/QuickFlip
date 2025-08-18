@@ -15,15 +15,14 @@ class MarketIntelligenceService: ObservableObject {
     @Published var lastUpdated: Date?
 
     private let cacheKey = "dailyMarketTrends"
-    private let cacheExpiryHours = 6 // Refresh every 6 hours
+    private let cacheExpiryHours = 1 // Refresh every 6 hours
 
     func loadDailyTrends() async {
         // Check cache first
-        if let cachedTrends = loadFromCache(),
-           let lastUpdate = lastUpdated,
-           Date().timeIntervalSince(lastUpdate) < TimeInterval(cacheExpiryHours * 3600) {
+        if let cachedTrends = loadFromCache() {
             await MainActor.run {
                 self.dailyTrends = cachedTrends
+                self.lastUpdated = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date
             }
             return
         }
@@ -204,16 +203,55 @@ class MarketIntelligenceService: ObservableObject {
 
     private func saveToCache(_ trends: MarketTrends) {
         do {
-            let data = try JSONEncoder().encode(trends)
+            let cacheData = CachedMarketTrends(trends: trends, timestamp: Date())
+            let data = try JSONEncoder().encode(cacheData)
             UserDefaults.standard.set(data, forKey: cacheKey)
+
+            // Also save the timestamp separately for easier access
+            UserDefaults.standard.set(Date(), forKey: "\(cacheKey)_timestamp")
+
+            print("QuickFlip: Cached market trends with timestamp")
         } catch {
             print("QuickFlip: Failed to cache trends: \(error)")
         }
     }
 
     private func loadFromCache() -> MarketTrends? {
-        guard let data = UserDefaults.standard.data(forKey: cacheKey) else { return nil }
-        return try? JSONDecoder().decode(MarketTrends.self, from: data)
+        // Check if we have both data and timestamp
+        guard let data = UserDefaults.standard.data(forKey: cacheKey),
+              let timestamp = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date else {
+            print("QuickFlip: No cached data or timestamp found")
+            return nil
+        }
+
+        // Check if cache is still valid (within 1 hour)
+        let hoursSinceCache = Date().timeIntervalSince(timestamp) / 3600
+        if hoursSinceCache > Double(cacheExpiryHours) {
+            print("QuickFlip: Cache expired (\(String(format: "%.1f", hoursSinceCache)) hours old)")
+            return nil
+        }
+
+        do {
+            let cachedData = try JSONDecoder().decode(CachedMarketTrends.self, from: data)
+            print("QuickFlip: Using cached trends (\(String(format: "%.1f", hoursSinceCache)) hours old)")
+            return cachedData.trends
+        } catch {
+            print("QuickFlip: Failed to decode cached trends: \(error)")
+            return nil
+        }
+    }
+
+    func clearCache() {
+        UserDefaults.standard.removeObject(forKey: cacheKey)
+        UserDefaults.standard.removeObject(forKey: "\(cacheKey)_timestamp")
+        print("QuickFlip: Market trends cache cleared")
+    }
+
+    func getCacheAge() -> TimeInterval? {
+        guard let timestamp = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date else {
+            return nil
+        }
+        return Date().timeIntervalSince(timestamp)
     }
 }
 

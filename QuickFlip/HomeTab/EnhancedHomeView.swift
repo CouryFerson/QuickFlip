@@ -549,9 +549,15 @@ struct EnhancedHomeView: View {
     // MARK: - Helper Methods
 
     private func loadInitialData() async {
-        await marketIntelligence.loadDailyTrends()
+        // Check if we have valid cached market data first
+        if marketIntelligence.dailyTrends == nil {
+            await marketIntelligence.loadDailyTrends()
+        } else {
+            print("QuickFlip: Using existing market trends data")
+        }
 
-        if !itemStorage.scannedItems.isEmpty {
+        // Only analyze personal data if we have items and no current insights
+        if !itemStorage.scannedItems.isEmpty && personalAnalytics.insights == nil {
             await personalAnalytics.analyzeUserData(itemStorage.scannedItems)
         }
     }
@@ -1239,9 +1245,6 @@ struct FullMarketInsightsView: View {
             // Header with sentiment
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Market Intelligence")
-                        .font(.title2)
-                        .fontWeight(.bold)
                     Text("AI-powered insights")
                         .font(.caption)
                         .foregroundColor(.gray)
@@ -1332,10 +1335,7 @@ struct FullMarketInsightsView: View {
                     .cornerRadius(8)
             }
         }
-        .padding()
         .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 
     private var noMarketDataSection: some View {
