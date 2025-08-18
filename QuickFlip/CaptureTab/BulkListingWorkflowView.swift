@@ -57,11 +57,11 @@ struct BulkListingWorkflowView: View {
                 )
                 .environmentObject(itemStorage)
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
             }
         }
