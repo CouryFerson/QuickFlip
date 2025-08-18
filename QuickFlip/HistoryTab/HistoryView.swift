@@ -45,18 +45,18 @@ struct HistoryView: View {
                     } else {
                         // Stats Header (keeping your design)
                         statsHeaderView
-                        
+
                         // Search and Filter Section
                         VStack(spacing: 16) {
                             // Search Bar
                             searchBarView
-                            
+
                             // Segmented Control
                             segmentedControlView
                         }
                         .padding()
                         .background(Color(.systemGroupedBackground))
-                        
+
                         // Items List
                         itemsListView
                     }
@@ -264,8 +264,8 @@ struct EnhancedHistoryItemCard: View {
                         showingActionSheet = true
                     } label: {
                         Image(systemName: "ellipsis")
+                            .resizable()
                             .foregroundColor(.gray)
-                            .font(.system(size: 16, weight: .medium))
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(PlainButtonStyle())

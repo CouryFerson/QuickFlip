@@ -57,8 +57,12 @@ struct MarketplaceSelectionView: View {
 
                     if let priceAnalysis = priceAnalysisResult {
                         // Show price analysis results
-                        PriceAnalysisResultView(analysis: priceAnalysis) { marketplace in
-                            // Save item and navigate to listing prep
+                        PriceAnalysisResultView(
+                            analysis: priceAnalysis,
+                            itemAnalysis: itemAnalysis,
+                            capturedImage: capturedImage
+                        ) { marketplace in
+                            // Save item and navigate to webview to see similar listings
                             saveScannedItem(marketplace: marketplace, priceAnalysis: priceAnalysis)
                         }
                     } else {

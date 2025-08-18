@@ -9,6 +9,8 @@ import SwiftUI
 
 struct PriceAnalysisResultView: View {
     let analysis: MarketplacePriceAnalysis
+    let itemAnalysis: ItemAnalysis
+    let capturedImage: UIImage
     let onSelectMarketplace: (Marketplace) -> Void
 
     var body: some View {
@@ -34,14 +36,8 @@ struct PriceAnalysisResultView: View {
 
                 NavigationLink(
                     destination: ListingPreparationView(
-                        itemAnalysis: ItemAnalysis(
-                            itemName: "",
-                            condition: "",
-                            description: "",
-                            estimatedValue: "",
-                            category: ""
-                        ),
-                        capturedImage: UIImage(),
+                        itemAnalysis: itemAnalysis,
+                        capturedImage: capturedImage,
                         selectedMarketplace: analysis.recommendedMarketplace
                     )
                 ) {
@@ -74,6 +70,33 @@ struct PriceAnalysisResultView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(analysis.recommendedMarketplace.color, lineWidth: 2)
                     )
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                NavigationLink(
+                    destination: MarketplaceWebView(
+                        marketplace: analysis.recommendedMarketplace,
+                        itemName: itemAnalysis.itemName
+                    )
+                ) {
+                    HStack {
+                        Image(systemName: "safari.fill")
+                            .foregroundColor(.blue)
+
+                        Text("View Similar Listings")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
