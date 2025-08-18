@@ -12,6 +12,7 @@ struct EnhancedHomeView: View {
 
     @State private var userName = UserDefaults.standard.string(forKey: "userName") ?? "Flipper"
     @State private var showingFullInsights = false
+    @State private var showingPersonalDetails = false
 
     var body: some View {
         NavigationView {
@@ -64,6 +65,19 @@ struct EnhancedHomeView: View {
                 onRefresh: {
                     Task {
                         await refreshAllData()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showingPersonalDetails) {
+            PersonalPerformanceView(
+                insights: personalAnalytics.insights,
+                userStats: itemStorage.userStats,
+                scannedItems: itemStorage.scannedItems,
+                isLoading: personalAnalytics.isLoadingInsights,
+                onRefresh: {
+                    Task {
+                        await personalAnalytics.analyzeUserData(itemStorage.scannedItems)
                     }
                 }
             )
@@ -336,70 +350,87 @@ struct EnhancedHomeView: View {
     }
 
     private var personalInsightsView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "person.crop.circle.fill.badge.checkmark")
-                    .foregroundColor(.green)
-                Text("YOUR PERFORMANCE")
-                    .font(.headline)
+                Text("Your Performance")
+                    .font(.title2)
                     .fontWeight(.bold)
 
                 Spacer()
 
                 Button("Details") {
-                    showingFullInsights = true
+                    showingPersonalDetails = true
                 }
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundColor(.blue)
             }
 
-            if personalAnalytics.isLoadingInsights {
-                HStack {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .green))
-                        .scaleEffect(0.7)
-                    Text("Analyzing your patterns...")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
-            } else if let insights = personalAnalytics.insights {
-                VStack(spacing: 8) {
-                    PersonalInsightRow(
-                        title: "Strongest Category",
-                        value: insights.strongestCategory,
-                        color: .blue
-                    )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    // Card 1 - Items Scanned or Loading
+                    if personalAnalytics.isLoadingInsights {
+                        LoadingPerformanceCard()
+                    } else if let insights = personalAnalytics.insights {
+                        ItemsScannedCard(count: insights.totalItemsAnalyzed)
+                    } else {
+                        NoDataPerformanceCard(
+                            title: "Items Scanned",
+                            subtitle: "Start scanning",
+                            icon: "camera.fill",
+                            color: .blue
+                        )
+                    }
 
-                    PersonalInsightRow(
-                        title: "Success Rate",
-                        value: insights.successRate.percentage,
-                        color: insights.successRate.color
-                    )
+                    // Card 2 - Success Rate or Strongest Category
+                    if let insights = personalAnalytics.insights {
+                        SuccessRateCard(
+                            rate: insights.successRate.percentage,
+                            level: insights.skillLevel.displayText,
+                            color: insights.successRate.color
+                        )
+                    } else {
+                        NoDataPerformanceCard(
+                            title: "Success Rate",
+                            subtitle: "Track progress",
+                            icon: "chart.line.uptrend.xyaxis",
+                            color: .green
+                        )
+                    }
 
-                    PersonalInsightRow(
-                        title: "Skill Level",
-                        value: insights.skillLevel.displayText,
-                        color: insights.skillLevel.color
-                    )
-                }
+                    // Card 3 - Best Category or Daily Value
+                    if let insights = personalAnalytics.insights {
+                        BestCategoryCard(
+                            category: insights.strongestCategory,
+                            marketplace: insights.mostProfitableMarketplace
+                        )
+                    } else {
+                        NoDataPerformanceCard(
+                            title: "Performance",
+                            subtitle: "See insights",
+                            icon: "star.fill",
+                            color: .purple
+                        )
+                    }
 
-                // Next Recommendation
-                if !insights.nextRecommendation.isEmpty {
-                    InsightCard(
-                        title: "🎯 NEXT RECOMMENDATION",
-                        content: insights.nextRecommendation,
-                        color: .green
-                    )
+                    // Card 4 - AI Recommendation (if available)
+                    if let insights = personalAnalytics.insights, !insights.nextRecommendation.isEmpty {
+                        RecommendationPreviewCard(
+                            recommendation: insights.nextRecommendation
+                        )
+                    }
                 }
-            } else {
+                .padding(.horizontal)
+            }
+
+            // Action button if no insights yet
+            if personalAnalytics.insights == nil && !personalAnalytics.isLoadingInsights && !itemStorage.scannedItems.isEmpty {
                 Button(action: {
                     Task {
                         await personalAnalytics.analyzeUserData(itemStorage.scannedItems)
                     }
                 }) {
                     HStack {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
+                        Image(systemName: "brain.head.profile")
                             .foregroundColor(.green)
                         Text("Analyze My Performance")
                             .font(.subheadline)
@@ -414,9 +445,6 @@ struct EnhancedHomeView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding()
-        .background(Color.green.opacity(0.05))
-        .cornerRadius(12)
     }
 
     private var smartQuickActionsView: some View {
@@ -667,28 +695,6 @@ struct TrendingCategoryRow: View {
         .padding(.vertical, 2)
     }
 }
-
-//struct InsightCard: View {
-//    let title: String
-//    let content: String
-//    let color: Color
-//
-//    var body: some View {
-//        VStack(alignment: .leading, spacing: 4) {
-//            Text(title)
-//                .font(.caption)
-//                .fontWeight(.bold)
-//                .foregroundColor(color)
-//
-//            Text(content)
-//                .font(.subheadline)
-//                .foregroundColor(.primary)
-//        }
-//        .padding()
-//        .background(color.opacity(0.1))
-//        .cornerRadius(8)
-//    }
-//}
 
 struct PersonalInsightRow: View {
     let title: String
@@ -1430,36 +1436,554 @@ struct FullMarketInsightsView: View {
     }
 }
 
-struct DetailedTrendingRow: View {
-    let category: TrendingCategory
+// MARK: - Performance Cards (Your Performance Section)
+
+struct ItemsScannedCard: View {
+    let count: Int
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Image(systemName: "camera.fill")
+                .foregroundColor(.blue)
+                .font(.title2)
+
+            Text("Items Scanned")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text("\(count)")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text("Total analyzed")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.blue)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+struct SuccessRateCard: View {
+    let rate: String
+    let level: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .foregroundColor(color)
+                .font(.title2)
+
+            Text("Success Rate")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text(rate)
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+
+            Text(level)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(color)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+struct BestCategoryCard: View {
+    let category: String
+    let marketplace: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "star.fill")
+                .foregroundColor(.purple)
+                .font(.title2)
+
+            Text("Top Category")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text(category)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+
+            Text("via \(marketplace)")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.purple)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+struct RecommendationPreviewCard: View {
+    let recommendation: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "lightbulb.fill")
+                .foregroundColor(.orange)
+                .font(.title2)
+
+            Text("AI Tip")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text(recommendation.prefix(30) + "...")
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(3)
+
+            Text("Tap for more")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.orange)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+struct LoadingPerformanceCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .green))
+                .scaleEffect(0.8)
+
+            Text("Analyzing")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text("Performance")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text("Please wait...")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.green)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+struct NoDataPerformanceCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(color.opacity(0.6))
+                .font(.title2)
+
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text(subtitle)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.gray)
+                .lineLimit(2)
+
+            Text("Tap Details")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.blue)
+        }
+        .padding()
+        .frame(width: 140, height: 120, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.gray.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Personal Performance Detail View
+
+struct PersonalPerformanceView: View {
+    let insights: PersonalInsights?
+    let userStats: UserStats
+    let scannedItems: [ScannedItem]
+    let isLoading: Bool
+    let onRefresh: () -> Void
+
+    @Environment(\.presentationMode) var presentationMode
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    if isLoading {
+                        loadingSection
+                    } else if let insights = insights {
+                        performanceMetricsSection(insights: insights)
+                        trendsAndPatternsSection(insights: insights)
+                        recommendationsSection(insights: insights)
+                        recentActivitySection
+                    } else {
+                        noDataSection
+                    }
+
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .navigationTitle("Your Performance")
+            .navigationBarTitleDisplayMode(.large)
+            .navigationBarItems(
+                leading: Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing: Button("Refresh") {
+                    onRefresh()
+                }
+            )
+        }
+    }
+
+    private var loadingSection: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .green))
+                .scaleEffect(1.5)
+
+            Text("Analyzing Your Performance")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("AI is analyzing your scanning patterns, success rates, and opportunities...")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(16)
+    }
+
+    private func performanceMetricsSection(insights: PersonalInsights) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Performance Overview")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 16) {
+                MetricCard(title: "Items Scanned", value: "\(insights.totalItemsAnalyzed)", color: .blue, icon: "camera.fill")
+                MetricCard(title: "Success Rate", value: insights.successRate.percentage, color: insights.successRate.color, icon: "chart.line.uptrend.xyaxis")
+                MetricCard(title: "Skill Level", value: insights.skillLevel.displayText, color: insights.skillLevel.color, icon: "star.fill")
+                MetricCard(title: "Daily Value", value: "$\(String(format: "%.0f", insights.averageDailyValue))", color: .green, icon: "dollarsign.circle.fill")
+            }
+
+            // Additional metrics
+            VStack(spacing: 12) {
+                DetailMetricRow(title: "Strongest Category", value: insights.strongestCategory, icon: "tag.fill")
+                DetailMetricRow(title: "Best Marketplace", value: insights.mostProfitableMarketplace, icon: "crown.fill")
+                DetailMetricRow(title: "Scanning Pattern", value: insights.scanningPattern, icon: "calendar.circle.fill")
+                DetailMetricRow(title: "Optimal Timing", value: insights.marketTiming, icon: "clock.fill")
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+        }
+    }
+
+    private func trendsAndPatternsSection(insights: PersonalInsights) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Trends & Patterns")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            VStack(alignment: .leading, spacing: 12) {
+                TrendCard(
+                    title: "Category Performance",
+                    insight: "Your strongest area is \(insights.strongestCategory)",
+                    color: .blue
+                )
+
+                TrendCard(
+                    title: "Marketplace Success",
+                    insight: "\(insights.mostProfitableMarketplace) gives you the best results",
+                    color: .purple
+                )
+
+                TrendCard(
+                    title: "Activity Pattern",
+                    insight: insights.scanningPattern,
+                    color: .orange
+                )
+            }
+        }
+    }
+
+    private func recommendationsSection(insights: PersonalInsights) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("AI Recommendations")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            VStack(spacing: 12) {
+                ActionableRecommendationCard(
+                    title: "Next Steps",
+                    content: insights.nextRecommendation,
+                    actionText: "Start Scanning",
+                    color: .green
+                )
+
+                ActionableRecommendationCard(
+                    title: "Focus Area",
+                    content: insights.focusArea,
+                    actionText: "Learn More",
+                    color: .blue
+                )
+
+                ActionableRecommendationCard(
+                    title: "Profit Opportunity",
+                    content: insights.profitOpportunity,
+                    actionText: "Explore",
+                    color: .orange
+                )
+            }
+        }
+    }
+
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recent Activity")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            VStack(spacing: 8) {
+                ForEach(scannedItems.prefix(5)) { item in
+                    RecentActivityRow(item: item)
+                }
+            }
+        }
+    }
+
+    private var noDataSection: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "chart.xyaxis.line")
+                .font(.system(size: 60))
+                .foregroundColor(.gray.opacity(0.6))
+
+            Text("No Performance Data")
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text("Start scanning items to see your performance insights")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+
+            Button("Analyze Performance") {
+                onRefresh()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+}
+
+// MARK: - Performance Detail Components
+
+struct MetricCard: View {
+    let title: String
+    let value: String
+    let color: Color
+    let icon: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                    .font(.title3)
+                Spacer()
+            }
+
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct DetailMetricRow: View {
+    let title: String
+    let value: String
+    let icon: String
 
     var body: some View {
         HStack {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+                .frame(width: 20)
+
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+
+            Spacer()
+
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+        }
+    }
+}
+
+struct TrendCard: View {
+    let title: String
+    let insight: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            Text(insight)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct ActionableRecommendationCard: View {
+    let title: String
+    let content: String
+    let actionText: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title.uppercased())
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(color)
+
+                    Text(content)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+
+                Spacer()
+
+                Button(actionText) {
+                    // Action implementation
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(color.opacity(0.2))
+                .cornerRadius(6)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct RecentActivityRow: View {
+    let item: ScannedItem
+
+    var body: some View {
+        HStack {
+            // Item image placeholder
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "photo")
+                        .foregroundColor(.gray)
+                        .font(.caption)
+                )
+
             VStack(alignment: .leading, spacing: 2) {
-                Text(category.name)
+                Text(item.itemName)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .lineLimit(1)
 
-                Text(category.reason)
+                Text(item.formattedTimestamp)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
 
             Spacer()
 
-            Text(category.formattedChange)
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundColor(category.color)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(category.color.opacity(0.1))
-                .cornerRadius(6)
+            Text(item.estimatedValue)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.green)
         }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+        .padding(.vertical, 4)
     }
 }
 
@@ -1502,5 +2026,38 @@ struct RecommendationCard: View {
         .padding()
         .background(color.opacity(0.1))
         .cornerRadius(8)
+    }
+}
+
+struct DetailedTrendingRow: View {
+    let category: TrendingCategory
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(category.reason)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            Text(category.formattedChange)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(category.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(category.color.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
     }
 }
