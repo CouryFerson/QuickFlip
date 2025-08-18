@@ -3,7 +3,7 @@ import AVFoundation
 
 // MARK: - OpenAI Configuration
 struct OpenAIConfig {
-    static let apiKey = "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" // Replace with your actual API key
+    static let apiKey = "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" // Replace with your actual API key
     static let apiURL = "https://api.openai.com/v1/chat/completions"
 }
 
