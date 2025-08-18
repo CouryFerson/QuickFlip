@@ -20,7 +20,7 @@ struct ContentView: View {
 }
 
 // MARK: - Item Analysis Model
-struct ItemAnalysis {
+struct ItemAnalysis: Equatable {
     let itemName: String
     let condition: String
     let description: String
