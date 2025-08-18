@@ -13,7 +13,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            HomeView()
+            EnhancedHomeView()
                 .tabItem {
                     Image(systemName: "house.fill")
                     Text("Home")

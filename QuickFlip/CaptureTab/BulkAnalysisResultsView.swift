@@ -131,7 +131,7 @@ struct BulkAnalysisResultsView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: .constant(currentPresentationMode != .none), onDismiss: {
+        .sheet(isPresented: .constant(currentPresentationMode != .none), onDismiss: {
             currentPresentationMode = .none
         }) {
             Group {
