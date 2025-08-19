@@ -6,6 +6,7 @@ struct BarcodeCameraView: View {
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
     @State private var showingMarketplaceSelection = false
+    @State private var showTips = true
 
     var body: some View {
         NavigationView {
@@ -52,37 +53,43 @@ struct BarcodeCameraView: View {
 
                 // Top overlay with tips
                 VStack {
-                    // Tips Section
-                    VStack(spacing: 12) {
-                        Text("Scan Barcode")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                    // Tips Section with fade animation
+                    if showTips {
+                        VStack(spacing: 12) {
+                            Text("Scan Barcode")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
 
-                        VStack(spacing: 8) {
-                            TipRow(
-                                icon: "viewfinder",
-                                text: "Center barcode in the frame",
-                                color: .white
-                            )
+                            VStack(spacing: 8) {
+                                TipRow(
+                                    icon: "viewfinder",
+                                    text: "Center barcode in the frame",
+                                    color: .white
+                                )
 
-                            TipRow(
-                                icon: "lightbulb.fill",
-                                text: "Ensure good lighting on barcode",
-                                color: .white
-                            )
+                                TipRow(
+                                    icon: "lightbulb.fill",
+                                    text: "Ensure good lighting on barcode",
+                                    color: .white
+                                )
 
-                            TipRow(
-                                icon: "hand.raised.fill",
-                                text: "Hold steady until scan completes",
-                                color: .white
-                            )
+                                TipRow(
+                                    icon: "hand.raised.fill",
+                                    text: "Hold steady until scan completes",
+                                    color: .white
+                                )
+                            }
                         }
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(16)
+                        .padding(.horizontal)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .top)),
+                            removal: .opacity.combined(with: .move(edge: .top))
+                        ))
                     }
-                    .padding()
-                    .background(Color.black.opacity(0.7))
-                    .cornerRadius(16)
-                    .padding(.horizontal)
 
                     Spacer()
 
@@ -131,16 +138,17 @@ struct BarcodeCameraView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-                .foregroundColor(.white)
-            )
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             cameraController.requestCameraPermission()
+
+            // Fade out tips after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation(.easeOut(duration: 0.5)) {
+                    showTips = false
+                }
+            }
         }
         .onChange(of: cameraController.barcodeAnalysisResult) { _, result in
             if result != nil {
@@ -200,12 +208,12 @@ struct CornerBracket: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         Rectangle()
-                            .frame(width: 20, height: 3)
+                            .frame(width: 10, height: 3)
                         Spacer()
                     }
                     HStack(spacing: 0) {
                         Rectangle()
-                            .frame(width: 3, height: 20)
+                            .frame(width: 3, height: 10)
                         Spacer()
                     }
                     Spacer()
@@ -215,12 +223,12 @@ struct CornerBracket: View {
                     HStack(spacing: 0) {
                         Spacer()
                         Rectangle()
-                            .frame(width: 20, height: 3)
+                            .frame(width: 10, height: 3)
                     }
                     HStack(spacing: 0) {
                         Spacer()
                         Rectangle()
-                            .frame(width: 3, height: 20)
+                            .frame(width: 3, height: 10)
                     }
                     Spacer()
                 }
@@ -229,12 +237,12 @@ struct CornerBracket: View {
                     Spacer()
                     HStack(spacing: 0) {
                         Rectangle()
-                            .frame(width: 3, height: 20)
+                            .frame(width: 3, height: 10)
                         Spacer()
                     }
                     HStack(spacing: 0) {
                         Rectangle()
-                            .frame(width: 20, height: 3)
+                            .frame(width: 10, height: 3)
                         Spacer()
                     }
                 }
@@ -244,12 +252,12 @@ struct CornerBracket: View {
                     HStack(spacing: 0) {
                         Spacer()
                         Rectangle()
-                            .frame(width: 3, height: 20)
+                            .frame(width: 3, height: 10)
                     }
                     HStack(spacing: 0) {
                         Spacer()
                         Rectangle()
-                            .frame(width: 20, height: 3)
+                            .frame(width: 10, height: 3)
                     }
                 }
             }
