@@ -13,7 +13,8 @@ class BulkAnalysisService: ObservableObject {
     func analyzeBulkItems(image: UIImage) async throws -> BulkAnalysisResult {
         print("QuickFlip: Starting bulk analysis...")
 
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        let resizedImage = image.resize(maxDimension: 800)
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.5) else {
             print("QuickFlip: Failed to convert image to JPEG data")
             throw BulkAnalysisError.imageProcessingFailed
         }
@@ -62,7 +63,7 @@ class BulkAnalysisService: ObservableObject {
                         [
                             "type": "image_url",
                             "image_url": [
-                                "url": dataURL
+                                "url": dataURL,
                             ]
                         ]
                     ]

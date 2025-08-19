@@ -115,7 +115,7 @@ struct CaptureView: View {
             NavigationView {
                 CameraView(appState: appState)
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
+                        ToolbarItem(placement: .topBarTrailing) {
                             Button("Done") {
                                 showingCamera = false
                             }
@@ -127,7 +127,7 @@ struct CaptureView: View {
             NavigationView {
                 BulkCameraView(appState: appState)
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
+                        ToolbarItem(placement: .topBarTrailing) {
                             Button("Done") {
                                 showingBulkCamera = false
                             }
@@ -139,7 +139,7 @@ struct CaptureView: View {
             NavigationView {
                 BarcodeCameraView()
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
+                        ToolbarItem(placement: .topBarTrailing) {
                             Button("Done") {
                                 showingBarcodeCamera = false
                             }

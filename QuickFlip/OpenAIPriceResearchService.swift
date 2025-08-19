@@ -43,7 +43,7 @@ class OpenAIPriceResearchService: ObservableObject {
         """
 
         let requestBody: [String: Any] = [
-            "model": "gpt-4o",
+            "model": "gpt-4o-mini",
             "messages": [
                 [
                     "role": "user",

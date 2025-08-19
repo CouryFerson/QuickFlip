@@ -9,7 +9,8 @@ class BarcodeAnalysisService {
     }
 
     func analyzeBarcodeImage(_ image: UIImage) async throws -> ItemAnalysis {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        let resizedImage = image.resize(maxDimension: 800)
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.8) else {
             throw BarcodeAnalysisError.invalidImage
         }
 
@@ -72,7 +73,8 @@ class BarcodeAnalysisService {
                     [
                         "type": "image_url",
                         "image_url": [
-                            "url": "data:image/jpeg;base64,\(base64Image)"
+                            "url": "data:image/jpeg;base64,\(base64Image)",
+                            "detail": "low"
                         ]
                     ]
                 ]
@@ -80,7 +82,7 @@ class BarcodeAnalysisService {
         ]
 
         let requestBody: [String: Any] = [
-            "model": "gpt-4o",
+            "model": "gpt-4o-mini",
             "messages": messages,
             "max_tokens": 300,
             "temperature": 0.1 // Lower temperature for more accurate barcode reading

@@ -109,7 +109,8 @@ class CameraController: NSObject, ObservableObject {
 
 extension CameraController {
     private func analyzeImage(_ image: UIImage) {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        let resizedImage = image.resize(maxDimension: 800)
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.5) else {
             DispatchQueue.main.async {
                 self.isAnalyzing = false
                 print("QuickFlip: Failed to process image")
@@ -118,6 +119,7 @@ extension CameraController {
         }
 
         let base64Image = imageData.base64EncodedString()
+        print("QuickFlip: Image size: \(imageData.count) bytes")
         let dataURL = "data:image/jpeg;base64,\(base64Image)"
 
         let prompt = """
@@ -145,7 +147,7 @@ extension CameraController {
                         [
                             "type": "image_url",
                             "image_url": [
-                                "url": dataURL
+                                "url": dataURL,
                             ]
                         ]
                     ]
@@ -486,5 +488,21 @@ class BarcodeCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
 
         // Call the barcode analysis
         controller.analyzeBarcodeImage(image)
+    }
+}
+
+extension UIImage {
+    func resize(maxDimension: CGFloat = 800) -> UIImage {
+        let size = size
+        let ratio = min(maxDimension / size.width, maxDimension / size.height)
+
+        if ratio >= 1 { return self }
+
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }
