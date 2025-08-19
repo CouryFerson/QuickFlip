@@ -12,6 +12,7 @@ struct CaptureView: View {
     @State private var showingImagePicker = false
     @State private var showingCamera = false
     @State private var showingBulkCamera = false
+    @State private var showingBarcodeCamera = false
 
     var body: some View {
         NavigationView {
@@ -58,25 +59,25 @@ struct CaptureView: View {
                             showingBulkCamera = true
                         }
 
-                        // Upload from Gallery
-                        CaptureOptionCard(
-                            title: "Upload Photo",
-                            subtitle: "Choose from photo library",
-                            icon: "photo.fill",
-                            color: .green
-                        ) {
-                            showingImagePicker = true
-                        }
-
                         // Barcode Scanner (Future feature)
                         CaptureOptionCard(
                             title: "Scan Barcode",
                             subtitle: "Quick lookup for products",
                             icon: "barcode.viewfinder",
-                            color: .orange,
+                            color: .orange
+                        ) {
+                            showingBarcodeCamera = true
+                        }
+
+                        // Upload from Gallery
+                        CaptureOptionCard(
+                            title: "Upload Photo",
+                            subtitle: "Choose from photo library",
+                            icon: "photo.fill",
+                            color: .green,
                             isComingSoon: true
                         ) {
-                            // TODO: Implement barcode scanning
+                            showingImagePicker = true
                         }
                     }
                     .padding(.horizontal)
@@ -129,6 +130,18 @@ struct CaptureView: View {
                         ToolbarItem(placement: .navigationBarLeading) {
                             Button("Done") {
                                 showingBulkCamera = false
+                            }
+                        }
+                    }
+            }
+        }
+        .fullScreenCover(isPresented: $showingBarcodeCamera) {
+            NavigationView {
+                BarcodeCameraView()
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Done") {
+                                showingBarcodeCamera = false
                             }
                         }
                     }

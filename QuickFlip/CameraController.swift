@@ -14,6 +14,11 @@ class CameraController: NSObject, ObservableObject {
     @Published var analysisResult: ItemAnalysis?
     @Published var showPermissionAlert = false
     @Published var lastCapturedImage: UIImage?
+    @Published var isBarcodeAnalyzing = false
+    @Published var barcodeAnalysisResult: ItemAnalysis?
+
+    // refactor to use better delegation pattern
+    private var barcodeCaptureDelegate: BarcodeCaptureDelegate?
 
     var itemStorage: ItemStorageService?
     private var photoOutput = AVCapturePhotoOutput()
@@ -87,6 +92,7 @@ class CameraController: NSObject, ObservableObject {
 
         photoOutput.capturePhoto(with: settings, delegate: self)
     }
+
 
     func captureBulkPhoto(delegate: AVCapturePhotoCaptureDelegate) {
         let settings = AVCapturePhotoSettings()
@@ -356,5 +362,129 @@ extension CameraController: AVCapturePhotoCaptureDelegate {
         }
 
         analyzeImage(image)
+    }
+}
+
+// Add these properties and methods to your CameraController class
+
+extension CameraController {
+    // MARK: - Barcode Photo Capture and Analysis
+    func captureBarcodePhoto() {
+        print("QuickFlip: captureBarcodePhoto() called")
+        guard !isBarcodeAnalyzing else {
+            print("QuickFlip: Already analyzing, returning")
+            return
+        }
+
+        print("QuickFlip: Starting barcode analysis")
+        isBarcodeAnalyzing = true
+        barcodeAnalysisResult = nil
+
+        let settings = AVCapturePhotoSettings()
+        settings.flashMode = .auto
+
+        // Store the delegate to keep it alive
+        barcodeCaptureDelegate = BarcodeCaptureDelegate(controller: self)
+
+        print("QuickFlip: About to capture photo with delegate")
+        photoOutput.capturePhoto(with: settings, delegate: barcodeCaptureDelegate!)
+    }
+
+    // MARK: - Barcode Analysis using BarcodeAnalysisService
+    func analyzeBarcodeImage(_ image: UIImage) {
+        // Store the captured image for potential saving later
+        DispatchQueue.main.async {
+            self.lastCapturedImage = image
+        }
+
+        Task {
+            do {
+                let barcodeService = BarcodeAnalysisService(apiKey: OpenAIConfig.apiKey)
+                let analysis = try await barcodeService.analyzeBarcodeImage(image)
+
+                await MainActor.run {
+                    self.barcodeAnalysisResult = analysis
+                    self.isBarcodeAnalyzing = false
+
+                    // Optionally auto-save like regular analysis
+                    if let storage = self.itemStorage {
+                        self.saveBarcodeAnalyzedItem(analysis: analysis, image: image, storage: storage)
+                    }
+                }
+
+            } catch {
+                await MainActor.run {
+                    self.isBarcodeAnalyzing = false
+                    print("QuickFlip: Barcode analysis error: \(error)")
+                }
+            }
+        }
+    }
+
+    private func saveBarcodeAnalyzedItem(analysis: ItemAnalysis, image: UIImage, storage: ItemStorageService) {
+        let basePrice = extractPrice(from: analysis.estimatedValue)
+
+        let defaultPrices: [Marketplace: Double] = [
+            .ebay: basePrice,
+            .mercari: basePrice * 0.9,
+            .facebook: basePrice * 0.8,
+            .amazon: basePrice * 1.1,
+            .stockx: basePrice * 1.2
+        ]
+
+        let defaultAnalysis = MarketplacePriceAnalysis(
+            recommendedMarketplace: .ebay,
+            confidence: .medium,
+            averagePrices: defaultPrices,
+            reasoning: "Barcode scanned - tap to select marketplace"
+        )
+
+        let scannedItem = ScannedItem(
+            itemName: analysis.itemName,
+            category: analysis.category,
+            condition: analysis.condition,
+            description: analysis.description,
+            estimatedValue: analysis.estimatedValue,
+            image: image,
+            priceAnalysis: defaultAnalysis
+        )
+
+        storage.saveItem(scannedItem)
+        print("QuickFlip: Auto-saved barcode item '\(analysis.itemName)'")
+    }
+}
+
+// MARK: - Barcode Capture Delegate
+class BarcodeCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    weak var controller: CameraController?
+
+    init(controller: CameraController) {
+        self.controller = controller
+    }
+
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        print("QuickFlip: BarcodeCaptureDelegate photoOutput called")
+        // ... rest of function
+        guard let controller = controller else { return }
+
+        if let error = error {
+            DispatchQueue.main.async {
+                controller.isBarcodeAnalyzing = false
+                print("QuickFlip: Barcode capture error: \(error)")
+            }
+            return
+        }
+
+        guard let imageData = photo.fileDataRepresentation(),
+              let image = UIImage(data: imageData) else {
+            DispatchQueue.main.async {
+                controller.isBarcodeAnalyzing = false
+                print("QuickFlip: Failed to capture barcode image")
+            }
+            return
+        }
+
+        // Call the barcode analysis
+        controller.analyzeBarcodeImage(image)
     }
 }
