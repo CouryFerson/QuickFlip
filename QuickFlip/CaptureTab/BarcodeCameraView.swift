@@ -3,13 +3,14 @@ import AVFoundation
 
 struct BarcodeCameraView: View {
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
     @State private var showingMarketplaceSelection = false
     @State private var showTips = true
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Camera Feed
                 CameraPreview(cameraController: cameraController)
@@ -138,10 +139,24 @@ struct BarcodeCameraView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .navigationViewStyle(StackNavigationViewStyle())
+
+            .navigationDestination(isPresented: $showingMarketplaceSelection) {
+                if let itemAnalysis = cameraController.barcodeAnalysisResult,
+                   let capturedImage = cameraController.lastCapturedImage {
+                    NavigationView {
+                        MarketplaceSelectionView(
+                            itemAnalysis: itemAnalysis,
+                            capturedImage: capturedImage
+                        )
+                        .environmentObject(itemStorage)
+                    }
+                }
+            }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             cameraController.requestCameraPermission()
+            cameraController.itemStorage = itemStorage
 
             // Fade out tips after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -153,23 +168,6 @@ struct BarcodeCameraView: View {
         .onChange(of: cameraController.barcodeAnalysisResult) { _, result in
             if result != nil {
                 showingMarketplaceSelection = true
-            }
-        }
-        .fullScreenCover(isPresented: $showingMarketplaceSelection) {
-            if let itemAnalysis = cameraController.barcodeAnalysisResult,
-               let capturedImage = cameraController.lastCapturedImage {
-                NavigationView {
-                    MarketplaceSelectionView(
-                        itemAnalysis: itemAnalysis,
-                        capturedImage: capturedImage
-                    )
-                    .navigationBarItems(
-                        leading: Button("Back") {
-                            showingMarketplaceSelection = false
-                            cameraController.barcodeAnalysisResult = nil
-                        }
-                    )
-                }
             }
         }
     }
