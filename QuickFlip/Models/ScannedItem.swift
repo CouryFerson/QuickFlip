@@ -58,6 +58,10 @@ struct ScannedItem: Codable, Identifiable {
     var daysSinceScanned: Int {
         Calendar.current.dateComponents([.day], from: timestamp, to: Date()).day ?? 0
     }
+
+    var categoryName: String? {
+        category.components(separatedBy: ">").last
+    }
 }
 
 // MARK: - Storable Price Analysis (Codable version)

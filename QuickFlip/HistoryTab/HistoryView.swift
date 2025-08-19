@@ -10,6 +10,7 @@ struct HistoryView: View {
     @State private var searchText = ""
     @State private var selectedSegment = 0
     @State private var showingExportSheet = false
+    @State private var showingDetailView = false
     @State private var showingDetailItem: ScannedItem?
 
     // Segmented control options
@@ -37,7 +38,7 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
                     if itemStorage.isEmpty {
@@ -72,6 +73,12 @@ struct HistoryView: View {
                                 Image(systemName: "square.and.arrow.up")
                             }
                         }
+                    }
+                }
+                .navigationDestination(isPresented: $showingDetailView) {
+                    if let item = showingDetailItem {
+                        ItemDetailView(item: item)
+                            .environmentObject(itemStorage)
                     }
                 }
             }
@@ -494,7 +501,10 @@ struct ItemDetailView: View {
                             .fontWeight(.bold)
 
                         HStack {
-                            CategoryBadge(category: item.category)
+                            if let categoryName = item.categoryName {
+                                CategoryBadge(category: categoryName)
+                            }
+
                             ConditionBadge(condition: item.condition)
                             Spacer()
                         }
