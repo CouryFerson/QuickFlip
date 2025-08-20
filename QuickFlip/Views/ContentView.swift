@@ -7,17 +7,6 @@ struct OpenAIConfig {
     static let apiURL = "https://api.openai.com/v1/chat/completions"
 }
 
-// MARK: - Content View (Navigation)
-
-struct ContentView: View {
-    @StateObject private var appState = AppState()
-
-    var body: some View {
-        NavigationStack {
-            CameraView(appState: appState)
-        }
-    }
-}
 
 // MARK: - Item Analysis Model
 struct ItemAnalysis: Equatable {

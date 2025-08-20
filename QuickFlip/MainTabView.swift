@@ -19,7 +19,7 @@ struct MainTabView: View {
                     Text("Home")
                 }
 
-            CaptureView(appState: appState)
+            CaptureCoordinatorView()
                 .tabItem {
                     Image(systemName: "camera.fill")
                     Text("Capture")

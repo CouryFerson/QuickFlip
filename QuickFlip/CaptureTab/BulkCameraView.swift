@@ -9,13 +9,13 @@ import AVFoundation
 import SwiftUI
 
 struct BulkCameraView: View {
+    let cameraAction: (BulkAnalysisResult) -> Void
+
     @StateObject private var cameraController = CameraController()
     @StateObject private var bulkAnalysisService = BulkAnalysisService()
-    let appState: AppState
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var isAnalyzing = false
     @State private var bulkResult: BulkAnalysisResult?
-    @State private var showingResults = false
     @State private var photoDelegate: BulkPhotoDelegate?
 
     var body: some View {
@@ -129,12 +129,6 @@ struct BulkCameraView: View {
         } message: {
             Text("QuickFlip needs camera access to analyze items.")
         }
-        .fullScreenCover(isPresented: $showingResults) {
-            if let result = bulkResult {
-                BulkAnalysisResultsView(result: result)
-                    .environmentObject(itemStorage)
-            }
-        }
     }
 
     private func captureAndAnalyze() {
@@ -165,7 +159,7 @@ struct BulkCameraView: View {
                         self.bulkResult = result
                         self.isAnalyzing = false
                         self.photoDelegate = nil // Clean up
-                        self.showingResults = true
+                        cameraAction(result)
                     }
 
                 } catch {

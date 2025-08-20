@@ -27,26 +27,6 @@ class AppState: ObservableObject {
         showingMarketplaceSelection = true
     }
 
-    func createListing(from analysis: ItemAnalysis, image: UIImage, for marketplace: Marketplace) {
-        capturedImage = image
-        selectedMarketplace = marketplace
-        currentListing = EbayListing(
-            title: analysis.itemName,
-            description: analysis.description,
-            category: analysis.category,
-            condition: analysis.condition,
-            startingPrice: AppState.extractStartingPrice(from: analysis.estimatedValue),
-            buyItNowPrice: AppState.extractBuyItNowPrice(from: analysis.estimatedValue),
-            listingType: .buyItNow,
-            duration: 7,
-            shippingCost: 0.0,
-            returnsAccepted: true,
-            returnPeriod: 30,
-            photos: [image]
-        )
-        showingMarketplaceSelection = false
-    }
-
     func resetToCamera() {
         currentListing = nil
         capturedImage = nil

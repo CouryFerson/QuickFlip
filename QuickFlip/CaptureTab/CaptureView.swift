@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct CaptureView: View {
-    @ObservedObject var appState: AppState
+    let captureSingleItemAction: () -> Void
+    let captureBulktemsAction: () -> Void
+    let captureBarcodeAction: () -> Void
+
     @State private var showingImagePicker = false
-    @State private var showingCamera = false
-    @State private var showingBulkCamera = false
-    @State private var showingBarcodeCamera = false
 
     var body: some View {
         NavigationView {
@@ -45,7 +45,7 @@ struct CaptureView: View {
                             color: .blue,
                             isRecommended: false
                         ) {
-                            showingCamera = true
+                            captureSingleItemAction()
                         }
 
                         // Bulk Analysis Option (NEW!)
@@ -56,7 +56,7 @@ struct CaptureView: View {
                             color: .purple,
                             isRecommended: true
                         ) {
-                            showingBulkCamera = true
+                            captureBulktemsAction()
                         }
 
                         // Barcode Scanner (Future feature)
@@ -66,7 +66,7 @@ struct CaptureView: View {
                             icon: "barcode.viewfinder",
                             color: .orange
                         ) {
-                            showingBarcodeCamera = true
+                            captureBarcodeAction()
                         }
 
                         // Upload from Gallery
@@ -110,42 +110,6 @@ struct CaptureView: View {
                 }
             }
             .navigationBarHidden(true)
-        }
-        .fullScreenCover(isPresented: $showingCamera) {
-            NavigationView {
-                CameraView(appState: appState)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                showingCamera = false
-                            }
-                        }
-                    }
-            }
-        }
-        .fullScreenCover(isPresented: $showingBulkCamera) {
-            NavigationView {
-                BulkCameraView(appState: appState)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                showingBulkCamera = false
-                            }
-                        }
-                    }
-            }
-        }
-        .fullScreenCover(isPresented: $showingBarcodeCamera) {
-            NavigationView {
-                BarcodeCameraView()
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                showingBarcodeCamera = false
-                            }
-                        }
-                    }
-            }
         }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker { image in
@@ -300,12 +264,5 @@ struct ImagePicker: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.presentationMode.wrappedValue.dismiss()
         }
-    }
-}
-
-// MARK: - Preview
-struct CaptureView_Previews: PreviewProvider {
-    static var previews: some View {
-        CaptureView(appState: AppState())
     }
 }

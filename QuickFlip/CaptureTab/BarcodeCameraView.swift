@@ -2,158 +2,142 @@ import SwiftUI
 import AVFoundation
 
 struct BarcodeCameraView: View {
-    @Environment(\.presentationMode) var presentationMode
+    let captureAction: (ItemAnalysis, UIImage) -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
-    @State private var showingMarketplaceSelection = false
     @State private var showTips = true
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Camera Feed
-                CameraPreview(cameraController: cameraController)
-                    .ignoresSafeArea()
+        ZStack {
+            // Camera Feed
+            CameraPreview(cameraController: cameraController)
+                .ignoresSafeArea()
 
-                // Scanning Reticle
-                VStack {
-                    Spacer()
+            // Scanning Reticle
+            VStack {
+                Spacer()
 
-                    ZStack {
-                        // Reticle Frame
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.green, lineWidth: 3)
-                            .frame(width: 280, height: 140)
-                            .background(Color.clear)
-
-                        // Corner brackets
-                        VStack {
-                            HStack {
-                                CornerBracket(position: .topLeft)
-                                Spacer()
-                                CornerBracket(position: .topRight)
-                            }
-                            Spacer()
-                            HStack {
-                                CornerBracket(position: .bottomLeft)
-                                Spacer()
-                                CornerBracket(position: .bottomRight)
-                            }
-                        }
+                ZStack {
+                    // Reticle Frame
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.green, lineWidth: 3)
                         .frame(width: 280, height: 140)
+                        .background(Color.clear)
 
-                        // Scanning animation line
-                        if !cameraController.isBarcodeAnalyzing {
-                            ScanningLine()
+                    // Corner brackets
+                    VStack {
+                        HStack {
+                            CornerBracket(position: .topLeft)
+                            Spacer()
+                            CornerBracket(position: .topRight)
+                        }
+                        Spacer()
+                        HStack {
+                            CornerBracket(position: .bottomLeft)
+                            Spacer()
+                            CornerBracket(position: .bottomRight)
                         }
                     }
+                    .frame(width: 280, height: 140)
 
-                    Spacer()
+                    // Scanning animation line
+                    if !cameraController.isBarcodeAnalyzing {
+                        ScanningLine()
+                    }
                 }
 
-                // Top overlay with tips
-                VStack {
-                    // Tips Section with fade animation
-                    if showTips {
-                        VStack(spacing: 12) {
-                            Text("Scan Barcode")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-
-                            VStack(spacing: 8) {
-                                TipRow(
-                                    icon: "viewfinder",
-                                    text: "Center barcode in the frame",
-                                    color: .white
-                                )
-
-                                TipRow(
-                                    icon: "lightbulb.fill",
-                                    text: "Ensure good lighting on barcode",
-                                    color: .white
-                                )
-
-                                TipRow(
-                                    icon: "hand.raised.fill",
-                                    text: "Hold steady until scan completes",
-                                    color: .white
-                                )
-                            }
-                        }
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(16)
-                        .padding(.horizontal)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .top)),
-                            removal: .opacity.combined(with: .move(edge: .top))
-                        ))
-                    }
-
-                    Spacer()
-
-                    // Bottom controls area
-                    VStack(spacing: 16) {
-                        // Error message
-                        if let errorMessage = errorMessage {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundColor(.red)
-                                .padding()
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(8)
-                                .padding(.horizontal)
-                        }
-
-                        // Capture button
-                        Button(action: {
-                            cameraController.captureBarcodePhoto()
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 80, height: 80)
-
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 3)
-                                    .frame(width: 95, height: 95)
-
-                                if cameraController.isBarcodeAnalyzing {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
-                                        .scaleEffect(1.2)
-                                } else {
-                                    Image(systemName: "barcode.viewfinder")
-                                        .font(.title)
-                                        .foregroundColor(.black)
-                                }
-                            }
-                        }
-                        .disabled(cameraController.isBarcodeAnalyzing)
-                        .scaleEffect(cameraController.isBarcodeAnalyzing ? 0.9 : 1.0)
-                        .animation(.easeInOut(duration: 0.1), value: cameraController.isBarcodeAnalyzing)
-                    }
-                    .padding(.bottom, 50)
-                }
+                Spacer()
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationViewStyle(StackNavigationViewStyle())
 
-            .navigationDestination(isPresented: $showingMarketplaceSelection) {
-                if let itemAnalysis = cameraController.barcodeAnalysisResult,
-                   let capturedImage = cameraController.lastCapturedImage {
-                    NavigationView {
-                        MarketplaceSelectionView(
-                            itemAnalysis: itemAnalysis,
-                            capturedImage: capturedImage
-                        )
-                        .environmentObject(itemStorage)
+            // Top overlay with tips
+            VStack {
+                // Tips Section with fade animation
+                if showTips {
+                    VStack(spacing: 12) {
+                        Text("Scan Barcode")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+
+                        VStack(spacing: 8) {
+                            TipRow(
+                                icon: "viewfinder",
+                                text: "Center barcode in the frame",
+                                color: .white
+                            )
+
+                            TipRow(
+                                icon: "lightbulb.fill",
+                                text: "Ensure good lighting on barcode",
+                                color: .white
+                            )
+
+                            TipRow(
+                                icon: "hand.raised.fill",
+                                text: "Hold steady until scan completes",
+                                color: .white
+                            )
+                        }
                     }
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
                 }
+
+                Spacer()
+
+                // Bottom controls area
+                VStack(spacing: 16) {
+                    // Error message
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+                    }
+
+                    // Capture button
+                    Button(action: {
+                        cameraController.captureBarcodePhoto()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 80, height: 80)
+
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3)
+                                .frame(width: 95, height: 95)
+
+                            if cameraController.isBarcodeAnalyzing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .scaleEffect(1.2)
+                            } else {
+                                Image(systemName: "barcode.viewfinder")
+                                    .font(.title)
+                                    .foregroundColor(.black)
+                            }
+                        }
+                    }
+                    .disabled(cameraController.isBarcodeAnalyzing)
+                    .scaleEffect(cameraController.isBarcodeAnalyzing ? 0.9 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: cameraController.isBarcodeAnalyzing)
+                }
+                .padding(.bottom, 50)
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
@@ -166,8 +150,9 @@ struct BarcodeCameraView: View {
             }
         }
         .onChange(of: cameraController.barcodeAnalysisResult) { _, result in
-            if result != nil {
-                showingMarketplaceSelection = true
+            if let itemAnalysis = cameraController.barcodeAnalysisResult,
+               let capturedImage = cameraController.lastCapturedImage {
+                captureAction(itemAnalysis, capturedImage)
             }
         }
     }

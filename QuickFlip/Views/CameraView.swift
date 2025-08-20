@@ -8,14 +8,13 @@
 import SwiftUI
 
 struct CameraView: View {
+    let captureAction: (ItemAnalysis, UIImage) -> Void
     @StateObject private var cameraController = CameraController()
-    let appState: AppState
     @EnvironmentObject var itemStorage: ItemStorageService
-    @State private var navigateToMarketplace = false
+    @State private var isToolbarHidden = true
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -113,22 +112,16 @@ struct CameraView: View {
                 }
                 .disabled(cameraController.isAnalyzing)
                 .padding(.bottom, 40)
-                }
-            }
-            .navigationDestination(isPresented: $navigateToMarketplace) {
-                if let result = cameraController.analysisResult,
-                   let image = cameraController.lastCapturedImage {
-                    MarketplaceSelectionView(
-                        itemAnalysis: result,
-                        capturedImage: image
-                    )
-                    .environmentObject(itemStorage)
-                }
             }
         }
+        
+        .toolbarVisibility(isToolbarHidden ? .hidden : .visible, for: .tabBar)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
+        }
+        .onDisappear {
+            isToolbarHidden = false
         }
         .alert("Camera Permission Required", isPresented: $cameraController.showPermissionAlert) {
             Button("Settings") {
@@ -139,8 +132,9 @@ struct CameraView: View {
             Text("QuickFlip needs camera access to identify items.")
         }
         .onChange(of: cameraController.analysisResult) { _, newResult in
-            if newResult != nil && cameraController.lastCapturedImage != nil && !navigateToMarketplace {
-                navigateToMarketplace = true
+            if let result = cameraController.analysisResult,
+               let image = cameraController.lastCapturedImage {
+                captureAction(result, image)
             }
         }
     }

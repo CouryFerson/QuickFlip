@@ -52,7 +52,6 @@ public struct HomeCoordinatorView: View {
     }
 }
 
-
 final class Router<T: Hashable>: ObservableObject {
     @Published var paths: [T] = []
 
