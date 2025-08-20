@@ -213,6 +213,10 @@ struct MarketplaceSelectionView: View {
                 EtsyUploadView(listing: EtsyListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .amazon {
                 AmazonPrepView(listing: AmazonListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+            } else if marketplace == .facebook {
+                FacebookMarketplaceView(listing: FacebookListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+            } else if marketplace == .stockx {
+                StockXPrepView(listing: StockXListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
             } else {
                 ListingPreparationView(
                     itemAnalysis: itemAnalysis,
