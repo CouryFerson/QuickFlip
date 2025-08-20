@@ -1,5 +1,5 @@
 //
-//  Enhanced HistoryView with iOS Native Design
+//  Enhanced HistoryView with iOS Native Design + Bulk Delete
 //  QuickFlip
 //
 
@@ -12,6 +12,11 @@ struct HistoryView: View {
     @State private var showingExportSheet = false
     @State private var showingDetailView = false
     @State private var showingDetailItem: ScannedItem?
+
+    // Bulk delete states
+    @State private var isEditMode = false
+    @State private var selectedItems = Set<UUID>()
+    @State private var showingBulkDeleteAlert = false
 
     // Segmented control options
     private let segments = ["All", "Recent", "Profitable", "eBay", "StockX"]
@@ -37,6 +42,10 @@ struct HistoryView: View {
         }
     }
 
+    var allItemsSelected: Bool {
+        !filteredItems.isEmpty && selectedItems.count == filteredItems.count
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -45,18 +54,24 @@ struct HistoryView: View {
                         EmptyHistoryView()
                     } else {
                         // Stats Header (keeping your design)
-                        statsHeaderView
+                        if !isEditMode {
+                            statsHeaderView
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
 
                         // Search and Filter Section
-                        VStack(spacing: 16) {
-                            // Search Bar
-                            searchBarView
+                        if !isEditMode {
+                            VStack(spacing: 16) {
+                                // Search Bar
+                                searchBarView
 
-                            // Segmented Control
-                            segmentedControlView
+                                // Segmented Control
+                                segmentedControlView
+                            }
+                            .padding()
+                            .background(Color(.systemGroupedBackground))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
-                        .padding()
-                        .background(Color(.systemGroupedBackground))
 
                         // Items List
                         itemsListView
@@ -65,12 +80,43 @@ struct HistoryView: View {
                 .navigationTitle("History")
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
+                    ToolbarItemGroup(placement: .navigationBarLeading) {
+                        if isEditMode {
+                            Button(allItemsSelected ? "Deselect All" : "Select All") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    if allItemsSelected {
+                                        selectedItems.removeAll()
+                                    } else {
+                                        selectedItems = Set(filteredItems.map { $0.id })
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     ToolbarItemGroup(placement: .navigationBarTrailing) {
                         if !itemStorage.isEmpty {
-                            Button {
-                                showingExportSheet = true
-                            } label: {
-                                Image(systemName: "square.and.arrow.up")
+                            if isEditMode {
+                                Button("Done") {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        isEditMode = false
+                                        selectedItems.removeAll()
+                                    }
+                                }
+                            } else {
+                                HStack {
+                                    Button("Edit") {
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            isEditMode = true
+                                        }
+                                    }
+
+                                    Button {
+                                        showingExportSheet = true
+                                    } label: {
+                                        Image(systemName: "square.and.arrow.up")
+                                    }
+                                }
                             }
                         }
                     }
@@ -82,7 +128,14 @@ struct HistoryView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if isEditMode && !selectedItems.isEmpty {
+                    bulkActionToolbar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: isEditMode)
         .sheet(isPresented: $showingExportSheet) {
             ExportDataView()
                 .environmentObject(itemStorage)
@@ -90,6 +143,14 @@ struct HistoryView: View {
         .sheet(item: $showingDetailItem) { item in
             ItemDetailView(item: item)
                 .environmentObject(itemStorage)
+        }
+        .alert("Delete Items", isPresented: $showingBulkDeleteAlert) {
+            Button("Delete \(selectedItems.count) Item\(selectedItems.count == 1 ? "" : "s")", role: .destructive) {
+                performBulkDelete()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete \(selectedItems.count) item\(selectedItems.count == 1 ? "" : "s")? This action cannot be undone.")
         }
     }
 
@@ -170,15 +231,78 @@ struct HistoryView: View {
     private var itemsListView: some View {
         LazyVStack(spacing: 12) {
             ForEach(filteredItems) { item in
-                EnhancedHistoryItemCard(item: item) {
-                    showingDetailItem = item
-                }
+                EnhancedHistoryItemCard(
+                    item: item,
+                    isEditMode: isEditMode,
+                    isSelected: selectedItems.contains(item.id),
+                    onTap: {
+                        if isEditMode {
+                            toggleSelection(for: item)
+                        } else {
+                            showingDetailItem = item
+                        }
+                    },
+                    onToggleSelection: {
+                        toggleSelection(for: item)
+                    }
+                )
                 .environmentObject(itemStorage)
             }
         }
         .padding()
         .padding(.bottom, 20)
         .background(Color(.systemGroupedBackground))
+    }
+
+    private var bulkActionToolbar: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            HStack {
+                Spacer()
+
+                Button {
+                    showingBulkDeleteAlert = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trash")
+                        Text("Delete (\(selectedItems.count))")
+                    }
+                    .foregroundColor(.red)
+                    .font(.system(size: 17, weight: .medium))
+                }
+                .disabled(selectedItems.isEmpty)
+
+                Spacer()
+            }
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func toggleSelection(for item: ScannedItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if selectedItems.contains(item.id) {
+                selectedItems.remove(item.id)
+            } else {
+                selectedItems.insert(item.id)
+            }
+        }
+    }
+
+    private func performBulkDelete() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            let itemsToDelete = itemStorage.scannedItems.filter { selectedItems.contains($0.id) }
+
+            for item in itemsToDelete {
+                itemStorage.deleteItem(item)
+            }
+
+            selectedItems.removeAll()
+            isEditMode = false
+        }
     }
 }
 
@@ -224,11 +348,15 @@ struct EnhancedStatCard: View {
     }
 }
 
-// MARK: - Enhanced History Item Card (iOS Native Style)
+// MARK: - Enhanced History Item Card (iOS Native Style with Selection)
 
 struct EnhancedHistoryItemCard: View {
     let item: ScannedItem
+    let isEditMode: Bool
+    let isSelected: Bool
     let onTap: () -> Void
+    let onToggleSelection: () -> Void
+
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var showingActionSheet = false
     @State private var showingDeleteAlert = false
@@ -236,6 +364,29 @@ struct EnhancedHistoryItemCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
+                // Selection Circle (like iOS Mail)
+                if isEditMode {
+                    Button(action: onToggleSelection) {
+                        ZStack {
+                            Circle()
+                                .stroke(isSelected ? Color.blue : Color.gray, lineWidth: 2)
+                                .frame(width: 24, height: 24)
+
+                            if isSelected {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 24, height: 24)
+
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
+                }
+
                 // Item Image
                 itemImageView
 
@@ -267,15 +418,18 @@ struct EnhancedHistoryItemCard: View {
 
                     MarketplaceBadge(marketplace: item.priceAnalysis.recommendedMarketplace)
 
-                    Button {
-                        showingActionSheet = true
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .resizable()
-                            .foregroundColor(.gray)
-                            .frame(width: 24, height: 24)
+                    if !isEditMode {
+                        Button {
+                            showingActionSheet = true
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .resizable()
+                                .foregroundColor(.gray)
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .transition(.opacity.combined(with: .scale))
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
             }
             .padding()
@@ -283,9 +437,15 @@ struct EnhancedHistoryItemCard: View {
         .buttonStyle(PlainButtonStyle())
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(isSelected && isEditMode ? Color.blue.opacity(0.1) : Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isSelected && isEditMode ? Color.blue : Color.clear, lineWidth: 2)
+                )
                 .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
         )
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .animation(.easeInOut(duration: 0.3), value: isEditMode)
         .confirmationDialog("Item Actions", isPresented: $showingActionSheet, titleVisibility: .visible) {
             Button("Re-analyze Prices") {
                 // TODO: Re-run price analysis
