@@ -86,7 +86,7 @@ struct CameraView: View {
 
                     // Capture button
                     Button(action: {
-                        cameraController.captureBarcodePhoto()
+                        cameraController.capturePhoto()
                     }) {
                         ZStack {
                             Circle()
@@ -97,7 +97,7 @@ struct CameraView: View {
                                 .stroke(Color.white, lineWidth: 3)
                                 .frame(width: 95, height: 95)
 
-                            if cameraController.isBarcodeAnalyzing {
+                            if cameraController.isAnalyzing {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .black))
                                     .scaleEffect(1.2)
