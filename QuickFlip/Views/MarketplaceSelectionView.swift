@@ -152,23 +152,7 @@ struct MarketplaceSelectionView: View {
                     GridItem(.flexible())
                 ], spacing: 16) {
                     ForEach(Marketplace.allCases) { marketplace in
-                        NavigationLink(
-                            destination: ListingPreparationView(
-                                itemAnalysis: itemAnalysis,
-                                capturedImage: capturedImage,
-                                selectedMarketplace: marketplace
-                            )
-                            .onAppear {
-                                // Save the item when user selects a marketplace manually
-                                saveScannedItem(marketplace: marketplace)
-                            }
-                        ) {
-                            MarketplaceCard(
-                                marketplace: marketplace,
-                                isRecommended: getRecommendedMarketplaces().contains(marketplace)
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                        viewForMarketplace(marketplace)
                     }
                 }
                 .padding(.horizontal)
@@ -218,6 +202,27 @@ struct MarketplaceSelectionView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func viewForMarketplace(_ marketplace: Marketplace) -> some View {
+        NavigationLink {
+            if marketplace == .ebay {
+                eBayUploadView(listing: EbayListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+            } else {
+                ListingPreparationView(
+                    itemAnalysis: itemAnalysis,
+                    capturedImage: capturedImage,
+                    selectedMarketplace: marketplace
+                )
+            }
+        } label: {
+            MarketplaceCard(
+                marketplace: marketplace,
+                isRecommended: getRecommendedMarketplaces().contains(marketplace)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Storage Integration

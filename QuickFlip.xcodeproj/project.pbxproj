@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		285A2F302E5550FA00F123EA /* ebayAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285A2F2F2E5550F500F123EA /* ebayAuthService.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		28A1E8BD2E524E9C00BBFCB7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		285A2F2F2E5550F500F123EA /* ebayAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ebayAuthService.swift; sourceTree = "<group>"; };
 		28A1E8AC2E524E9500BBFCB7 /* QuickFlip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuickFlip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		28A1E8BC2E524E9C00BBFCB7 /* QuickFlipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickFlipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28A1E8C62E524E9C00BBFCB7 /* QuickFlipUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickFlipUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +93,7 @@
 		28A1E8A32E524E9500BBFCB7 = {
 			isa = PBXGroup;
 			children = (
+				285A2F2F2E5550F500F123EA /* ebayAuthService.swift */,
 				28A1E8AE2E524E9500BBFCB7 /* QuickFlip */,
 				28A1E8BF2E524E9C00BBFCB7 /* QuickFlipTests */,
 				28A1E8C92E524E9C00BBFCB7 /* QuickFlipUITests */,
@@ -249,6 +255,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				285A2F302E5550FA00F123EA /* ebayAuthService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

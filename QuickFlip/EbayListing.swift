@@ -45,6 +45,59 @@ struct EbayListing {
     }
 }
 
+extension EbayListing {
+    // Convenience initializer from ScannedItem
+    init(from scannedItem: ScannedItem) {
+        self.title = scannedItem.itemName
+        self.description = scannedItem.description
+        self.category = scannedItem.category
+        self.condition = scannedItem.condition
+        self.startingPrice = Self.extractStartingPrice(from: scannedItem.estimatedValue)
+        self.buyItNowPrice = Self.extractBuyItNowPrice(from: scannedItem.estimatedValue)
+        self.listingType = .buyItNow
+        self.duration = 7
+        self.shippingCost = 0.0
+        self.returnsAccepted = true
+        self.returnPeriod = 30
+
+        if let image = scannedItem.image {
+            self.photos = [image]
+        } else {
+            self.photos = []
+        }
+    }
+
+    // Convenience initializer from ItemAnalysis + Image
+    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
+        self.title = itemAnalysis.itemName
+        self.description = itemAnalysis.description
+        self.category = itemAnalysis.category
+        self.condition = itemAnalysis.condition
+        self.startingPrice = Self.extractStartingPrice(from: itemAnalysis.estimatedValue)
+        self.buyItNowPrice = Self.extractBuyItNowPrice(from: itemAnalysis.estimatedValue)
+        self.listingType = .buyItNow
+        self.duration = 7
+        self.shippingCost = 0.0
+        self.returnsAccepted = true
+        self.returnPeriod = 30
+        self.photos = [image]
+    }
+
+    // Helper methods for price extraction
+    private static func extractStartingPrice(from value: String) -> Double {
+        let numbers = value.replacingOccurrences(of: "$", with: "")
+            .components(separatedBy: CharacterSet(charactersIn: "-–"))
+        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
+    }
+
+    private static func extractBuyItNowPrice(from value: String) -> Double {
+        let numbers = value.replacingOccurrences(of: "$", with: "")
+            .components(separatedBy: CharacterSet(charactersIn: "-–"))
+        let highPrice = numbers.last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "50"
+        return Double(highPrice) ?? 50.0
+    }
+}
+
 enum ListingType: CaseIterable {
     case auction
     case buyItNow
