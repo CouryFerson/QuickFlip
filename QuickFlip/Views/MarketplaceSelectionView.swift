@@ -209,6 +209,10 @@ struct MarketplaceSelectionView: View {
         NavigationLink {
             if marketplace == .ebay {
                 eBayUploadView(listing: EbayListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+            } else if marketplace == .etsy {
+                EtsyUploadView(listing: EtsyListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+            } else if marketplace == .amazon {
+                AmazonPrepView(listing: AmazonListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
             } else {
                 ListingPreparationView(
                     itemAnalysis: itemAnalysis,

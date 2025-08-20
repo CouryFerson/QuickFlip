@@ -261,6 +261,7 @@ class PersonalAnalyticsService: ObservableObject {
     @Published var isLoadingInsights = false
 
     func analyzeUserData(_ items: [ScannedItem]) async {
+        // TODO: UNDO THIS
         return
         guard !items.isEmpty else { return }
 
