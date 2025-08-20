@@ -17,51 +17,33 @@ class BarcodeAnalysisService {
         let base64Image = imageData.base64EncodedString()
 
         let prompt = """
-        You are a barcode reading and product identification expert. Analyze this image containing a barcode and provide detailed product information.
-
-        INSTRUCTIONS:
-        1. First, carefully examine the image to locate and read any visible barcodes (UPC, EAN, ISBN, etc.)
-        2. Extract the complete barcode number
-        3. Use your knowledge to identify the exact product associated with this barcode
-        4. Provide comprehensive product details for resale purposes
-
-        BARCODE ANALYSIS FOCUS:
-        - Read the numeric code clearly and completely
-        - Identify the barcode format (UPC-A, EAN-13, ISBN, etc.)
-        - Match the barcode to the specific product variant (size, color, edition, etc.)
-        - If multiple barcodes are visible, focus on the main product barcode
-
-        PRODUCT IDENTIFICATION:
-        - Provide the exact product name including brand, model, and specifications
-        - Include product category and subcategory
-        - Note any important variants (size, color, edition, version)
-        - Estimate current market value based on product knowledge
-
-        RESPONSE FORMAT (JSON):
+        Analyze this product image and identify the item. Focus on:
+        
+        1. VISUAL IDENTIFICATION (Primary):
+        - Read all visible text, brand names, product names
+        - Identify the product from packaging design and labels
+        - Note product size, variant, edition information
+        
+        2. BARCODE READING (Secondary):
+        - If you can see a barcode, try to read the numbers
+        - Use barcode info to confirm product identification
+        
+        Provide JSON response:
         {
-            "barcode_number": "the complete barcode number",
-            "barcode_format": "UPC-A/EAN-13/ISBN/etc",
-            "item_name": "exact product name with brand and model",
-            "brand": "manufacturer/brand name",
+            "barcode_number": "barcode if visible, or 'not visible'",
+            "barcode_format": "UPC-A/EAN-13/etc or 'unknown'",
+            "item_name": "exact product name from packaging",
+            "brand": "brand name from packaging",
             "category": "product category",
-            "description": "detailed product description including key features and specifications",
-            "estimated_value": "current market price range like $X-$Y",
-            "product_notes": "any important details about variants, editions, or product specifics"
+            "description": "product description based on visible features",
+            "estimated_value": "estimated price range",
+            "product_notes": "additional details about variant/size/etc"
         }
-
-        IMPORTANT GUIDELINES:
-        - Be precise with barcode number reading - accuracy is critical
-        - Focus on exact product identification rather than condition assessment
-        - Provide realistic market value estimates based on current resale markets
-        - If barcode is unclear or unreadable, indicate this in the response
-        - Include all relevant product details that would help with resale listing
-
-        ERROR HANDLING:
-        - If no barcode is visible: Return error indicating "No barcode found in image"
-        - If barcode is damaged/unreadable: Return error indicating "Barcode not readable - try better lighting or angle"
-        - If product cannot be identified: Return basic barcode info with note "Product not found in database"
+        
+        Focus primarily on what you can READ and see on the packaging, not just the barcode.
         """
 
+        // Send IMAGE back to AI (your original working approach)
         let messages: [[String: Any]] = [
             [
                 "role": "user",
@@ -74,7 +56,7 @@ class BarcodeAnalysisService {
                         "type": "image_url",
                         "image_url": [
                             "url": "data:image/jpeg;base64,\(base64Image)",
-                            "detail": "low"
+                            "detail": "high"
                         ]
                     ]
                 ]
