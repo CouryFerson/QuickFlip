@@ -1,10 +1,3 @@
-//
-//  FacebookMarketplaceView.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 8/20/25.
-//
-
 import SwiftUI
 
 struct FacebookMarketplaceView: View {
@@ -34,9 +27,6 @@ struct FacebookMarketplaceView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Facebook Header
-                    facebookHeaderView
-
                     // Mobile-style listing preview
                     listingPreviewCard
 
@@ -58,63 +48,38 @@ struct FacebookMarketplaceView: View {
                 }
             }
             .background(facebookGray.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .navigationTitle("Marketplace")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(facebookBlue, for: .navigationBar)
+            .navigationBarColor(backgroundColor: facebookBlue, titleColor: .white)
         }
     }
 }
 
-// MARK: - Facebook Header
-private extension FacebookMarketplaceView {
-    var facebookHeaderView: some View {
-        VStack(spacing: 0) {
-            // Facebook top bar
-            HStack {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "arrow.left")
-                        .foregroundColor(.white)
-                        .font(.title2)
-                        .fontWeight(.medium)
-                }
+// MARK: - Navigation Bar Styling Extension
+extension View {
+    func navigationBarColor(backgroundColor: Color, titleColor: Color) -> some View {
+        self.modifier(NavigationBarColorModifier(backgroundColor: backgroundColor, titleColor: titleColor))
+    }
+}
 
-                Spacer()
+struct NavigationBarColorModifier: ViewModifier {
+    let backgroundColor: Color
+    let titleColor: Color
 
-                VStack(spacing: 2) {
-                    Text("Marketplace")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                let appearance = UINavigationBarAppearance()
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = UIColor(backgroundColor)
+                appearance.titleTextAttributes = [.foregroundColor: UIColor(titleColor)]
+                appearance.largeTitleTextAttributes = [.foregroundColor: UIColor(titleColor)]
 
-                    Text("Create Listing")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(.white.opacity(0.9))
-                }
-
-                Spacer()
-
-                // Share/help button
-                Button(action: {}) {
-                    Image(systemName: "questionmark.circle")
-                        .foregroundColor(.white)
-                        .font(.title2)
-                }
+                UINavigationBar.appearance().standardAppearance = appearance
+                UINavigationBar.appearance().compactAppearance = appearance
+                UINavigationBar.appearance().scrollEdgeAppearance = appearance
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(facebookBlue)
-
-            // Progress indicator
-            HStack(spacing: 8) {
-                ForEach(0..<4, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(index < 3 ? facebookLightBlue : Color.gray.opacity(0.3))
-                        .frame(height: 4)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.white)
-        }
     }
 }
 
