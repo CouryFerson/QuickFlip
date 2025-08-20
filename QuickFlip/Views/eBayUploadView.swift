@@ -29,39 +29,32 @@ struct eBayUploadView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // eBay Header
-                    eBayHeaderView
+        ScrollView {
+            VStack(spacing: 20) {
+                // eBay Header
+                eBayHeaderView
 
-                    // Authentication Status
-                    authenticationStatusView
+                // Authentication Status
+                authenticationStatusView
 
-                    // Item Preview Card
-                    itemPreviewCard
+                // Item Preview Card
+                itemPreviewCard
 
-                    // Listing Details Form
-                    if eBayAuth.isAuthenticated {
-                        listingDetailsForm
+                // Listing Details Form
+                if eBayAuth.isAuthenticated {
+                    listingDetailsForm
 
-                        // Upload Button
-                        uploadButton
-                    }
-
-                    Spacer(minLength: 50)
+                    // Upload Button
+                    uploadButton
                 }
+
+                Spacer(minLength: 50)
             }
-            .background(eBayGray.ignoresSafeArea())
-            .navigationTitle("List on eBay")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: eBayLogoView
-            )
         }
+        .background(eBayGray.ignoresSafeArea())
+        .navigationTitle("List on eBay")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarItems(trailing: eBayLogoView)
         .sheet(isPresented: $showingeBayAuth) {
             eBayAuthenticationSheet
         }
