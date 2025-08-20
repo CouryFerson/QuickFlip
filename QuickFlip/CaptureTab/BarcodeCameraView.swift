@@ -13,6 +13,25 @@ struct BarcodeCameraView: View {
             // Camera Feed
             CameraPreview(cameraController: cameraController)
                 .ignoresSafeArea()
+                .onTapGesture { location in
+                    // Get the geometry of the camera preview
+                    let previewBounds = UIScreen.main.bounds // We'll improve this
+
+                    // Convert to camera coordinates (0-1 range)
+                    // Camera coordinates: (0,0) = top-left, (1,1) = bottom-right
+                    let convertedPoint = CGPoint(
+                        x: location.x / previewBounds.width,
+                        y: location.y / previewBounds.height
+                    )
+
+                    cameraController.focusAt(point: convertedPoint, screenLocation: location)
+                }
+
+            // Focus indicator - use screen location instead of converted point
+            if let screenLocation = cameraController.focusScreenLocation {
+                FocusIndicator(isFocusing: cameraController.isFocusing)
+                    .position(screenLocation)
+            }
 
             // Scanning Reticle
             VStack {

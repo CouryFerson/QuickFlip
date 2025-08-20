@@ -16,6 +16,8 @@ class CameraController: NSObject, ObservableObject {
     @Published var lastCapturedImage: UIImage?
     @Published var isBarcodeAnalyzing = false
     @Published var barcodeAnalysisResult: ItemAnalysis?
+    @Published var isFocusing = false
+    @Published var focusPoint: CGPoint?
 
     // refactor to use better delegation pattern
     private var barcodeCaptureDelegate: BarcodeCaptureDelegate?
@@ -59,8 +61,17 @@ class CameraController: NSObject, ObservableObject {
         }
 
         do {
-            let input = try AVCaptureDeviceInput(device: backCamera)
+            try backCamera.lockForConfiguration()
 
+            // Try setting focus mode and check if it actually got set
+            if backCamera.isFocusModeSupported(.continuousAutoFocus) {
+                backCamera.focusMode = .continuousAutoFocus
+                print("Set focus mode to: \(backCamera.focusMode.rawValue)")
+            }
+
+            backCamera.unlockForConfiguration()
+
+            let input = try AVCaptureDeviceInput(device: backCamera)
             session.beginConfiguration()
             session.inputs.forEach { session.removeInput($0) }
             session.outputs.forEach { session.removeOutput($0) }
@@ -81,6 +92,60 @@ class CameraController: NSObject, ObservableObject {
         }
     }
 
+    @Published var focusScreenLocation: CGPoint? // Store screen location for indicator
+
+    func focusAt(point: CGPoint, screenLocation: CGPoint) {
+        guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera,
+                                                       for: .video,
+                                                       position: .back) else { return }
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        do {
+            try backCamera.lockForConfiguration()
+
+            // Set focus state - use screen location for indicator
+            DispatchQueue.main.async {
+                self.isFocusing = true
+                self.focusScreenLocation = screenLocation // Use actual tap location
+            }
+
+            if backCamera.isFocusPointOfInterestSupported {
+                backCamera.focusPointOfInterest = point
+                backCamera.focusMode = .autoFocus
+
+                print("QuickFlip: Tap at screen: \(screenLocation), camera point: \(point)")
+
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+                    self.checkFocusCompletion(device: backCamera, startTime: startTime)
+                }
+            }
+
+            backCamera.unlockForConfiguration()
+
+        } catch {
+            print("QuickFlip: Error focusing: \(error)")
+            DispatchQueue.main.async {
+                self.isFocusing = false
+                self.focusScreenLocation = nil
+            }
+        }
+    }
+
+    private func checkFocusCompletion(device: AVCaptureDevice, startTime: CFAbsoluteTime) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+            let focusTime = CFAbsoluteTimeGetCurrent() - startTime
+            print("QuickFlip: Focus completed in approximately \(String(format: "%.2f", focusTime)) seconds")
+
+            DispatchQueue.main.async {
+                self.isFocusing = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.focusScreenLocation = nil
+                }
+            }
+        }
+    }
+
     func capturePhoto() {
         guard !isAnalyzing else { return }
 
@@ -89,6 +154,7 @@ class CameraController: NSObject, ObservableObject {
 
         let settings = AVCapturePhotoSettings()
         settings.flashMode = .auto
+
 
         photoOutput.capturePhoto(with: settings, delegate: self)
     }

@@ -1,9 +1,9 @@
-//
-//  CameraView.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 8/17/25.
-//
+////
+////  CameraView.swift
+////  QuickFlip
+////
+////  Created by Ferson, Coury on 8/17/25.
+////
 
 import SwiftUI
 
@@ -12,113 +12,120 @@ struct CameraView: View {
     @StateObject private var cameraController = CameraController()
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var isToolbarHidden = true
+    @State private var showTips = true
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Camera Feed
+            CameraPreview(cameraController: cameraController)
+                .ignoresSafeArea()
+                .onTapGesture { location in
+                    // Get the geometry of the camera preview
+                    let previewBounds = UIScreen.main.bounds // We'll improve this
 
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Item Scanner")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-
-                    Text("Point camera at an item to identify and price")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-                .padding(.top, 20)
-
-                // Camera Preview
-                CameraPreviewView(session: cameraController.session)
-                    .frame(height: UIScreen.main.bounds.height * 0.5)
-                    .cornerRadius(12)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 20)
-                    .overlay(
-                        // Analysis overlay
-                        Group {
-                            if cameraController.isAnalyzing {
-                                Color.black.opacity(0.7)
-                                    .overlay(
-                                        VStack(spacing: 16) {
-                                            ProgressView()
-                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                                .scaleEffect(1.5)
-
-                                            VStack(spacing: 4) {
-                                                Text("Analyzing Item...")
-                                                    .font(.headline)
-                                                    .foregroundColor(.white)
-
-                                                Text("Identifying and pricing your item")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.gray)
-                                            }
-                                        }
-                                    )
-                                    .cornerRadius(12)
-                            }
-                        }
+                    // Convert to camera coordinates (0-1 range)
+                    // Camera coordinates: (0,0) = top-left, (1,1) = bottom-right
+                    let convertedPoint = CGPoint(
+                        x: location.x / previewBounds.width,
+                        y: location.y / previewBounds.height
                     )
 
-                Spacer()
-
-                // Tips Section
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.blue)
-                        Text("Scanning Tips")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Spacer()
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        TipRow(icon: "viewfinder", text: "Center item in camera frame", color: .white)
-                        TipRow(icon: "lightbulb", text: "Ensure good lighting", color: .white)
-                        TipRow(icon: "tag", text: "Include brand labels and text", color: .white)
-                        TipRow(icon: "hand.raised", text: "Hold steady while scanning", color: .white)
-                    }
+                    cameraController.focusAt(point: convertedPoint, screenLocation: location)
                 }
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(12)
-                .padding(.horizontal)
 
-                Spacer()
+            // Focus indicator - use screen location instead of converted point
+            if let screenLocation = cameraController.focusScreenLocation {
+                FocusIndicator(isFocusing: cameraController.isFocusing)
+                    .position(screenLocation)
+            }
 
-                // Capture Button
-                Button(action: {
-                    cameraController.capturePhoto()
-                }) {
-                    ZStack {
-                        Circle()
-                            .fill(cameraController.isAnalyzing ? Color.gray : Color.blue)
-                            .frame(width: 80, height: 80)
-
-                        if cameraController.isAnalyzing {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Image(systemName: "camera.fill")
-                                .font(.title)
+            VStack {
+                //  Tips Section
+                if showTips {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "lightbulb.fill")
+                                .foregroundColor(.blue)
+                            Text("Scanning Tips")
+                                .font(.headline)
                                 .foregroundColor(.white)
+                            Spacer()
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            TipRow(icon: "viewfinder", text: "Center item in camera frame", color: .white)
+                            TipRow(icon: "lightbulb", text: "Ensure good lighting", color: .white)
+                            TipRow(icon: "tag", text: "Include brand labels and text", color: .white)
+                            TipRow(icon: "hand.raised", text: "Hold steady while scanning", color: .white)
                         }
                     }
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
                 }
-                .disabled(cameraController.isAnalyzing)
-                .padding(.bottom, 40)
+
+                Spacer()
+
+                // Bottom controls area
+                VStack(spacing: 16) {
+                    // Error message
+                    //                    if let errorMessage = errorMessage {
+                    //                        Text(errorMessage)
+                    //                            .font(.subheadline)
+                    //                            .foregroundColor(.red)
+                    //                            .padding()
+                    //                            .background(Color.red.opacity(0.1))
+                    //                            .cornerRadius(8)
+                    //                            .padding(.horizontal)
+                    //                    }
+
+                    // Capture button
+                    Button(action: {
+                        cameraController.captureBarcodePhoto()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 80, height: 80)
+
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3)
+                                .frame(width: 95, height: 95)
+
+                            if cameraController.isBarcodeAnalyzing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    .scaleEffect(1.2)
+                            } else {
+                                Image(systemName: "barcode.viewfinder")
+                                    .font(.title)
+                                    .foregroundColor(.black)
+                            }
+                        }
+                    }
+                    .disabled(cameraController.isAnalyzing)
+                    .scaleEffect(cameraController.isAnalyzing ? 0.9 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: cameraController.isAnalyzing)
+                }
+                .padding(.bottom, 50)
             }
         }
-        
         .toolbarVisibility(isToolbarHidden ? .hidden : .visible, for: .tabBar)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
+
+            // Fade out tips after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation(.easeOut(duration: 0.5)) {
+                    showTips = false
+                }
+            }
         }
         .onDisappear {
             isToolbarHidden = false
@@ -137,5 +144,18 @@ struct CameraView: View {
                 captureAction(result, image)
             }
         }
+    }
+}
+
+struct FocusIndicator: View {
+    let isFocusing: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .stroke(isFocusing ? Color.yellow : Color.green, lineWidth: 2)
+            .frame(width: 80, height: 80)
+            .scaleEffect(isFocusing ? 1.2 : 1.0)
+            .opacity(isFocusing ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isFocusing)
     }
 }

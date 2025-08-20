@@ -12,6 +12,7 @@
 		285A2FC92E55825900F123EA /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FC82E55825900F123EA /* PostgREST */; };
 		285A2FCB2E55825900F123EA /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FCA2E55825900F123EA /* Realtime */; };
 		285A2FCD2E55825900F123EA /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FCC2E55825900F123EA /* Storage */; };
+		285A2FD22E55852E00F123EA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FD12E55852E00F123EA /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 			files = (
 				285A2FC92E55825900F123EA /* PostgREST in Frameworks */,
 				285A2FC72E55825900F123EA /* Functions in Frameworks */,
+				285A2FD22E55852E00F123EA /* Supabase in Frameworks */,
 				285A2FC52E55825900F123EA /* Auth in Frameworks */,
 				285A2FCD2E55825900F123EA /* Storage in Frameworks */,
 				285A2FCB2E55825900F123EA /* Realtime in Frameworks */,
@@ -98,12 +100,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		285A2FD02E55852E00F123EA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		28A1E8A32E524E9500BBFCB7 = {
 			isa = PBXGroup;
 			children = (
 				28A1E8AE2E524E9500BBFCB7 /* QuickFlip */,
 				28A1E8BF2E524E9C00BBFCB7 /* QuickFlipTests */,
 				28A1E8C92E524E9C00BBFCB7 /* QuickFlipUITests */,
+				285A2FD02E55852E00F123EA /* Frameworks */,
 				28A1E8AD2E524E9500BBFCB7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -143,6 +153,7 @@
 				285A2FC82E55825900F123EA /* PostgREST */,
 				285A2FCA2E55825900F123EA /* Realtime */,
 				285A2FCC2E55825900F123EA /* Storage */,
+				285A2FD12E55852E00F123EA /* Supabase */,
 			);
 			productName = QuickFlip;
 			productReference = 28A1E8AC2E524E9500BBFCB7 /* QuickFlip.app */;
@@ -639,6 +650,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 285A2FC32E55825900F123EA /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Storage;
+		};
+		285A2FD12E55852E00F123EA /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 285A2FC32E55825900F123EA /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

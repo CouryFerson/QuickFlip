@@ -82,7 +82,7 @@ class BarcodeAnalysisService {
         ]
 
         let requestBody: [String: Any] = [
-            "model": "gpt-4",
+            "model": "gpt-4o",
             "messages": messages,
             "max_tokens": 300,
             "temperature": 0.1 // Lower temperature for more accurate barcode reading
@@ -99,6 +99,14 @@ class BarcodeAnalysisService {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
         let (data, _) = try await URLSession.shared.data(for: request)
+
+        print("QuickFlip: Raw API response data received")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("QuickFlip: Raw response: \(responseString)")
+        } else {
+            print("QuickFlip: Could not convert response to string")
+        }
+
         let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
 
         guard let content = response.choices.first?.message.content else {
