@@ -703,37 +703,6 @@ struct AmazonTextFieldStyle: TextFieldStyle {
     }
 }
 
-struct CopyButton: View {
-    let text: String
-    let fieldName: String
-    @Binding var copiedField: String?
-
-    var body: some View {
-        Button(action: {
-            UIPasteboard.general.string = text
-            copiedField = fieldName
-
-            // Reset after 2 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                copiedField = nil
-            }
-        }) {
-            HStack(spacing: 4) {
-                Image(systemName: copiedField == fieldName ? "checkmark" : "doc.on.doc")
-                    .font(.caption)
-
-                Text(copiedField == fieldName ? "Copied!" : "Copy")
-                    .font(.caption)
-            }
-            .foregroundColor(Color(red: 0.14, green: 0.25, blue: 0.38))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color(red: 0.14, green: 0.25, blue: 0.38).opacity(0.1))
-            .cornerRadius(4)
-        }
-    }
-}
-
 struct AmazonTipBox: View {
     let icon: String
     let title: String
