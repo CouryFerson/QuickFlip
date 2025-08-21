@@ -5,12 +5,12 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleURLName</key>
+			<string>eBay OAuth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>quickflip</string>
 			</array>
-			<key>CFBundleURLName</key>
-			<string>eBay OAuth</string>
 		</dict>
 	</array>
 	<key>NSAppTransportSecurity</key>
