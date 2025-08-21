@@ -1,0 +1,241 @@
+//
+//  ItemDetailView.swift
+//  QuickFlip
+//
+//  Created by Ferson, Coury on 8/21/25.
+//
+
+import SwiftUI
+
+struct ItemDetailView: View {
+    let item: ScannedItem
+    let marketplaceAction: () -> Void
+    @EnvironmentObject var itemStorage: ItemStorageService
+    @Environment(\.presentationMode) var presentationMode
+    @State private var showingActionSheet = false
+    @State private var showingShareSheet = false
+    @State private var showingDeleteAlert = false
+    @State private var imageScale: CGFloat = 1.0
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // Hero Image Section
+                    ZStack {
+                        if let image = item.image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: 400)
+                                .clipped()
+                                .scaleEffect(imageScale)
+                                .animation(.easeInOut(duration: 0.3), value: imageScale)
+                        } else {
+                            RoundedRectangle(cornerRadius: 0)
+                                .fill(LinearGradient(
+                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .frame(height: 400)
+                                .overlay {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 50))
+                                            .foregroundColor(.gray)
+                                        Text("No Image")
+                                            .font(.headline)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                        }
+
+                        // Gradient overlay for better text readability
+                        LinearGradient(
+                            colors: [Color.clear, Color.black.opacity(0.3)],
+                            startPoint: .center,
+                            endPoint: .bottom
+                        )
+                    }
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            imageScale = imageScale == 1.0 ? 1.05 : 1.0
+                        }
+                    }
+
+                        // Content Section
+                        VStack(spacing: 0) {
+                            // Header Info
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(item.itemName)
+                                            .font(.title2)
+                                            .fontWeight(.bold)
+                                            .multilineTextAlignment(.leading)
+
+                                        HStack(spacing: 12) {
+                                            if let categoryName = item.categoryName {
+                                                CategoryBadge(category: categoryName)
+                                            }
+                                            ConditionBadge(condition: item.condition)
+                                            Spacer()
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 24)
+
+                            // Description Section
+                            if !item.description.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Text("Description")
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                    }
+
+                                    Text(item.description)
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                        .lineSpacing(2)
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.top, 24)
+                            }
+
+                            // Quick Actions Section
+                            VStack(spacing: 16) {
+                                HStack {
+                                    Text("Quick Actions")
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+
+                                HStack(spacing: 12) {
+                                    // Status Button
+
+                                    statusButton
+                                    Spacer()
+                                    deleteButton
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 32)
+
+                            marketplaceButton
+                        }
+                        .background(Color(UIColor.systemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .offset(y: -24)
+                    }
+                }
+                .ignoresSafeArea(.container, edges: .top)
+                .confirmationDialog("Update Status", isPresented: $showingActionSheet, titleVisibility: .visible) {
+                    Button("Mark as Listed") {
+                        // Handle mark as listed
+                    }
+                    Button("Mark as Sold") {
+                        // Handle mark as sold
+                    }
+                    Button("Cancel", role: .cancel) { }
+                }
+                .alert("Delete Item", isPresented: $showingDeleteAlert) {
+                    Button("Delete", role: .destructive) {
+                        // Handle delete
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Are you sure you want to delete this item? This action cannot be undone.")
+                }
+                .sheet(isPresented: $showingShareSheet) {
+                    if let image = item.image {
+                        ShareSheet(items: [image, item.itemName])
+                    } else {
+                        ShareSheet(items: [item.itemName])
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+        }
+
+
+    private func getStatusIcon() -> String {
+        // You can extend this based on item status
+        return "circle.fill"
+    }
+
+    private func getStatusText() -> String {
+        // You can extend this based on item status
+        return "Update Status"
+    }
+
+    private func getStatusColor() -> Color {
+        // You can extend this based on item status
+        return .green
+    }
+}
+
+private extension ItemDetailView {
+    private var marketplaceButton: some View {
+        // List Item Button at bottom of ScrollView
+        Button(action: marketplaceAction) {
+            HStack(spacing: 12) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                Text("List Item")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 32)
+        .padding(.bottom, 34)
+    }
+
+    private var deleteButton: some View {
+        Button(action: { showingDeleteAlert = true }) {
+            Image(systemName: "trash")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.red)
+                .padding(12)
+                .background(Color.red.opacity(0.1))
+                .clipShape(Circle())
+        }
+    }
+
+    private var statusButton: some View {
+        Button(action: { showingActionSheet = true }) {
+            HStack(spacing: 8) {
+                Image(systemName: getStatusIcon())
+                    .font(.system(size: 16, weight: .medium))
+                Text(getStatusText())
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(getStatusColor())
+            .clipShape(Capsule())
+        }
+    }
+}
