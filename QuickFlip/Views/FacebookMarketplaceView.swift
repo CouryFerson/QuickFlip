@@ -48,8 +48,6 @@ struct FacebookMarketplaceView: View {
             .background(facebookGray.ignoresSafeArea())
             .navigationTitle("Marketplace")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(facebookBlue, for: .navigationBar)
-            .navigationBarColor(backgroundColor: facebookBlue, titleColor: .white)
         }
     }
 }

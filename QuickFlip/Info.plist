@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>QuickFlip saves scan photos to your camera roll so you can easily add them when posting to marketplaces like Facebook, eBay, and others. This helps streamline your listing process.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
