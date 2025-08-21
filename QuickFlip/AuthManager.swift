@@ -14,12 +14,10 @@ class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var currentUser: User?
 
-    private let supabase = SupabaseClient(
-        supabaseURL: URL(string: "https://caozetulkpyyuniwprtd.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhb3pldHVsa3B5eXVuaXdwcnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NjEyOTMsImV4cCI6MjA3MTIzNzI5M30.sdw4OMWXBl9-DrJX165M0Fz8NXBxSVJ6QQJb_qG11vM"
-    )
+    let supabase: SupabaseClient
 
-    init() {
+    init(supabase: SupabaseClient) {
+        self.supabase = supabase
         // Check for existing session on init
         Task {
             await checkSession()

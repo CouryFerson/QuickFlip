@@ -3,6 +3,7 @@ import AuthenticationServices
 import Supabase
 
 struct AppleSignInView: View {
+    let authManager: AuthManager
     let onSignInComplete: () -> Void
 
     @State private var isLoading = false
@@ -123,7 +124,12 @@ struct AppleSignInView: View {
         case .success(let authorization):
             if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
                 Task {
-                    await signInWithSupabase(credential: appleIDCredential)
+                    do {
+                        try await authManager.signInWithApple(credential: appleIDCredential)
+                        isLoading = false
+                    } catch {
+                        self.errorMessage = "Sign in failed: \(error.localizedDescription)"
+                    }
                 }
             }
         case .failure(let error):
@@ -133,42 +139,13 @@ struct AppleSignInView: View {
             }
         }
     }
-
-    private func signInWithSupabase(credential: ASAuthorizationAppleIDCredential) async {
-        do {
-            guard let identityToken = credential.identityToken,
-                  let identityTokenString = String(data: identityToken, encoding: .utf8) else {
-                throw NSError(domain: "AppleSignIn", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to get identity token"])
-            }
-
-            // Sign in with Supabase using Apple ID token
-            let session = try await supabase.auth.signInWithIdToken(
-                credentials: .init(
-                    provider: .apple,
-                    idToken: identityTokenString
-                )
-            )
-
-            DispatchQueue.main.async {
-                self.isLoading = false
-                print("Successfully signed in with Supabase: \(session.user.email ?? "No email")")
-                self.onSignInComplete()
-            }
-
-        } catch {
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.errorMessage = "Authentication failed: \(error.localizedDescription)"
-            }
-        }
-    }
 }
 
 // Preview for SwiftUI canvas
-struct AppleSignInView_Previews: PreviewProvider {
-    static var previews: some View {
-        AppleSignInView {
-            print("Sign in completed!")
-        }
-    }
-}
+//struct AppleSignInView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        AppleSignInView {
+//            print("Sign in completed!")
+//        }
+//    }
+//}

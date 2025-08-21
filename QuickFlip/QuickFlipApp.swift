@@ -10,8 +10,16 @@ import SwiftUI
 @main
 struct QuickFlipApp: App {
     @StateObject private var itemStorage = ItemStorageService()
-    @StateObject private var authManager = AuthManager()
-    
+    @StateObject private var supabaseService: SupabaseService
+    @StateObject private var authManager: AuthManager
+
+    init() {
+        let supabaseService = SupabaseService()
+
+        _supabaseService = StateObject(wrappedValue: supabaseService)
+        _authManager = StateObject(wrappedValue: AuthManager(supabase: supabaseService.client))
+    }
+
     var body: some Scene {
         WindowGroup {
             if !authManager.isAuthenticated {
