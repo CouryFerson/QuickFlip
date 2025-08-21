@@ -12,7 +12,7 @@ enum CaptureFlow: Hashable {
     case bulkCapture
     case bulkAnalysis(BulkAnalysisResult)
     case barcodeCapture
-    case marketplaceSelection(ItemAnalysis, UIImage)
+    case marketplaceSelection(ScannedItem, UIImage)
 
     var id: Int {
         switch self {
@@ -72,11 +72,11 @@ extension CaptureCoordinatorView {
                 router.push(.bulkAnalysis(result))
             }
         case .barcodeCapture:
-            BarcodeCameraView { analysis, image in
-                router.push(.marketplaceSelection(analysis, image))
+            BarcodeCameraView { scannedItem, image in
+                router.push(.marketplaceSelection(scannedItem, image))
             }
-        case .marketplaceSelection(let analysis, let image):
-            MarketplaceSelectionView(itemAnalysis: analysis, capturedImage: image)
+        case .marketplaceSelection(let scannedItem, let image):
+            MarketplaceSelectionView(scannedItem: scannedItem, capturedImage: image)
         case .bulkAnalysis(let analysis):
             BulkAnalysisResultsView(result: analysis)
         }

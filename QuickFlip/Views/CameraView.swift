@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CameraView: View {
-    let captureAction: (ItemAnalysis, UIImage) -> Void
+    let captureAction: (ScannedItem, UIImage) -> Void
     @StateObject private var cameraController = CameraController()
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var showTips = true
@@ -133,8 +133,8 @@ struct CameraView: View {
         } message: {
             Text("QuickFlip needs camera access to identify items.")
         }
-        .onChange(of: cameraController.analysisResult) { _, newResult in
-            if let result = cameraController.analysisResult,
+        .onChange(of: cameraController.scannedItem) { _, newResult in
+            if let result = cameraController.scannedItem,
                let image = cameraController.lastCapturedImage {
                 captureAction(result, image)
             }

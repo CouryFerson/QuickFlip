@@ -68,13 +68,13 @@ extension EbayListing {
     }
 
     // Convenience initializer from ItemAnalysis + Image
-    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
-        self.title = itemAnalysis.itemName
-        self.description = itemAnalysis.description
-        self.category = itemAnalysis.category
-        self.condition = itemAnalysis.condition
-        self.startingPrice = Self.extractStartingPrice(from: itemAnalysis.estimatedValue)
-        self.buyItNowPrice = Self.extractBuyItNowPrice(from: itemAnalysis.estimatedValue)
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.title = scannedItem.itemName
+        self.description = scannedItem.description
+        self.category = scannedItem.category
+        self.condition = scannedItem.condition
+        self.startingPrice = Self.extractStartingPrice(from: scannedItem.estimatedValue)
+        self.buyItNowPrice = Self.extractBuyItNowPrice(from: scannedItem.estimatedValue)
         self.listingType = .buyItNow
         self.duration = 7
         self.shippingCost = 0.0

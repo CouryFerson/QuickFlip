@@ -51,11 +51,11 @@ struct BulkListingWorkflowView: View {
                 .background(Color.gray.opacity(0.05))
 
                 // Current Item Analysis
-                MarketplaceSelectionView(
-                    itemAnalysis: currentItem.toItemAnalysis(),
-                    capturedImage: originalImage
-                )
-                .environmentObject(itemStorage)
+//                MarketplaceSelectionView(
+//                    itemAnalysis: currentItem.toItemAnalysis(),
+//                    capturedImage: originalImage
+//                )
+//                .environmentObject(itemStorage)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

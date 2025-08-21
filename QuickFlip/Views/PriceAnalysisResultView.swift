@@ -9,8 +9,7 @@ import SwiftUI
 
 struct PriceAnalysisResultView: View {
     let analysis: MarketplacePriceAnalysis
-    let itemAnalysis: ItemAnalysis
-    let capturedImage: UIImage
+    let scannedItem: ScannedItem
     let onSelectMarketplace: (Marketplace) -> Void
 
     var body: some View {
@@ -34,13 +33,7 @@ struct PriceAnalysisResultView: View {
                         .cornerRadius(8)
                 }
 
-                NavigationLink(
-                    destination: ListingPreparationView(
-                        itemAnalysis: itemAnalysis,
-                        capturedImage: capturedImage,
-                        selectedMarketplace: analysis.recommendedMarketplace
-                    )
-                ) {
+                NavigationLink(destination: Text("Fix this")) {
                     HStack {
                         Image(systemName: analysis.recommendedMarketplace.iconName)
                             .font(.title2)
@@ -76,7 +69,7 @@ struct PriceAnalysisResultView: View {
                 NavigationLink(
                     destination: MarketplaceWebView(
                         marketplace: analysis.recommendedMarketplace,
-                        itemName: itemAnalysis.itemName
+                        itemName: scannedItem.itemName
                     )
                 ) {
                     HStack {

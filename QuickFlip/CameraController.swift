@@ -11,11 +11,11 @@ import SwiftUI
 class CameraController: NSObject, ObservableObject {
     @Published var session = AVCaptureSession()
     @Published var isAnalyzing = false
-    @Published var analysisResult: ItemAnalysis?
+    @Published var scannedItem: ScannedItem?
     @Published var showPermissionAlert = false
     @Published var lastCapturedImage: UIImage?
     @Published var isBarcodeAnalyzing = false
-    @Published var barcodeAnalysisResult: ItemAnalysis?
+    @Published var barcodeScannedItem: ScannedItem?
     @Published var isFocusing = false
     @Published var focusPoint: CGPoint?
 
@@ -150,7 +150,7 @@ class CameraController: NSObject, ObservableObject {
         guard !isAnalyzing else { return }
 
         isAnalyzing = true
-        analysisResult = nil
+        scannedItem = nil
 
         let settings = AVCapturePhotoSettings()
         settings.flashMode = .auto
@@ -278,7 +278,7 @@ extension CameraController {
                let content = message["content"] as? String {
 
                 print("QuickFlip: OpenAI Analysis Result:\n\(content)")
-                analysisResult = parseAnalysisResult(from: content)
+                scannedItem = parseAnalysisResult(from: content)
 
             } else {
                 print("QuickFlip: Failed to parse OpenAI response")
@@ -288,7 +288,7 @@ extension CameraController {
         }
     }
 
-    private func parseAnalysisResult(from content: String) -> ItemAnalysis {
+    private func parseAnalysisResult(from content: String) -> ScannedItem {
         let lines = content.components(separatedBy: .newlines)
 
         var itemName = "Unknown Item"
@@ -353,15 +353,18 @@ extension CameraController {
             category: category
         )
 
-        // Save immediately after successful analysis
-        if let image = lastCapturedImage, let storage = itemStorage {
-            saveAnalyzedItem(analysis: analysis, image: image, storage: storage)
+        guard let image = lastCapturedImage,
+              let storage = itemStorage else {
+            fatalError("FIX THIS")
         }
 
-        return analysis
+        let scannedItem = convertAnalysisToScannedImage(analysis: analysis, image: image)
+        saveAnalyzedItem(scannedItem: scannedItem, storage: storage)
+
+        return scannedItem
     }
 
-    private func saveAnalyzedItem(analysis: ItemAnalysis, image: UIImage, storage: ItemStorageService) {
+    private func convertAnalysisToScannedImage(analysis: ItemAnalysis, image: UIImage) -> ScannedItem {
         let basePrice = extractPrice(from: analysis.estimatedValue)
 
         // Create safe dictionary without duplicate keys
@@ -390,8 +393,12 @@ extension CameraController {
             priceAnalysis: defaultAnalysis
         )
 
+        return scannedItem
+    }
+
+    private func saveAnalyzedItem(scannedItem: ScannedItem, storage: ItemStorageService) {
         storage.saveItem(scannedItem)
-        print("QuickFlip: Auto-saved '\(analysis.itemName)' after AI analysis")
+        print("QuickFlip: Auto-saved '\(scannedItem.itemName)' after AI analysis")
     }
 
     private func extractPrice(from value: String) -> Double {
@@ -446,7 +453,7 @@ extension CameraController {
 
         print("QuickFlip: Starting barcode analysis")
         isBarcodeAnalyzing = true
-        barcodeAnalysisResult = nil
+        barcodeScannedItem = nil
 
         let settings = AVCapturePhotoSettings()
         settings.flashMode = .auto
@@ -471,12 +478,14 @@ extension CameraController {
                 let analysis = try await barcodeService.analyzeBarcodeImage(image)
 
                 await MainActor.run {
-                    self.barcodeAnalysisResult = analysis
+                    let barcodeAnalysisResult = analysis
                     self.isBarcodeAnalyzing = false
 
                     // Optionally auto-save like regular analysis
                     if let storage = self.itemStorage {
-                        self.saveBarcodeAnalyzedItem(analysis: analysis, image: image, storage: storage)
+                        let scannedItem = convertAnalysisToScannedImage(analysis: barcodeAnalysisResult, image: image)
+                        saveAnalyzedItem(scannedItem: scannedItem, storage: storage)
+                        self.barcodeScannedItem = convertAnalysisToScannedImage(analysis: barcodeAnalysisResult, image: image)
                     }
                 }
 
@@ -487,38 +496,6 @@ extension CameraController {
                 }
             }
         }
-    }
-
-    private func saveBarcodeAnalyzedItem(analysis: ItemAnalysis, image: UIImage, storage: ItemStorageService) {
-        let basePrice = extractPrice(from: analysis.estimatedValue)
-
-        let defaultPrices: [Marketplace: Double] = [
-            .ebay: basePrice,
-            .mercari: basePrice * 0.9,
-            .facebook: basePrice * 0.8,
-            .amazon: basePrice * 1.1,
-            .stockx: basePrice * 1.2
-        ]
-
-        let defaultAnalysis = MarketplacePriceAnalysis(
-            recommendedMarketplace: .ebay,
-            confidence: .medium,
-            averagePrices: defaultPrices,
-            reasoning: "Barcode scanned - tap to select marketplace"
-        )
-
-        let scannedItem = ScannedItem(
-            itemName: analysis.itemName,
-            category: analysis.category,
-            condition: analysis.condition,
-            description: analysis.description,
-            estimatedValue: analysis.estimatedValue,
-            image: image,
-            priceAnalysis: defaultAnalysis
-        )
-
-        storage.saveItem(scannedItem)
-        print("QuickFlip: Auto-saved barcode item '\(analysis.itemName)'")
     }
 }
 

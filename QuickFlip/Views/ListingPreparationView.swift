@@ -8,16 +8,16 @@ struct ListingPreparationView: View {
     @State private var showingFinalListing = false
     @EnvironmentObject var itemStorage: ItemStorageService
 
-    init(itemAnalysis: ItemAnalysis, capturedImage: UIImage, selectedMarketplace: Marketplace) {
+    init(scannedItem: ScannedItem, capturedImage: UIImage, selectedMarketplace: Marketplace) {
         self.capturedImage = capturedImage
         self.selectedMarketplace = selectedMarketplace
         _listing = State(initialValue: EbayListing(
-            title: itemAnalysis.itemName,
-            description: itemAnalysis.description,
-            category: itemAnalysis.category,
-            condition: itemAnalysis.condition,
-            startingPrice: AppState.extractStartingPrice(from: itemAnalysis.estimatedValue),
-            buyItNowPrice: AppState.extractBuyItNowPrice(from: itemAnalysis.estimatedValue),
+            title: scannedItem.itemName,
+            description: scannedItem.description,
+            category: scannedItem.category,
+            condition: scannedItem.condition,
+            startingPrice: AppState.extractStartingPrice(from: scannedItem.estimatedValue),
+            buyItNowPrice: AppState.extractBuyItNowPrice(from: scannedItem.estimatedValue),
             listingType: .buyItNow,
             duration: 7,
             shippingCost: 0.0,

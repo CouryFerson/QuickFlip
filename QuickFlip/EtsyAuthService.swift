@@ -343,12 +343,12 @@ struct EtsyListing {
     var photos: [UIImage]
 
     // Convenience initializer from ItemAnalysis
-    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
-        self.title = itemAnalysis.itemName
-        self.description = itemAnalysis.description
-        self.price = EtsyListing.extractPrice(from: itemAnalysis.estimatedValue)
-        self.category = itemAnalysis.category.lowercased().contains("vintage") ? "vintage" : "handmade"
-        self.tags = EtsyListing.generateTags(from: itemAnalysis)
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.title = scannedItem.itemName
+        self.description = scannedItem.description
+        self.price = EtsyListing.extractPrice(from: scannedItem.estimatedValue)
+        self.category = scannedItem.category.lowercased().contains("vintage") ? "vintage" : "handmade"
+        self.tags = EtsyListing.generateTags(from: scannedItem)
         self.photos = [image]
     }
 
@@ -359,18 +359,18 @@ struct EtsyListing {
         return max(price, 1.0) // Etsy minimum is $0.20, but let's be safe
     }
 
-    private static func generateTags(from analysis: ItemAnalysis) -> String {
+    private static func generateTags(from scannedItem: ScannedItem) -> String {
         var tags: [String] = []
 
         // Add category-based tags
-        if analysis.category.lowercased().contains("vintage") {
+        if scannedItem.category.lowercased().contains("vintage") {
             tags.append("vintage")
         }
         tags.append("handmade")
         tags.append("unique")
 
         // Add item-specific tags based on name
-        let itemWords = analysis.itemName.lowercased()
+        let itemWords = scannedItem.itemName.lowercased()
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { $0.count > 2 }
             .prefix(5)

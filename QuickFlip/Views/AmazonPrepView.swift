@@ -868,16 +868,16 @@ struct AmazonListing {
     var requiresApproval: Bool
 
     // Convenience initializer from ItemAnalysis
-    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
-        self.title = AmazonListing.optimizeTitle(itemAnalysis.itemName)
-        self.description = itemAnalysis.description
-        self.price = AmazonListing.extractPrice(from: itemAnalysis.estimatedValue)
-        self.category = itemAnalysis.category
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.title = AmazonListing.optimizeTitle(scannedItem.itemName)
+        self.description = scannedItem.description
+        self.price = AmazonListing.extractPrice(from: scannedItem.estimatedValue)
+        self.category = scannedItem.category
         self.browseNode = nil // Would need category mapping
-        self.brand = AmazonListing.extractBrand(from: itemAnalysis.itemName)
+        self.brand = AmazonListing.extractBrand(from: scannedItem.itemName)
         self.upc = ""
-        self.searchTerms = AmazonListing.generateSearchTerms(from: itemAnalysis)
-        self.requiresApproval = AmazonListing.checkApprovalRequired(category: itemAnalysis.category)
+        self.searchTerms = AmazonListing.generateSearchTerms(from: scannedItem)
+        self.requiresApproval = AmazonListing.checkApprovalRequired(category: scannedItem.category)
     }
 
     private static func optimizeTitle(_ title: String) -> String {
@@ -902,21 +902,21 @@ struct AmazonListing {
         return "Generic"
     }
 
-    private static func generateSearchTerms(from analysis: ItemAnalysis) -> String {
+    private static func generateSearchTerms(from scannedItem: ScannedItem) -> String {
         var terms: [String] = []
 
         // Add item name words
-        let words = analysis.itemName.lowercased()
+        let words = scannedItem.itemName.lowercased()
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { $0.count > 2 }
 
         terms.append(contentsOf: words)
 
         // Add category terms
-        terms.append(analysis.category.lowercased())
+        terms.append(scannedItem.category.lowercased())
 
         // Add condition synonyms
-        if analysis.condition.lowercased().contains("new") {
+        if scannedItem.condition.lowercased().contains("new") {
             terms.append(contentsOf: ["brand new", "unopened", "sealed"])
         } else {
             terms.append(contentsOf: ["used", "pre-owned", "second hand"])

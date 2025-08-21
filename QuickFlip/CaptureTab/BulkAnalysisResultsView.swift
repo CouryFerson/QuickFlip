@@ -136,20 +136,20 @@ struct BulkAnalysisResultsView: View {
         }) {
             Group {
                 if currentPresentationMode == .singleItem, let firstItem = itemsToList.first {
-                    NavigationView {
-                        MarketplaceSelectionView(
-                            itemAnalysis: firstItem.toItemAnalysis(),
-                            capturedImage: result.originalImage
-                        )
-                        .environmentObject(itemStorage)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Done") {
-                                    currentPresentationMode = .none
-                                }
-                            }
-                        }
-                    }
+//                    NavigationView {
+//                        MarketplaceSelectionView(
+//                            itemAnalysis: firstItem.toItemAnalysis(),
+//                            capturedImage: result.originalImage
+//                        )
+//                        .environmentObject(itemStorage)
+//                        .toolbar {
+//                            ToolbarItem(placement: .navigationBarLeading) {
+//                                Button("Done") {
+//                                    currentPresentationMode = .none
+//                                }
+//                            }
+//                        }
+//                    }
                 } else if currentPresentationMode == .bulkWorkflow {
                     BulkListingWorkflowView(
                         selectedItems: itemsToList,

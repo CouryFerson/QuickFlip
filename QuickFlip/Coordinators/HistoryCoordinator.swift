@@ -9,7 +9,7 @@ import SwiftUI
 
 enum HistoryFlow: Hashable {
     case itemDetail(ScannedItem)
-    case marketplaceSelection
+    case marketplaceSelection(ScannedItem)
 
     var id: Int {
         switch self {
@@ -50,11 +50,10 @@ public struct HistoryCoordinator: View {
         switch path {
         case .itemDetail(let item):
             ItemDetailView(item: item) {
-                router.push(.marketplaceSelection)
+                router.push(.marketplaceSelection(item))
             }
-        case .marketplaceSelection:
-            Text("Fix me")
-//            MarketplaceView()
+        case .marketplaceSelection(let scannedImage):
+            MarketplaceSelectionView(scannedItem: scannedImage, capturedImage: scannedImage.image!)
         }
     }
 }

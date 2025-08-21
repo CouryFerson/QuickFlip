@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ProfitCalculatorView: View {
     let priceAnalysis: MarketplacePriceAnalysis
-    let itemAnalysis: ItemAnalysis
     let capturedImage: UIImage
     @State private var costBasis: Double = 0
     @State private var shippingCost: Double = 0
@@ -106,37 +105,28 @@ struct ProfitCalculatorView: View {
                     }
 
                     if let bestProfit = profitBreakdowns.first {
-                        NavigationLink(
-                            destination: ListingPreparationView(
-                                itemAnalysis: itemAnalysis,
-                                capturedImage: capturedImage,
-                                selectedMarketplace: bestProfit.marketplace
-                            )
-                        ) {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.title2)
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title2)
 
-                                Text("List on \(bestProfit.marketplace.rawValue)")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
+                            Text("List on \(bestProfit.marketplace.rawValue)")
+                                .font(.headline)
+                                .fontWeight(.semibold)
 
-                                Spacer()
+                            Spacer()
 
-                                Text("Best Profit")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.green)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(bestProfit.marketplace.color)
-                            .cornerRadius(12)
+                            Text("Best Profit")
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.green)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(bestProfit.marketplace.color)
+                        .cornerRadius(12)
                     }
                 }
             }

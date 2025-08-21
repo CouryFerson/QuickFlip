@@ -24,28 +24,26 @@ struct FacebookMarketplaceView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Mobile-style listing preview
-                    listingPreviewCard
+        ScrollView {
+            VStack(spacing: 0) {
+                // Mobile-style listing preview
+                listingPreviewCard
 
-                    // Form sections with Facebook styling
-                    VStack(spacing: 16) {
-                        photoSection
-                        detailsSection
-                        locationSection
-                        descriptionSection
-                        safetyTipsSection
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-
-                    // Action buttons
-                    actionButtonsSection
-
-                    Spacer(minLength: 30)
+                // Form sections with Facebook styling
+                VStack(spacing: 16) {
+                    photoSection
+                    detailsSection
+                    locationSection
+                    descriptionSection
+                    safetyTipsSection
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+                // Action buttons
+                actionButtonsSection
+
+                Spacer(minLength: 30)
             }
             .background(facebookGray.ignoresSafeArea())
             .navigationTitle("Marketplace")
@@ -731,11 +729,11 @@ struct FacebookListing {
     var category: String
 
     // Convenience initializer from ItemAnalysis
-    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
-        self.title = FacebookListing.optimizeTitle(itemAnalysis.itemName)
-        self.description = FacebookListing.optimizeDescription(itemAnalysis.description)
-        self.price = FacebookListing.extractPrice(from: itemAnalysis.estimatedValue)
-        self.category = FacebookListing.mapCategory(itemAnalysis.category)
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.title = FacebookListing.optimizeTitle(scannedItem.itemName)
+        self.description = FacebookListing.optimizeDescription(scannedItem.description)
+        self.price = FacebookListing.extractPrice(from: scannedItem.estimatedValue)
+        self.category = FacebookListing.mapCategory(scannedItem.category)
     }
 
     private static func optimizeTitle(_ title: String) -> String {

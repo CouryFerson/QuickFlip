@@ -761,13 +761,13 @@ struct StockXListing {
     var highestBid: Double
 
     // Convenience initializer from ItemAnalysis
-    init(from itemAnalysis: ItemAnalysis, image: UIImage) {
-        self.productName = StockXListing.extractProductName(itemAnalysis.itemName)
-        self.colorway = StockXListing.extractColorway(itemAnalysis.itemName)
-        self.sku = StockXListing.generateSKU(from: itemAnalysis.itemName)
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.productName = StockXListing.extractProductName(scannedItem.itemName)
+        self.colorway = StockXListing.extractColorway(scannedItem.itemName)
+        self.sku = StockXListing.generateSKU(from: scannedItem.itemName)
 
         // Mock market data based on estimated value
-        let basePrice = StockXListing.extractPrice(from: itemAnalysis.estimatedValue)
+        let basePrice = StockXListing.extractPrice(from: scannedItem.estimatedValue)
         self.lastSalePrice = basePrice
         self.lowestAsk = basePrice * 1.1
         self.highestBid = basePrice * 0.9

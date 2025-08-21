@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MarketplaceSelectionView: View {
-    let itemAnalysis: ItemAnalysis
+    let scannedItem: ScannedItem
     let capturedImage: UIImage
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var isAnalyzingPrices = false
@@ -28,11 +28,11 @@ struct MarketplaceSelectionView: View {
                             .frame(height: 120)
                             .cornerRadius(8)
 
-                        Text(itemAnalysis.itemName)
+                        Text(scannedItem.itemName)
                             .font(.headline)
                             .multilineTextAlignment(.center)
 
-                        Text(itemAnalysis.estimatedValue)
+                        Text(scannedItem.estimatedValue)
                             .font(.subheadline)
                             .foregroundColor(.green)
                     }
@@ -57,12 +57,7 @@ struct MarketplaceSelectionView: View {
 
                     if let priceAnalysis = priceAnalysisResult {
                         // Show price analysis results
-                        PriceAnalysisResultView(
-                            analysis: priceAnalysis,
-                            itemAnalysis: itemAnalysis,
-                            capturedImage: capturedImage
-                        ) { marketplace in
-                            // Save item and navigate to webview to see similar listings
+                        PriceAnalysisResultView(analysis: priceAnalysis, scannedItem: scannedItem) { marketplace in
                             saveScannedItem(marketplace: marketplace, priceAnalysis: priceAnalysis)
                         }
                     } else {
@@ -165,7 +160,7 @@ struct MarketplaceSelectionView: View {
     }
 
     private func canAnalyzePrices() -> Bool {
-        let itemName = itemAnalysis.itemName.lowercased()
+        let itemName = scannedItem.itemName.lowercased()
 
         // Check if item is specific enough for price analysis
         let genericTerms = ["unknown", "item", "object", "thing", "device", "electronic device"]
@@ -186,8 +181,8 @@ struct MarketplaceSelectionView: View {
             do {
                 let priceService = OpenAIPriceResearchService()
                 let analysis = try await priceService.researchPrices(
-                    for: itemAnalysis.itemName,
-                    category: itemAnalysis.category
+                    for: scannedItem.itemName,
+                    category: scannedItem.category
                 )
 
                 await MainActor.run {
@@ -209,18 +204,18 @@ struct MarketplaceSelectionView: View {
         NavigationLink {
             // TODO: Update to use new `specificMarketplacePrice(for marketplace: Marketplace) -> String`
             if marketplace == .ebay {
-                eBayUploadView(listing: EbayListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+                eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .etsy {
-                EtsyUploadView(listing: EtsyListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+                EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .amazon {
-                AmazonPrepView(listing: AmazonListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+                AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .facebook {
-                FacebookMarketplaceView(listing: FacebookListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+                FacebookMarketplaceView(listing: FacebookListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .stockx {
-                StockXPrepView(listing: StockXListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
+                StockXPrepView(listing: StockXListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
             } else {
                 ListingPreparationView(
-                    itemAnalysis: itemAnalysis,
+                    scannedItem: scannedItem,
                     capturedImage: capturedImage,
                     selectedMarketplace: marketplace
                 )
@@ -239,25 +234,25 @@ struct MarketplaceSelectionView: View {
         let analysis = priceAnalysis ?? createDefaultAnalysis(for: marketplace)
 
         let newItem = ScannedItem(
-            itemName: itemAnalysis.itemName,
-            category: itemAnalysis.category,
-            condition: itemAnalysis.condition,
-            description: itemAnalysis.description,
-            estimatedValue: itemAnalysis.estimatedValue,
+            itemName: scannedItem.itemName,
+            category: scannedItem.category,
+            condition: scannedItem.condition,
+            description: scannedItem.description,
+            estimatedValue: scannedItem.estimatedValue,
             image: capturedImage,
             priceAnalysis: analysis
         )
 
         // Update existing item or create new one
         itemStorage.updateItem(matching: { item in
-            item.itemName == itemAnalysis.itemName &&
+            item.itemName == scannedItem.itemName &&
             abs(item.timestamp.timeIntervalSinceNow) < 300 // Within 5 minutes
         }, with: newItem)
     }
 
     private func createDefaultAnalysis(for marketplace: Marketplace) -> MarketplacePriceAnalysis {
         // Create a simple analysis if we don't have AI price data
-        let basePrice = extractPrice(from: itemAnalysis.estimatedValue)
+        let basePrice = extractPrice(from: scannedItem.estimatedValue)
 
         // Create base prices for common marketplaces
         var prices: [Marketplace: Double] = [
@@ -287,8 +282,8 @@ struct MarketplaceSelectionView: View {
 
     // Keep existing helper methods...
     private func getRecommendedMarketplaces() -> [Marketplace] {
-        let itemName = itemAnalysis.itemName.lowercased()
-        let category = itemAnalysis.category.lowercased()
+        let itemName = scannedItem.itemName.lowercased()
+        let category = scannedItem.category.lowercased()
 
         var recommended: [Marketplace] = [.ebay]
 
@@ -321,7 +316,7 @@ struct MarketplaceSelectionView: View {
            let marketplacePrice = priceAnalysisResult.averagePrices.first(where: { $0.key == marketplace })?.value {
             return String(marketplacePrice)
         } else {
-            return itemAnalysis.estimatedValue
+            return scannedItem.estimatedValue
         }
     }
 }
@@ -333,7 +328,6 @@ private extension MarketplaceSelectionView {
         NavigationLink(
             destination: ProfitCalculatorView(
                 priceAnalysis: analysis,
-                itemAnalysis: itemAnalysis,
                 capturedImage: capturedImage
             )
         ) {

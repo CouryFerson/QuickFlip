@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 
 struct BarcodeCameraView: View {
-    let captureAction: (ItemAnalysis, UIImage) -> Void
+    let captureAction: (ScannedItem, UIImage) -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
@@ -168,8 +168,8 @@ struct BarcodeCameraView: View {
                 }
             }
         }
-        .onChange(of: cameraController.barcodeAnalysisResult) { _, result in
-            if let itemAnalysis = cameraController.barcodeAnalysisResult,
+        .onChange(of: cameraController.barcodeScannedItem) { _, result in
+            if let itemAnalysis = cameraController.barcodeScannedItem,
                let capturedImage = cameraController.lastCapturedImage {
                 captureAction(itemAnalysis, capturedImage)
             }

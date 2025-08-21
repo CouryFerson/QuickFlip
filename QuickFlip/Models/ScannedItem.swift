@@ -4,7 +4,7 @@ import UIKit
 import SwiftUI
 
 // MARK: - Scanned Item Model
-struct ScannedItem: Codable, Identifiable {
+struct ScannedItem: Codable, Identifiable, Equatable {
     let id: UUID
     let itemName: String
     let category: String
@@ -65,7 +65,7 @@ struct ScannedItem: Codable, Identifiable {
 }
 
 // MARK: - Storable Price Analysis (Codable version)
-struct StorableMarketplacePriceAnalysis: Codable {
+struct StorableMarketplacePriceAnalysis: Codable, Equatable {
     let recommendedMarketplace: String
     let confidence: String
     let averagePrices: [String: Double] // [marketplace name: price]
@@ -108,7 +108,7 @@ struct StorableMarketplacePriceAnalysis: Codable {
 }
 
 // MARK: - Storable Profit Breakdown (Codable version)
-struct StorableProfitBreakdown: Codable {
+struct StorableProfitBreakdown: Codable, Equatable {
     let marketplace: String
     let sellingPrice: Double
     let costBasis: Double
