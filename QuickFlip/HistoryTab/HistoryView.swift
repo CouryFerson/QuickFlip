@@ -7,7 +7,6 @@ import SwiftUI
 
 struct HistoryView: View {
     let itemSelectionAction: (ScannedItem) -> Void
-
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var searchText = ""
     @State private var selectedSegment = 0
@@ -49,86 +48,84 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    if itemStorage.isEmpty {
-                        EmptyHistoryView()
-                    } else {
-                        // Stats Header (keeping your design)
-                        if !isEditMode {
-                            statsHeaderView
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-
-                        // Search and Filter Section
-                        if !isEditMode {
-                            VStack(spacing: 16) {
-                                // Search Bar
-                                searchBarView
-
-                                // Segmented Control
-                                segmentedControlView
-                            }
-                            .padding()
-                            .background(Color(.systemGroupedBackground))
+        ScrollView {
+            VStack(spacing: 0) {
+                if itemStorage.isEmpty {
+                    EmptyHistoryView()
+                } else {
+                    // Stats Header (keeping your design)
+                    if !isEditMode {
+                        statsHeaderView
                             .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
+                    }
 
-                        // Items List
-                        itemsListView
+                    // Search and Filter Section
+                    if !isEditMode {
+                        VStack(spacing: 16) {
+                            // Search Bar
+                            searchBarView
+
+                            // Segmented Control
+                            segmentedControlView
+                        }
+                        .padding()
+                        .background(Color(.systemGroupedBackground))
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    // Items List
+                    itemsListView
+                }
+            }
+            .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
+                    if isEditMode {
+                        Button(allItemsSelected ? "Deselect All" : "Select All") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if allItemsSelected {
+                                    selectedItems.removeAll()
+                                } else {
+                                    selectedItems = Set(filteredItems.map { $0.id })
+                                }
+                            }
+                        }
                     }
                 }
-                .navigationTitle("History")
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItemGroup(placement: .navigationBarLeading) {
+
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    if !itemStorage.isEmpty {
                         if isEditMode {
-                            Button(allItemsSelected ? "Deselect All" : "Select All") {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    if allItemsSelected {
-                                        selectedItems.removeAll()
-                                    } else {
-                                        selectedItems = Set(filteredItems.map { $0.id })
-                                    }
+                            Button("Done") {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isEditMode = false
+                                    selectedItems.removeAll()
                                 }
                             }
-                        }
-                    }
-
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        if !itemStorage.isEmpty {
-                            if isEditMode {
-                                Button("Done") {
+                        } else {
+                            HStack {
+                                Button("Edit") {
                                     withAnimation(.easeInOut(duration: 0.3)) {
-                                        isEditMode = false
-                                        selectedItems.removeAll()
+                                        isEditMode = true
                                     }
                                 }
-                            } else {
-                                HStack {
-                                    Button("Edit") {
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            isEditMode = true
-                                        }
-                                    }
 
-                                    Button {
-                                        showingExportSheet = true
-                                    } label: {
-                                        Image(systemName: "square.and.arrow.up")
-                                    }
+                                Button {
+                                    showingExportSheet = true
+                                } label: {
+                                    Image(systemName: "square.and.arrow.up")
                                 }
                             }
                         }
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                if isEditMode && !selectedItems.isEmpty {
-                    bulkActionToolbar
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if isEditMode && !selectedItems.isEmpty {
+                bulkActionToolbar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isEditMode)
@@ -401,27 +398,20 @@ struct EnhancedHistoryItemCard: View {
 
                 // Price, Marketplace and Actions
                 VStack(alignment: .trailing, spacing: 6) {
-                    if let bestPrice = item.priceAnalysis.averagePrices.values.max() {
-                        Text("$\(String(format: "%.0f", bestPrice))")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.green)
-                    }
-
-                    MarketplaceBadge(marketplace: item.priceAnalysis.recommendedMarketplace)
-
-                    if !isEditMode {
-                        Button {
-                            showingActionSheet = true
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .resizable()
-                                .foregroundColor(.gray)
-                                .frame(width: 24, height: 24)
+                    HStack(spacing: 10) {
+                        if let bestPrice = item.priceAnalysis.averagePrices.values.max() {
+                            Text("$\(String(format: "%.0f", bestPrice))")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .transition(.opacity.combined(with: .scale))
+
+                        Image(systemName: "chevron.compact.forward")
+                            .resizable()
+                            .frame(width: 7, height: 15)
+                            .foregroundColor(.gray.opacity(0.6))
                     }
+                    MarketplaceBadge(marketplace: item.priceAnalysis.recommendedMarketplace)
                 }
             }
             .padding()
@@ -625,11 +615,6 @@ struct MarketplaceBadge: View {
             .cornerRadius(4)
     }
 }
-
-// MARK: - Item Detail View
-
-
-
 // MARK: - Empty State (keeping your original design)
 
 struct EmptyHistoryView: View {
