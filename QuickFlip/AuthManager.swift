@@ -1,0 +1,102 @@
+//
+//  AuthManager.swift
+//  QuickFlip
+//
+//  Created by Ferson, Coury on 8/20/25.
+//
+
+import Foundation
+import Supabase
+import AuthenticationServices
+
+@MainActor
+class AuthManager: ObservableObject {
+    @Published var isAuthenticated = false
+    @Published var currentUser: User?
+
+    private let supabase = SupabaseClient(
+        supabaseURL: URL(string: "https://caozetulkpyyuniwprtd.supabase.co")!,
+        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhb3pldHVsa3B5eXVuaXdwcnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NjEyOTMsImV4cCI6MjA3MTIzNzI5M30.sdw4OMWXBl9-DrJX165M0Fz8NXBxSVJ6QQJb_qG11vM"
+    )
+
+    init() {
+        // Check for existing session on init
+        Task {
+            await checkSession()
+        }
+    }
+
+    // MARK: - Session Management
+
+    func checkSession() async {
+        do {
+            let session = try await supabase.auth.session
+            self.isAuthenticated = true
+            self.currentUser = session.user
+            print("Found existing session for: \(session.user.email ?? "unknown")")
+        } catch {
+            self.isAuthenticated = false
+            self.currentUser = nil
+        }
+    }
+
+    // MARK: - Apple Sign In
+
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async throws {
+        guard let identityToken = credential.identityToken,
+              let identityTokenString = String(data: identityToken, encoding: .utf8) else {
+            throw AuthError.invalidToken
+        }
+
+        do {
+            let session = try await supabase.auth.signInWithIdToken(
+                credentials: .init(
+                    provider: .apple,
+                    idToken: identityTokenString
+                )
+            )
+
+            self.isAuthenticated = true
+            self.currentUser = session.user
+
+            print("Successfully signed in with Apple: \(session.user.email ?? "No email")")
+
+        } catch {
+            throw error
+        }
+    }
+
+    // MARK: - Sign Out
+
+    func signOut() async throws {
+        try await supabase.auth.signOut()
+        self.isAuthenticated = false
+        self.currentUser = nil
+    }
+
+    // MARK: - Helper Properties
+
+    var userEmail: String? {
+        currentUser?.email
+    }
+
+    var userId: String? {
+        currentUser?.id.uuidString
+    }
+}
+
+// MARK: - Custom Errors
+
+enum AuthError: LocalizedError {
+    case invalidToken
+    case signInFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidToken:
+            return "Unable to get valid identity token"
+        case .signInFailed:
+            return "Sign in process failed"
+        }
+    }
+}

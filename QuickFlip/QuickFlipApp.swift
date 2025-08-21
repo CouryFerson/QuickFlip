@@ -10,11 +10,16 @@ import SwiftUI
 @main
 struct QuickFlipApp: App {
     @StateObject private var itemStorage = ItemStorageService()
-
+    @StateObject private var authManager = AuthManager()
+    
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .environmentObject(itemStorage)
+            if !authManager.isAuthenticated {
+                AppleSignInView(authManager: authManager, onSignInComplete: {})
+            } else {
+                MainTabView()
+                    .environmentObject(itemStorage)
+            }
         }
     }
 }
