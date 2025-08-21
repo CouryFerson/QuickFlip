@@ -11,7 +11,6 @@ struct CameraView: View {
     let captureAction: (ItemAnalysis, UIImage) -> Void
     @StateObject private var cameraController = CameraController()
     @EnvironmentObject var itemStorage: ItemStorageService
-    @State private var isToolbarHidden = true
     @State private var showTips = true
 
     var body: some View {
@@ -115,7 +114,6 @@ struct CameraView: View {
                 .padding(.bottom, 50)
             }
         }
-        .toolbarVisibility(isToolbarHidden ? .hidden : .visible, for: .tabBar)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
@@ -126,9 +124,6 @@ struct CameraView: View {
                     showTips = false
                 }
             }
-        }
-        .onDisappear {
-            isToolbarHidden = false
         }
         .alert("Camera Permission Required", isPresented: $cameraController.showPermissionAlert) {
             Button("Settings") {
