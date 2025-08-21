@@ -32,6 +32,10 @@ struct CameraView: View {
                     cameraController.focusAt(point: convertedPoint, screenLocation: location)
                 }
 
+            if cameraController.isAnalyzing {
+                CameraProcessingOverlay()
+            }
+
             // Focus indicator - use screen location instead of converted point
             if let screenLocation = cameraController.focusScreenLocation {
                 FocusIndicator(isFocusing: cameraController.isFocusing)
@@ -101,7 +105,7 @@ struct CameraView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .black))
                                     .scaleEffect(1.2)
                             } else {
-                                Image(systemName: "barcode.viewfinder")
+                                Image(systemName: "camera")
                                     .font(.title)
                                     .foregroundColor(.black)
                             }

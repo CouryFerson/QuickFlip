@@ -33,17 +33,13 @@ struct BarcodeCameraView: View {
                     .position(screenLocation)
             }
 
+            if cameraController.isBarcodeAnalyzing {
+                CameraProcessingOverlay()
+            }
+
             // Scanning Reticle
-            VStack {
-                Spacer()
-
-                ZStack {
-                    // Reticle Frame
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green, lineWidth: 3)
-                        .frame(width: 280, height: 140)
-                        .background(Color.clear)
-
+            if !cameraController.isBarcodeAnalyzing {
+                VStack {
                     // Corner brackets
                     VStack {
                         HStack {
@@ -61,12 +57,8 @@ struct BarcodeCameraView: View {
                     .frame(width: 280, height: 140)
 
                     // Scanning animation line
-                    if !cameraController.isBarcodeAnalyzing {
-                        ScanningLine()
-                    }
+                    ScanningLine()
                 }
-
-                Spacer()
             }
 
             // Top overlay with tips
@@ -271,7 +263,7 @@ struct CornerBracket: View {
 
 // MARK: - Scanning Line Animation
 struct ScanningLine: View {
-    @State private var position: CGFloat = 0
+    @State private var position: CGFloat = -8
 
     var body: some View {
         Rectangle()
@@ -289,7 +281,7 @@ struct ScanningLine: View {
                     Animation.easeInOut(duration: 2.0)
                         .repeatForever(autoreverses: true)
                 ) {
-                    position = 70
+                    position = -148
                 }
             }
     }
