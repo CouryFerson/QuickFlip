@@ -6,6 +6,8 @@
 import SwiftUI
 
 struct HistoryView: View {
+    let itemSelectionAction: (ScannedItem) -> Void
+
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var searchText = ""
     @State private var selectedSegment = 0
@@ -121,14 +123,6 @@ struct HistoryView: View {
                         }
                     }
                 }
-                .navigationDestination(isPresented: $showingDetailView) {
-                    if let item = showingDetailItem {
-                        ItemDetailView(item: item) {
-                            print("Got here")
-                        }
-                        .environmentObject(itemStorage)
-                    }
-                }
             }
             .safeAreaInset(edge: .bottom) {
                 if isEditMode && !selectedItems.isEmpty {
@@ -140,12 +134,6 @@ struct HistoryView: View {
         .animation(.easeInOut(duration: 0.3), value: isEditMode)
         .sheet(isPresented: $showingExportSheet) {
             ExportDataView()
-                .environmentObject(itemStorage)
-        }
-        .sheet(item: $showingDetailItem) { item in
-            ItemDetailView(item: item) {
-                print("Got here")
-            }
                 .environmentObject(itemStorage)
         }
         .alert("Delete Items", isPresented: $showingBulkDeleteAlert) {
@@ -243,7 +231,7 @@ struct HistoryView: View {
                         if isEditMode {
                             toggleSelection(for: item)
                         } else {
-                            showingDetailItem = item
+                            itemSelectionAction(item)
                         }
                     },
                     onToggleSelection: {
@@ -843,44 +831,7 @@ struct ItemDetailView: View {
                     }
                 }
             }
-            .overlay(alignment: .bottom) {
-                // Floating List Item Button
-                Button(action: marketplaceAction) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "tag.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                        Text("List Item")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
-                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 34)
-            }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
-                            .background(Color.black.opacity(0.2))
-                            .clipShape(Circle())
-                    }
-                }
-            }
         }
 
 
@@ -949,3 +900,4 @@ struct PrimaryButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
     }
 }
+

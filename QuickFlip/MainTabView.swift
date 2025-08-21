@@ -25,7 +25,7 @@ struct MainTabView: View {
                     Text("Capture")
                 }
 
-            HistoryView()
+            HistoryCoordinator()
                 .tabItem {
                     Image(systemName: "clock.fill")
                     Text("History")
