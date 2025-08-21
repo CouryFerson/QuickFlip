@@ -12,13 +12,6 @@ struct StockXPrepView: View {
     let capturedImage: UIImage
     @Environment(\.presentationMode) var presentationMode
 
-    @State private var copiedField: String?
-    @State private var selectedSize: String = "9"
-    @State private var selectedCondition: String = "New"
-    @State private var hasBox = true
-    @State private var hasReceipt = false
-    @State private var estimatedPayout: Double = 0
-
     // StockX Brand Colors
     private let stockXGreen = Color(red: 0.0, green: 0.7, blue: 0.4) // StockX signature green #00B140
     private let stockXDarkGreen = Color(red: 0.0, green: 0.55, blue: 0.3) // Darker green
@@ -35,40 +28,29 @@ struct StockXPrepView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // StockX Header (no navigation)
+                // StockX Header
                 stockXHeaderView
 
-                // Product Card - StockX style
-                productCard
+                // Product Overview Card
+                productOverviewCard
 
-                // Authentication Notice
-                authenticationNotice
+                // Market Analysis Section
+                marketAnalysisSection
 
-                // Form sections
-                VStack(spacing: 16) {
-                    sizeSection
-                    conditionSection
-                    accessoriesSection
-                    pricingSection
-                    sellGuideSection
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
+                // Selling Flow Preview
+                sellingFlowPreview
 
-                // Action buttons
-                actionButtonsSection
+                // Action Section
+                actionSection
 
                 Spacer(minLength: 30)
             }
         }
         .background(stockXGray.ignoresSafeArea())
-        .onAppear {
-            calculateEstimatedPayout()
-        }
     }
 }
 
-// MARK: - StockX Header (No Navigation)
+// MARK: - StockX Header
 private extension StockXPrepView {
     var stockXHeaderView: some View {
         VStack(spacing: 0) {
@@ -93,25 +75,21 @@ private extension StockXPrepView {
             .padding(.vertical, 16)
             .background(stockXWhite)
 
-            // Market status bar
+            // Breadcrumb
             HStack {
-                Text("Sell")
+                Text("Sell Preview")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(stockXBlack)
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.gray)
-
-                Text("Listing Preview")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.gray)
-
                 Spacer()
 
-                Text("Step 2 of 3")
+                Text("Ready to list")
                     .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(stockXGreen)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(stockXGreen.opacity(0.1))
+                    .cornerRadius(4)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -120,16 +98,16 @@ private extension StockXPrepView {
     }
 }
 
-// MARK: - Product Card
+// MARK: - Product Overview
 private extension StockXPrepView {
-    var productCard: some View {
-        VStack(spacing: 0) {
-            // Product image and basic info
+    var productOverviewCard: some View {
+        VStack(spacing: 16) {
+            // Product header
             HStack(spacing: 16) {
                 Image(uiImage: capturedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 120, height: 120)
+                    .frame(width: 100, height: 100)
                     .background(stockXWhite)
                     .cornerRadius(8)
                     .overlay(
@@ -137,25 +115,29 @@ private extension StockXPrepView {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(listing.productName)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(stockXBlack)
                         .lineLimit(2)
 
-                    Text(listing.colorway)
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
+                    if !listing.colorway.isEmpty {
+                        Text(listing.colorway)
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
 
-                    Text(listing.sku)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(4)
+                    if !listing.sku.isEmpty {
+                        Text(listing.sku)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.gray)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(4)
+                    }
 
-                    // Verification badge
+                    // Verification status
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.shield.fill")
                             .font(.system(size: 12))
@@ -169,49 +151,9 @@ private extension StockXPrepView {
 
                 Spacer()
             }
-            .padding(16)
-            .background(stockXWhite)
-
-            // Market data row
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Last Sale")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-
-                    Text("$\(String(format: "%.0f", listing.lastSalePrice))")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(stockXBlack)
-                }
-
-                Spacer()
-
-                VStack(alignment: .center, spacing: 4) {
-                    Text("Lowest Ask")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-
-                    Text("$\(String(format: "%.0f", listing.lowestAsk))")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(stockXRed)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Highest Bid")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-
-                    Text("$\(String(format: "%.0f", listing.highestBid))")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(stockXGreen)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(stockXGray)
         }
+        .padding(16)
+        .background(stockXWhite)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         .padding(.horizontal, 16)
@@ -219,269 +161,184 @@ private extension StockXPrepView {
     }
 }
 
-// MARK: - Authentication Notice
+// MARK: - Market Analysis
 private extension StockXPrepView {
-    var authenticationNotice: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.title2)
-                .foregroundColor(stockXGreen)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Authentication Guaranteed")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(stockXBlack)
-
-                Text("Every item is verified by our team of experts")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-            }
-
-            Spacer()
-        }
-        .padding(16)
-        .background(stockXGreen.opacity(0.1))
-        .cornerRadius(8)
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-    }
-}
-
-// MARK: - Form Sections
-private extension StockXPrepView {
-    var sizeSection: some View {
-        StockXFormSection(title: "Size", isRequired: true) {
-            VStack(spacing: 12) {
-                Text("Select your size (US Men's)")
-                    .font(.system(size: 14))
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-                    ForEach(["8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "12.5", "13", "14"], id: \.self) { size in
-                        Button(action: {
-                            selectedSize = size
-                            calculateEstimatedPayout()
-                        }) {
-                            Text(size)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(selectedSize == size ? stockXWhite : stockXBlack)
-                                .frame(height: 40)
-                                .frame(maxWidth: .infinity)
-                                .background(selectedSize == size ? stockXGreen : stockXWhite)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(selectedSize == size ? stockXGreen : Color.gray.opacity(0.3), lineWidth: 1)
-                                )
-                        }
-                    }
-                }
-
-                StockXTipBox(
-                    icon: "ruler",
-                    text: "Size is crucial for accurate pricing. Double-check your size before listing."
-                )
-            }
-        }
-    }
-
-    var conditionSection: some View {
-        StockXFormSection(title: "Condition", isRequired: true) {
-            VStack(spacing: 12) {
-                Picker("Condition", selection: $selectedCondition) {
-                    Text("New").tag("New")
-                    Text("New (No Box)").tag("New (No Box)")
-                    Text("Used").tag("Used")
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .onChange(of: selectedCondition) { _, _ in
-                    calculateEstimatedPayout()
-                }
-
-                ConditionInfoCard(condition: selectedCondition)
-            }
-        }
-    }
-
-    var accessoriesSection: some View {
-        StockXFormSection(title: "Accessories", isRequired: false) {
-            VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Original Box")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(stockXBlack)
-
-                        Text("Increases value significantly")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: $hasBox)
-                        .toggleStyle(StockXToggleStyle())
-                        .onChange(of: hasBox) { _, _ in
-                            calculateEstimatedPayout()
-                        }
-                }
-
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Original Receipt")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(stockXBlack)
-
-                        Text("Proof of authenticity")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: $hasReceipt)
-                        .toggleStyle(StockXToggleStyle())
-                        .onChange(of: hasReceipt) { _, _ in
-                            calculateEstimatedPayout()
-                        }
-                }
-            }
-        }
-    }
-
-    var pricingSection: some View {
-        StockXFormSection(title: "Estimated Payout", isRequired: false) {
-            VStack(spacing: 16) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Your Estimated Payout")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(stockXBlack)
-
-                        Text("After StockX fees")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-
-                    Spacer()
-
-                    Text("$\(String(format: "%.0f", estimatedPayout))")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(stockXGreen)
-                }
-                .padding(16)
-                .background(stockXGreen.opacity(0.1))
-                .cornerRadius(8)
-
-                // Fee breakdown
-                VStack(spacing: 8) {
-                    HStack {
-                        Text("Selling Price")
-                        Spacer()
-                        Text("$\(String(format: "%.0f", listing.highestBid))")
-                    }
-                    .font(.system(size: 14))
-
-                    HStack {
-                        Text("StockX Fee (9.5%)")
-                        Spacer()
-                        Text("-$\(String(format: "%.0f", listing.highestBid * 0.095))")
-                            .foregroundColor(.red)
-                    }
-                    .font(.system(size: 14))
-
-                    HStack {
-                        Text("Payment Processing (3%)")
-                        Spacer()
-                        Text("-$\(String(format: "%.0f", listing.highestBid * 0.03))")
-                            .foregroundColor(.red)
-                    }
-                    .font(.system(size: 14))
-
-                    Divider()
-
-                    HStack {
-                        Text("Total Payout")
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Text("$\(String(format: "%.0f", estimatedPayout))")
-                            .fontWeight(.bold)
-                            .foregroundColor(stockXGreen)
-                    }
-                    .font(.system(size: 16))
-                }
-                .padding(12)
-                .background(stockXGray)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    var sellGuideSection: some View {
-        VStack(spacing: 12) {
+    var marketAnalysisSection: some View {
+        VStack(spacing: 16) {
             HStack {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundColor(stockXGreen)
-                    .font(.title2)
-
-                Text("Selling Tips")
-                    .font(.system(size: 16, weight: .semibold))
+                Text("Market Analysis")
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(stockXBlack)
 
                 Spacer()
+
+                Text("Live Data")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(stockXWhite)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(stockXRed)
+                    .cornerRadius(4)
             }
 
-            VStack(spacing: 8) {
-                SellTipRow(icon: "camera.fill", text: "Take clear photos of any flaws or wear")
-                SellTipRow(icon: "shippingbox.fill", text: "Pack securely - StockX will inspect your item")
-                SellTipRow(icon: "clock.fill", text: "Ship within 2 business days of sale")
-                SellTipRow(icon: "dollarsign.circle.fill", text: "Higher condition = higher payout")
+            // Market data grid
+            HStack(spacing: 12) {
+                MarketDataCard(
+                    title: "Last Sale",
+                    value: "$\(String(format: "%.0f", listing.lastSalePrice))",
+                    color: stockXBlack
+                )
+
+                MarketDataCard(
+                    title: "Highest Bid",
+                    value: "$\(String(format: "%.0f", listing.highestBid))",
+                    color: stockXGreen
+                )
+
+                MarketDataCard(
+                    title: "Lowest Ask",
+                    value: "$\(String(format: "%.0f", listing.lowestAsk))",
+                    color: stockXRed
+                )
             }
+
+            // Pricing recommendation
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(stockXGreen)
+                        .font(.system(size: 14))
+
+                    Text("Pricing Suggestion")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(stockXBlack)
+
+                    Spacer()
+                }
+
+                Text("Based on current market data, consider pricing between $\(String(format: "%.0f", listing.highestBid)) - $\(String(format: "%.0f", listing.lowestAsk)) for optimal selling potential.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(12)
+            .background(stockXGreen.opacity(0.05))
+            .cornerRadius(8)
         }
         .padding(16)
         .background(stockXWhite)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
+}
 
-    var actionButtonsSection: some View {
-        VStack(spacing: 12) {
-            // Primary action - Open StockX
+// MARK: - Selling Flow Preview
+private extension StockXPrepView {
+    var sellingFlowPreview: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("What's Next")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(stockXBlack)
+
+                Spacer()
+
+                Text("3 Steps")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+            }
+
+            VStack(spacing: 12) {
+                SellingStepRow(
+                    stepNumber: 1,
+                    title: "Size & Condition",
+                    description: "Select your exact size and item condition",
+                    icon: "ruler",
+                    isCompleted: false
+                )
+
+                SellingStepRow(
+                    stepNumber: 2,
+                    title: "Set Your Ask",
+                    description: "Choose your selling price or sell now",
+                    icon: "dollarsign.circle",
+                    isCompleted: false
+                )
+
+                SellingStepRow(
+                    stepNumber: 3,
+                    title: "Ship & Get Paid",
+                    description: "Send to StockX for authentication",
+                    icon: "shippingbox",
+                    isCompleted: false
+                )
+            }
+
+            // Important note
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(stockXGreen)
+                    .font(.system(size: 14))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("StockX handles all authentication")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(stockXBlack)
+
+                    Text("Every item is verified by experts before reaching the buyer")
+                        .font(.system(size: 11))
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(stockXGray)
+            .cornerRadius(8)
+        }
+        .padding(16)
+        .background(stockXWhite)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+}
+
+// MARK: - Action Section
+private extension StockXPrepView {
+    var actionSection: some View {
+        VStack(spacing: 16) {
+            // Primary CTA
             Button(action: {
                 openStockXApp()
             }) {
                 HStack {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("List on StockX")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Continue in StockX App")
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(stockXWhite)
 
-                        Text("Live bidding marketplace")
+                        Text("Complete your listing in 3 simple steps")
                             .font(.system(size: 12))
-                            .opacity(0.9)
+                            .foregroundColor(stockXWhite.opacity(0.8))
                     }
 
                     Spacer()
 
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("LIVE")
-                            .font(.system(size: 10, weight: .bold))
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundColor(stockXWhite)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(stockXRed)
-                            .cornerRadius(4)
 
-                        Text("BIDDING")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(stockXGreen)
+                        Text("StockX")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(stockXWhite)
                     }
                 }
-                .foregroundColor(stockXWhite)
-                .padding(16)
+                .padding(20)
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [stockXGreen, stockXDarkGreen]),
@@ -491,174 +348,110 @@ private extension StockXPrepView {
                 )
                 .cornerRadius(12)
             }
-            .padding(.horizontal, 16)
 
-            // Secondary actions
-            HStack(spacing: 12) {
-                Button("Copy Details") {
-                    copyListingDetails()
-                }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(stockXGreen)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(stockXWhite)
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(stockXGreen, lineWidth: 1)
-                )
+            // Secondary info
+            VStack(spacing: 8) {
+                Text("Why list on StockX?")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(stockXBlack)
 
-                Button("Save Item") {
-                    saveItem()
+                VStack(spacing: 6) {
+                    BenefitRow(icon: "checkmark.shield.fill", text: "Guaranteed authentic buyers")
+                    BenefitRow(icon: "dollarsign.circle.fill", text: "Competitive market pricing")
+                    BenefitRow(icon: "globe", text: "Global marketplace reach")
                 }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.gray)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(stockXGray)
-                .cornerRadius(8)
             }
-            .padding(.horizontal, 16)
+            .padding(16)
+            .background(stockXGray)
+            .cornerRadius(8)
         }
-        .padding(.top, 20)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 }
 
-// MARK: - StockX UI Components
-struct StockXFormSection<Content: View>: View {
+// MARK: - Supporting Views
+
+struct MarketDataCard: View {
     let title: String
-    let isRequired: Bool
-    let content: Content
-
-    init(title: String, isRequired: Bool = false, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.isRequired = isRequired
-        self.content = content()
-    }
+    let value: String
+    let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(red: 0.1, green: 0.1, blue: 0.12))
-
-                if isRequired {
-                    Text("*")
-                        .foregroundColor(.red)
-                        .fontWeight(.bold)
-                }
-
-                Spacer()
-            }
-
-            content
-        }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-struct StockXToggleStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(configuration.isOn ? Color(red: 0.0, green: 0.7, blue: 0.4) : Color.gray.opacity(0.3))
-            .frame(width: 50, height: 30)
-            .overlay(
-                Circle()
-                    .fill(.white)
-                    .frame(width: 26, height: 26)
-                    .offset(x: configuration.isOn ? 10 : -10)
-                    .animation(.easeInOut(duration: 0.2), value: configuration.isOn)
-            )
-            .onTapGesture {
-                configuration.isOn.toggle()
-            }
-    }
-}
-
-struct StockXTipBox: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(Color(red: 0.0, green: 0.7, blue: 0.4))
-                .font(.system(size: 14))
-
-            Text(text)
-                .font(.system(size: 12))
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 11))
                 .foregroundColor(.gray)
-                .fixedSize(horizontal: false, vertical: true)
 
-            Spacer()
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(color)
         }
-        .padding(12)
-        .background(Color(red: 0.0, green: 0.7, blue: 0.4).opacity(0.1))
-        .cornerRadius(8)
-    }
-}
-
-struct ConditionInfoCard: View {
-    let condition: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(conditionTitle)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color(red: 0.1, green: 0.1, blue: 0.12))
-
-            Text(conditionDescription)
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
         .background(Color.gray.opacity(0.05))
         .cornerRadius(8)
     }
+}
 
-    private var conditionTitle: String {
-        switch condition {
-        case "New":
-            return "Brand New with Box"
-        case "New (No Box)":
-            return "Brand New without Box"
-        case "Used":
-            return "Previously Worn"
-        default:
-            return "Condition Info"
-        }
-    }
+struct SellingStepRow: View {
+    let stepNumber: Int
+    let title: String
+    let description: String
+    let icon: String
+    let isCompleted: Bool
 
-    private var conditionDescription: String {
-        switch condition {
-        case "New":
-            return "Unworn with original box, tags, and accessories"
-        case "New (No Box)":
-            return "Unworn but missing original packaging"
-        case "Used":
-            return "Shows signs of wear, all flaws must be disclosed"
-        default:
-            return ""
+    var body: some View {
+        HStack(spacing: 12) {
+            // Step number circle
+            ZStack {
+                Circle()
+                    .fill(isCompleted ? Color(red: 0.0, green: 0.7, blue: 0.4) : Color.gray.opacity(0.2))
+                    .frame(width: 32, height: 32)
+
+                if isCompleted {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                } else {
+                    Text("\(stepNumber)")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.gray)
+                }
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color(red: 0.1, green: 0.1, blue: 0.12))
+
+                Text(description)
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            // Icon
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(.gray)
         }
+        .padding(.vertical, 4)
     }
 }
 
-struct SellTipRow: View {
+struct BenefitRow: View {
     let icon: String
     let text: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Image(systemName: icon)
+                .font(.system(size: 12))
                 .foregroundColor(Color(red: 0.0, green: 0.7, blue: 0.4))
-                .font(.system(size: 14))
-                .frame(width: 20)
+                .frame(width: 16)
 
             Text(text)
                 .font(.system(size: 12))
@@ -669,78 +462,21 @@ struct SellTipRow: View {
     }
 }
 
-// MARK: - Helper Functions
+// MARK: - Actions
 private extension StockXPrepView {
-    func calculateEstimatedPayout() {
-        let basePrice = listing.highestBid
-
-        // Adjust for condition
-        var adjustedPrice = basePrice
-        switch selectedCondition {
-        case "New":
-            adjustedPrice = basePrice
-        case "New (No Box)":
-            adjustedPrice = basePrice * 0.9
-        case "Used":
-            adjustedPrice = basePrice * 0.8
-        default:
-            adjustedPrice = basePrice
-        }
-
-        // Adjust for accessories
-        if !hasBox {
-            adjustedPrice *= 0.95
-        }
-        if hasReceipt {
-            adjustedPrice *= 1.05
-        }
-
-        // Calculate payout after fees (9.5% + 3% processing)
-        let fees = adjustedPrice * 0.125
-        estimatedPayout = adjustedPrice - fees
-    }
-
     func openStockXApp() {
-        let universalListing = UniversalListing(from: listing, condition: selectedCondition, targetPrice: .competitive)
-        MarketplaceIntegrationManager.postToMarketplace(.stockx, listing: universalListing, image: capturedImage)
-    }
+        let universalListing = UniversalListing(
+            from: listing,
+            condition: "New",
+            targetPrice: .competitive
+        )
 
-    func copyListingDetails() {
-        let details = """
-        STOCKX LISTING DETAILS
-        
-        Product: \(listing.productName)
-        Colorway: \(listing.colorway)
-        SKU: \(listing.sku)
-        
-        Size: US \(selectedSize)
-        Condition: \(selectedCondition)
-        
-        Accessories:
-        Original Box: \(hasBox ? "Yes" : "No")
-        Receipt: \(hasReceipt ? "Yes" : "No")
-        
-        Market Data:
-        Last Sale: $\(String(format: "%.0f", listing.lastSalePrice))
-        Lowest Ask: $\(String(format: "%.0f", listing.lowestAsk))
-        Highest Bid: $\(String(format: "%.0f", listing.highestBid))
-        
-        Estimated Payout: $\(String(format: "%.0f", estimatedPayout))
-        """
-
-        UIPasteboard.general.string = details
-        copiedField = "All Details"
-
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            copiedField = nil
-        }
-    }
-
-    func saveItem() {
-        print("Saving StockX item for later...")
+        MarketplaceIntegrationManager.postToMarketplace(
+            .stockx,
+            listing: universalListing,
+            image: capturedImage,
+            savePhotoOption: .ask
+        )
     }
 }
 
@@ -893,5 +629,4 @@ struct StockXListing {
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
         return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "150") ?? 150.0
     }
-
 }
