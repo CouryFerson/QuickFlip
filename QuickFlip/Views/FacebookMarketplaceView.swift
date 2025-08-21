@@ -675,15 +675,15 @@ struct CopyButton: View {
 // MARK: - Helper Functions
 private extension FacebookMarketplaceView {
     func openFacebookMarketplace() {
-        // Try to open Facebook app first, fallback to web
-        let facebookAppURL = URL(string: "fb://marketplace")!
-        let facebookWebURL = URL(string: "https://www.facebook.com/marketplace/create")!
+        let universalListing = UniversalListing(from: listing,
+                                                category: selectedCategory,
+                                                condition: selectedCondition,
+                                                location: meetupLocation,
+                                                shipping: isAvailableForShipping)
 
-        if UIApplication.shared.canOpenURL(facebookAppURL) {
-            UIApplication.shared.open(facebookAppURL)
-        } else {
-            UIApplication.shared.open(facebookWebURL)
-        }
+        MarketplaceIntegrationManager.postToMarketplace(.facebook,
+                                                        listing: universalListing,
+                                                        image: capturedImage)
     }
 
     func copyAllListingDetails() {
