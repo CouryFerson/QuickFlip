@@ -207,6 +207,7 @@ struct MarketplaceSelectionView: View {
     @ViewBuilder
     private func viewForMarketplace(_ marketplace: Marketplace) -> some View {
         NavigationLink {
+            // TODO: Update to use new `specificMarketplacePrice(for marketplace: Marketplace) -> String`
             if marketplace == .ebay {
                 eBayUploadView(listing: EbayListing(from: itemAnalysis, image: capturedImage), capturedImage: capturedImage)
             } else if marketplace == .etsy {
@@ -313,6 +314,15 @@ struct MarketplaceSelectionView: View {
         recommended.append(.mercari)
 
         return Array(Set(recommended))
+    }
+
+    private func specificMarketplacePrice(for marketplace: Marketplace) -> String {
+        if let priceAnalysisResult,
+           let marketplacePrice = priceAnalysisResult.averagePrices.first(where: { $0.key == marketplace })?.value {
+            return String(marketplacePrice)
+        } else {
+            return itemAnalysis.estimatedValue
+        }
     }
 }
 

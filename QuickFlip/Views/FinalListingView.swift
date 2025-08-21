@@ -195,7 +195,7 @@ struct FinalListingView: View {
         }
         .sheet(isPresented: $showingShareSheet) {
             if let generated = generatedListing {
-                ShareSheet(activityItems: [generated.copyableContent])
+                ShareSheet(items: [generated.copyableContent])
             }
         }
     }
@@ -250,10 +250,10 @@ struct FinalListingView: View {
 
 // MARK: - Share Sheet
 struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
+    let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let activityVC = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
         return activityVC
     }
 
