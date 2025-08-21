@@ -309,6 +309,8 @@ class MarketplaceIntegrationManager {
             return URL(string: "poshmark://create")
         case .depop:
             return URL(string: "depop://sell")
+        case .stockx:
+            return URL(string: "stockx://sell")
         default:
             return URL(string: scheme)
         }
@@ -681,4 +683,31 @@ struct UniversalListing {
         self.isShippingAvailable = shipping
         self.tags = []
     }
+
+    // Convert from your existing StockXListing
+    init(from stockxListing: StockXListing, condition: String = "New", targetPrice: StockXListing.StockXPriceStrategy = .competitive) {
+            // Create title from product name and colorway
+            self.title = stockxListing.colorway.isEmpty ?
+                stockxListing.productName :
+                "\(stockxListing.productName) \(stockxListing.colorway)"
+
+            // Create market-aware description
+            self.description = stockxListing.createStockXDescription(condition: condition)
+
+            // Set price based on strategy
+            self.price = stockxListing.calculateStockXPrice(strategy: targetPrice)
+
+            // StockX categories are typically sneakers, streetwear, electronics, etc.
+            self.category = stockxListing.inferStockXCategory()
+
+            self.condition = condition
+
+            // StockX is marketplace-wide shipping
+            self.location = "Global (StockX Authenticated)"
+            self.isShippingAvailable = true
+
+            // Create StockX-specific tags
+            self.tags = stockxListing.createStockXTags()
+        }
+
 }

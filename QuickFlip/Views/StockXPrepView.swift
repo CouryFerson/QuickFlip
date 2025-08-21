@@ -701,15 +701,8 @@ private extension StockXPrepView {
     }
 
     func openStockXApp() {
-        // Try to open StockX app first, fallback to web
-        let stockXAppURL = URL(string: "stockx://")!
-        let stockXWebURL = URL(string: "https://stockx.com/sell")!
-
-        if UIApplication.shared.canOpenURL(stockXAppURL) {
-            UIApplication.shared.open(stockXAppURL)
-        } else {
-            UIApplication.shared.open(stockXWebURL)
-        }
+        let universalListing = UniversalListing(from: listing, condition: selectedCondition, targetPrice: .competitive)
+        MarketplaceIntegrationManager.postToMarketplace(.stockx, listing: universalListing, image: capturedImage)
     }
 
     func copyListingDetails() {
@@ -773,6 +766,104 @@ struct StockXListing {
         self.highestBid = basePrice * 0.9
     }
 
+    // MARK: - StockX Price Strategy
+     enum StockXPriceStrategy {
+         case competitive    // Price between highest bid and lowest ask
+         case aggressive     // Price at or below highest bid for quick sale
+         case premium        // Price at or above lowest ask for maximum profit
+         case lastSale       // Price based on last sale price
+     }
+
+     // MARK: - StockX Helper Methods
+
+    func createStockXDescription(condition: String) -> String {
+         var description = "Authentic \(productName)"
+
+         if !colorway.isEmpty {
+             description += " in \(colorway)"
+         }
+
+         if !sku.isEmpty {
+             description += "\nSKU: \(sku)"
+         }
+
+         description += """
+         
+         📊 Market Data:
+         • Last Sale: $\(String(format: "%.0f", lastSalePrice))
+         • Lowest Ask: $\(String(format: "%.0f", lowestAsk))
+         • Highest Bid: $\(String(format: "%.0f", highestBid))
+         
+         ✅ Condition: \(condition)
+         🔒 StockX Authentication Guaranteed
+         """
+
+         return description
+     }
+
+    func calculateStockXPrice(strategy: StockXPriceStrategy) -> Double {
+         switch strategy {
+         case .competitive:
+             // Price in the middle of bid-ask spread
+             return (highestBid + lowestAsk) / 2
+
+         case .aggressive:
+             // Price to sell quickly - at or slightly below highest bid
+             return max(highestBid - 10, highestBid * 0.95)
+
+         case .premium:
+             // Price for maximum profit - at or slightly below lowest ask
+             return max(lowestAsk - 5, lowestAsk * 0.98)
+
+         case .lastSale:
+             // Price based on recent market activity
+             return lastSalePrice
+         }
+     }
+
+    func inferStockXCategory() -> String {
+         let name = productName.lowercased()
+
+         if name.contains("jordan") || name.contains("nike") || name.contains("adidas") ||
+            name.contains("yeezy") || name.contains("sneaker") || name.contains("shoe") {
+             return "Sneakers"
+         } else if name.contains("supreme") || name.contains("bape") || name.contains("off-white") ||
+                   name.contains("shirt") || name.contains("hoodie") || name.contains("jacket") {
+             return "Streetwear"
+         } else if name.contains("watch") || name.contains("airpods") || name.contains("iphone") ||
+                   name.contains("gaming") || name.contains("console") {
+             return "Electronics"
+         } else if name.contains("card") || name.contains("pokemon") || name.contains("collectible") {
+             return "Collectibles"
+         } else {
+             return "Other"
+         }
+     }
+
+    func createStockXTags() -> [String] {
+         var tags = ["StockX", "Authenticated", "Resale"]
+
+         // Add brand tags
+         let productName = productName.lowercased()
+         if productName.contains("nike") { tags.append("Nike") }
+         if productName.contains("jordan") { tags.append("Jordan") }
+         if productName.contains("adidas") { tags.append("Adidas") }
+         if productName.contains("yeezy") { tags.append("Yeezy") }
+         if productName.contains("supreme") { tags.append("Supreme") }
+
+         // Add colorway as tag if available
+         if !colorway.isEmpty {
+             tags.append(colorway)
+         }
+
+         // Add SKU if available
+         if !sku.isEmpty {
+             tags.append(sku)
+         }
+
+         return tags
+     }
+
     private static func extractProductName(_ name: String) -> String {
         // Clean up product name for StockX format
         return name.replacingOccurrences(of: "  ", with: " ")
@@ -802,4 +893,5 @@ struct StockXListing {
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
         return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "150") ?? 150.0
     }
+
 }
