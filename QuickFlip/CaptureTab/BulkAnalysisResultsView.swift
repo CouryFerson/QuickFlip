@@ -4,113 +4,21 @@ struct BulkAnalysisResultsView: View {
     let result: BulkAnalysisResult
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
-    @State private var selectedItems: Set<Int> = []
-    @State private var showingCreateListings = false
-    @State private var currentPresentationMode: CurrentPresentationMode = .none
-    @State private var itemsToList: [BulkAnalyzedItem] = []
-
-    enum CurrentPresentationMode {
-        case none
-        case singleItem
-        case bulkWorkflow
-    }
+    @State private var processedItems: Set<Int> = []
+    @State private var showingPhotoPrompt = false
+    @State private var showingCamera = false
+    @State private var showingMarketplaceSelection = false
+    @State private var selectedItemIndex: Int = 0
+    @State private var selectedItemImage: UIImage?
+    @State private var isListingFlow = false
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header with Scene Photo
-                    VStack(spacing: 16) {
-                        Image(uiImage: result.originalImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 200)
-                            .cornerRadius(12)
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                        VStack(spacing: 8) {
-                            Text("Found \(result.formattedItemCount)")
-                                .font(.title)
-                                .fontWeight(.bold)
-
-                            Text(result.totalValue)
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.green)
-
-                            if !result.sceneDescription.isEmpty {
-                                Text(result.sceneDescription)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Quick Actions
-                    HStack(spacing: 12) {
-                        Button("Select All") {
-                            selectedItems = Set(0..<result.items.count)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.2))
-                        .foregroundColor(.blue)
-                        .cornerRadius(8)
-
-                        Button("Clear All") {
-                            selectedItems.removeAll()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.gray.opacity(0.2))
-                        .foregroundColor(.gray)
-                        .cornerRadius(8)
-                    }
-                    .padding(.horizontal)
-
-                    // Items List
-                    VStack(spacing: 16) {
-                        ForEach(Array(result.items.enumerated()), id: \.offset) { index, item in
-                            BulkItemCard(
-                                item: item,
-                                index: index,
-                                isSelected: selectedItems.contains(index)
-                            ) {
-                                if selectedItems.contains(index) {
-                                    selectedItems.remove(index)
-                                } else {
-                                    selectedItems.insert(index)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Action Buttons
-                    VStack(spacing: 12) {
-                        Button("Create \(selectedItems.count) Listings") {
-                            createSelectedListings()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(selectedItems.isEmpty ? Color.gray : Color.purple)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .font(.headline)
-                        .disabled(selectedItems.isEmpty)
-
-                        Button("Save All to History") {
-                            saveAllToHistory()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.green.opacity(0.2))
-                        .foregroundColor(.green)
-                        .cornerRadius(8)
-                    }
-                    .padding(.horizontal)
+                    headerSection
+                    itemsListSection
+                    completionSection
 
                     Spacer(minLength: 50)
                 }
@@ -125,76 +33,189 @@ struct BulkAnalysisResultsView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Share") {
-                        shareResults()
+                    Menu {
+                        Button("Share Results") {
+                            shareResults()
+                        }
+
+                        Button("Start Over", role: .destructive) {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
         }
-        .sheet(isPresented: .constant(currentPresentationMode != .none), onDismiss: {
-            currentPresentationMode = .none
-        }) {
-            Group {
-                if currentPresentationMode == .singleItem, let firstItem = itemsToList.first {
-//                    NavigationView {
-//                        MarketplaceSelectionView(
-//                            itemAnalysis: firstItem.toItemAnalysis(),
-//                            capturedImage: result.originalImage
-//                        )
-//                        .environmentObject(itemStorage)
-//                        .toolbar {
-//                            ToolbarItem(placement: .navigationBarLeading) {
-//                                Button("Done") {
-//                                    currentPresentationMode = .none
-//                                }
-//                            }
-//                        }
-//                    }
-                } else if currentPresentationMode == .bulkWorkflow {
-                    BulkListingWorkflowView(
-                        selectedItems: itemsToList,
-                        originalImage: result.originalImage
+        .sheet(isPresented: $showingPhotoPrompt) {
+            PhotoPromptView(
+                item: result.items[selectedItemIndex],
+                originalImage: result.originalImage,
+                isListingFlow: isListingFlow
+            ) { image in
+                selectedItemImage = image
+                if isListingFlow {
+                    showingMarketplaceSelection = true
+                } else {
+                    saveItem(at: selectedItemIndex, with: image)
+                }
+            }
+        }
+        .sheet(isPresented: $showingMarketplaceSelection) {
+            if let image = selectedItemImage {
+                NavigationView {
+                    MarketplaceSelectionView(
+                        scannedItem: createScannedItem(from: result.items[selectedItemIndex], image: image),
+                        capturedImage: image
                     )
                     .environmentObject(itemStorage)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Back") {
+                                showingMarketplaceSelection = false
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+}
 
-    private func createSelectedListings() {
-        itemsToList = selectedItems.compactMap { index in
-            result.items[safe: index]
-        }
+// MARK: - View Components
+private extension BulkAnalysisResultsView {
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            Image(uiImage: result.originalImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 200)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
 
-        if itemsToList.count == 1 {
-            currentPresentationMode = .singleItem
-        } else if itemsToList.count > 1 {
-            currentPresentationMode = .bulkWorkflow
+            VStack(spacing: 8) {
+                Text("Found \(result.formattedItemCount)")
+                    .font(.title)
+                    .fontWeight(.bold)
+
+                Text("Choose what to do with each item")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+
+                Text(result.totalValue)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.green)
+
+                if !result.sceneDescription.isEmpty {
+                    Text(result.sceneDescription)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                }
+            }
         }
+        .padding(.horizontal)
     }
 
-    private func saveAllToHistory() {
-        for item in result.items {
-            let analysis = item.toItemAnalysis()
-
-            let scannedItem = ScannedItem(
-                itemName: analysis.itemName,
-                category: analysis.category,
-                condition: analysis.condition,
-                description: analysis.description,
-                estimatedValue: analysis.estimatedValue,
-                image: result.originalImage,
-                priceAnalysis: createDefaultAnalysis(for: analysis)
-            )
-
-            itemStorage.saveItem(scannedItem)
+    @ViewBuilder
+    private var itemsListSection: some View {
+        VStack(spacing: 16) {
+            ForEach(Array(result.items.enumerated()), id: \.offset) { index, item in
+                BulkItemActionCard(
+                    item: item,
+                    index: index,
+                    isProcessed: processedItems.contains(index),
+                    onList: {
+                        selectedItemIndex = index
+                        isListingFlow = true
+                        showingPhotoPrompt = true
+                    },
+                    onSave: {
+                        selectedItemIndex = index
+                        isListingFlow = false
+                        showingPhotoPrompt = true
+                    }
+                )
+            }
         }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var completionSection: some View {
+        if processedItems.count == result.items.count {
+            VStack(spacing: 16) {
+                VStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.green)
+
+                    Text("All Items Processed!")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("You've made decisions for all \(result.items.count) items")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+
+                Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+                .font(.headline)
+            }
+            .padding(.horizontal)
+        } else {
+            VStack(spacing: 12) {
+                Text("Processed \(processedItems.count) of \(result.items.count) items")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+
+                ProgressView(value: Double(processedItems.count), total: Double(result.items.count))
+                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - Actions
+private extension BulkAnalysisResultsView {
+    private func saveItem(at index: Int, with image: UIImage) {
+        let item = result.items[index]
+        let scannedItem = createScannedItem(from: item, image: image)
+
+        itemStorage.saveItem(scannedItem)
+        processedItems.insert(index)
 
         // Show success feedback
         let impactFeedback = UIImpactFeedbackGenerator()
         impactFeedback.impactOccurred()
+    }
 
-        presentationMode.wrappedValue.dismiss()
+    private func createScannedItem(from item: BulkAnalyzedItem, image: UIImage) -> ScannedItem {
+        let analysis = item.toItemAnalysis()
+
+        return ScannedItem(
+            itemName: analysis.itemName,
+            category: analysis.category,
+            condition: analysis.condition,
+            description: analysis.description,
+            estimatedValue: analysis.estimatedValue,
+            image: image,
+            priceAnalysis: createDefaultAnalysis(for: analysis)
+        )
     }
 
     private func createDefaultAnalysis(for item: ItemAnalysis) -> MarketplacePriceAnalysis {
@@ -226,7 +247,7 @@ struct BulkAnalysisResultsView: View {
         
         📊 Found \(result.items.count) items
         💰 Total value: \(result.totalValue)
-        📍 \(result.sceneDescription)
+        📝 \(result.sceneDescription)
         
         Items:
         \(result.items.enumerated().map { index, item in
@@ -253,85 +274,242 @@ extension Array {
     }
 }
 
-// MARK: - Bulk Item Card
-struct BulkItemCard: View {
+// MARK: - Bulk Item Action Card
+struct BulkItemActionCard: View {
     let item: BulkAnalyzedItem
     let index: Int
-    let isSelected: Bool
-    let onToggle: () -> Void
+    let isProcessed: Bool
+    let onList: () -> Void
+    let onSave: () -> Void
 
     var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 12) {
-                // Selection indicator
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.purple : Color.gray.opacity(0.3))
-                        .frame(width: 24, height: 24)
+        VStack(spacing: 12) {
+            itemDetails
 
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                    }
-                }
+            if !isProcessed {
+                actionButtons
+            } else {
+                processedIndicator
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isProcessed ? Color.green.opacity(0.05) : Color.white)
+                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isProcessed ? Color.green.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+    }
+}
 
-                // Item details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
+// MARK: - BulkItemActionCard Components
+private extension BulkItemActionCard {
+    @ViewBuilder
+    private var itemDetails: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
 
-                    HStack {
-                        Text(item.condition)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.2))
-                            .foregroundColor(.orange)
-                            .cornerRadius(4)
-
-                        if !item.location.isEmpty {
-                            Text("📍 \(item.location)")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                    }
-
-                    Text(item.description)
+                HStack {
+                    Text(item.condition)
                         .font(.caption)
-                        .foregroundColor(.gray)
-                        .lineLimit(2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundColor(.orange)
+                        .cornerRadius(4)
+
+                    if !item.location.isEmpty {
+                        Text("📍 \(item.location)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
+
+                Text(item.description)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing) {
+                Text(item.estimatedValue)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+
+                Text(item.category)
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
+            Button("💾 Save") {
+                onSave()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.blue.opacity(0.2))
+            .foregroundColor(.blue)
+            .cornerRadius(8)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+
+            Button("🚀 List Now") {
+                onList()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.purple)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+        }
+    }
+
+    @ViewBuilder
+    private var processedIndicator: some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text("Processed")
+                .font(.subheadline)
+                .foregroundColor(.green)
+                .fontWeight(.medium)
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Photo Prompt View
+struct PhotoPromptView: View {
+    let item: BulkAnalyzedItem
+    let originalImage: UIImage
+    let isListingFlow: Bool
+    let onPhotoSelected: (UIImage) -> Void
+    @Environment(\.presentationMode) var presentationMode
+    @State private var showingCamera = false
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                headerSection
+                photoPreview
+                actionButtons
 
                 Spacer()
-
-                // Price
-                VStack(alignment: .trailing) {
-                    Text(item.estimatedValue)
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.green)
-
-                    Text(item.category)
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                        .multilineTextAlignment(.trailing)
-                }
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color.purple.opacity(0.1) : Color.white)
-                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 2)
-            )
+            .navigationTitle(isListingFlow ? "List Item" : "Save Item")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $showingCamera) {
+            SaveImageCameraView { capturedImage in
+                onPhotoSelected(capturedImage)
+                showingCamera = false
+                presentationMode.wrappedValue.dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - PhotoPromptView Components
+private extension PhotoPromptView {
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            Text(item.name)
+                .font(.title2)
+                .fontWeight(.bold)
+                .multilineTextAlignment(.center)
+
+            Text(isListingFlow ? "Ready to list this item?" : "Ready to save this item?")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+
+            HStack {
+                Text(item.condition)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.2))
+                    .foregroundColor(.orange)
+                    .cornerRadius(6)
+
+                Text(item.estimatedValue)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreview: some View {
+        VStack(spacing: 12) {
+            Text("Current Photo")
+                .font(.headline)
+
+            Image(uiImage: originalImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 200)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+
+            Text("Individual photos get 3x more engagement")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        VStack(spacing: 12) {
+            Button("📷 Take New Photo") {
+                showingCamera = true
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+            .font(.headline)
+
+            Button("✓ Use Current Photo") {
+                onPhotoSelected(originalImage)
+                presentationMode.wrappedValue.dismiss()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.green.opacity(0.2))
+            .foregroundColor(.green)
+            .cornerRadius(8)
+            .font(.subheadline)
+        }
     }
 }
