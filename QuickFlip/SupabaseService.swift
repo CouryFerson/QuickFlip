@@ -268,6 +268,68 @@ class SupabaseService: ObservableObject {
         }
     }
 
+    // MARK: - Helper Methods
+
+    func checkConnection() async throws -> Bool {
+        let _: [UserProfile] = try await client
+            .from("user_profiles")
+            .select()
+            .limit(1)
+            .execute()
+            .value
+
+        return true
+    }
+}
+
+// MARK: - Subscription Tier Operations
+
+extension SupabaseService {
+
+    func getAllSubscriptionTiers() async throws -> [SubscriptionTier] {
+        let response: [SubscriptionTier] = try await client
+            .from("subscription_tiers")
+            .select()
+            .eq("is_active", value: true)
+            .order("tokens_per_period", ascending: true)
+            .execute()
+            .value
+
+        return response
+    }
+
+    func getSubscriptionTier(named tierName: String) async throws -> SubscriptionTier? {
+        do {
+            let response: SubscriptionTier = try await client
+                .from("subscription_tiers")
+                .select()
+                .eq("tier_name", value: tierName.lowercased())
+                .eq("is_active", value: true)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
+    func getUserSubscriptionTier() async throws -> SubscriptionTier? {
+        let profile = try await getUserProfile()
+        return try await getSubscriptionTier(named: profile.subscriptionTier)
+    }
+
+    func hasFeature(_ feature: String) async throws -> Bool {
+        guard let tier = try await getUserSubscriptionTier() else { return false }
+        return tier.features.contains(feature)
+    }
+}
+
+// MARK: - Token Management
+
+extension SupabaseService {
+
     func getTokenCount() async throws -> Int {
         let profile = try await getUserProfile()
         return profile.tokens
@@ -306,21 +368,13 @@ class SupabaseService: ObservableObject {
         return newTokenCount
     }
 
-    func setTokensForTier(_ tier: String) async throws -> Int {
+    func setTokensForTier(_ tierName: String) async throws -> Int {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
 
-        let tokenCount: Int
-        switch tier.lowercased() {
-        case "free":
-            tokenCount = 10
-        case "starter":
-            tokenCount = 250
-        case "pro":
-            tokenCount = 1000
-        default:
-            tokenCount = 10 // Default to free tier
+        guard let tier = try await getSubscriptionTier(named: tierName) else {
+            throw SupabaseServiceError.invalidData
         }
 
         struct TierTokenUpdate: Codable {
@@ -333,7 +387,10 @@ class SupabaseService: ObservableObject {
             }
         }
 
-        let update = TierTokenUpdate(subscriptionTier: tier, tokens: tokenCount)
+        let update = TierTokenUpdate(
+            subscriptionTier: tier.tierName,
+            tokens: tier.tokensPerPeriod
+        )
 
         try await client
             .from("user_profiles")
@@ -341,25 +398,12 @@ class SupabaseService: ObservableObject {
             .eq("id", value: userId)
             .execute()
 
-        return tokenCount
+        return tier.tokensPerPeriod
     }
 
     func refillTokens() async throws -> Int {
         let profile = try await getUserProfile()
         return try await setTokensForTier(profile.subscriptionTier)
-    }
-
-    // MARK: - Helper Methods
-
-    func checkConnection() async throws -> Bool {
-        let _: [UserProfile] = try await client
-            .from("user_profiles")
-            .select()
-            .limit(1)
-            .execute()
-            .value
-
-        return true
     }
 }
 
