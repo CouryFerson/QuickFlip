@@ -18,7 +18,7 @@ struct MarketplaceCard: View {
                     .fill(marketplace.color.opacity(0.2))
                     .frame(width: 60, height: 60)
 
-                Image(systemName: marketplace.iconName)
+                Image(systemName: marketplace.systemImage)
                     .font(.title2)
                     .foregroundColor(marketplace.color)
             }

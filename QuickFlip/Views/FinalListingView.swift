@@ -22,7 +22,7 @@ struct FinalListingView: View {
             VStack(spacing: 24) {
                 // Header
                 VStack(spacing: 12) {
-                    Image(systemName: selectedMarketplace.iconName)
+                    Image(systemName: selectedMarketplace.systemImage)
                         .font(.system(size: 50))
                         .foregroundColor(selectedMarketplace.color)
 

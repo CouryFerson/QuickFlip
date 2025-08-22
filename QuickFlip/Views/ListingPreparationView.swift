@@ -218,7 +218,7 @@ struct ListingPreparationView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack {
-                    Image(systemName: selectedMarketplace.iconName)
+                    Image(systemName: selectedMarketplace.systemImage)
                         .foregroundColor(selectedMarketplace.color)
                     Text(selectedMarketplace.rawValue)
                         .font(.caption)

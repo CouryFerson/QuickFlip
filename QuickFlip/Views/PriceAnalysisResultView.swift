@@ -35,7 +35,7 @@ struct PriceAnalysisResultView: View {
 
                 NavigationLink(destination: Text("Fix this")) {
                     HStack {
-                        Image(systemName: analysis.recommendedMarketplace.iconName)
+                        Image(systemName: analysis.recommendedMarketplace.systemImage)
                             .font(.title2)
                             .foregroundColor(analysis.recommendedMarketplace.color)
 

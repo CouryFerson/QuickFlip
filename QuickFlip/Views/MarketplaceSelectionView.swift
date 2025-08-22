@@ -9,172 +9,349 @@ struct MarketplaceSelectionView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // Header
-                VStack(spacing: 12) {
-                    Text("Choose Marketplace")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-
-                    Text("Where would you like to list this item?")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-
-                    // Item Preview
-                    VStack(spacing: 8) {
-                        Image(uiImage: capturedImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 120)
-                            .cornerRadius(8)
-
-                        Text(scannedItem.itemName)
-                            .font(.headline)
-                            .multilineTextAlignment(.center)
-
-                        Text(scannedItem.estimatedValue)
-                            .font(.subheadline)
-                            .foregroundColor(.green)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal)
-
-                // Smart Recommendation Section
-                VStack(spacing: 16) {
-                    HStack {
-                        Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.orange)
-                        Text("SMART RECOMMENDATION")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.orange)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-
-                    if let priceAnalysis = priceAnalysisResult {
-                        // Show price analysis results
-                        PriceAnalysisResultView(analysis: priceAnalysis, scannedItem: scannedItem) { marketplace in
-                            saveScannedItem(marketplace: marketplace, priceAnalysis: priceAnalysis)
-                        }
-                    } else {
-                        // Find Best Marketplace Button
-                        Button(action: {
-                            findBestMarketplace()
-                        }) {
-                            HStack {
-                                if isAnalyzingPrices {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Image(systemName: "magnifyingglass.circle.fill")
-                                        .font(.title2)
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(isAnalyzingPrices ? "Analyzing Prices..." : "Find Best Marketplace")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-
-                                    Text(isAnalyzingPrices ? "Searching all platforms" : "We'll find where this sells for the most")
-                                        .font(.caption)
-                                        .opacity(0.9)
-                                }
-
-                                Spacer()
-
-                                if !isAnalyzingPrices {
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color.blue, Color.purple]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(12)
-                            .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                        .disabled(isAnalyzingPrices || !canAnalyzePrices())
-                        .padding(.horizontal)
-
-                        if !canAnalyzePrices() {
-                            Text("💡 Price analysis works best with specific brand items")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                    }
-                }
-
-                // Show price analysis results
-                if let priceAnalysis = priceAnalysisResult {
-                    priceAnalyticsView(analysis: priceAnalysis)
-                }
-
-                // OR divider
-                HStack {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(height: 1)
-
-                    Text("OR CHOOSE MANUALLY")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal, 12)
-
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(height: 1)
-                }
-                .padding(.horizontal)
-
-                // Marketplace Grid
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 16) {
-                    ForEach(Marketplace.allCases) { marketplace in
-                        viewForMarketplace(marketplace)
-                    }
-                }
-                .padding(.horizontal)
-
-                Spacer(minLength: 50)
+            LazyVStack(spacing: 0) {
+                itemPreviewSection
+                smartRecommendationSection
+                marketplaceGridSection
             }
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Choose Marketplace")
         .navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    private func canAnalyzePrices() -> Bool {
-        let itemName = scannedItem.itemName.lowercased()
+// MARK: - Main Sections
+private extension MarketplaceSelectionView {
 
-        // Check if item is specific enough for price analysis
-        let genericTerms = ["unknown", "item", "object", "thing", "device", "electronic device"]
-
-        for term in genericTerms {
-            if itemName.contains(term) {
-                return false
-            }
+    @ViewBuilder
+    var itemPreviewSection: some View {
+        VStack(spacing: 16) {
+            itemImageView
+            itemDetailsView
         }
-
-        return true
+        .padding(.horizontal, 20)
+        .padding(.vertical, 24)
+        .background(Color(.systemBackground))
     }
 
-    private func findBestMarketplace() {
+    @ViewBuilder
+    var smartRecommendationSection: some View {
+        VStack(spacing: 0) {
+            sectionHeader
+
+            if let priceAnalysis = priceAnalysisResult {
+                priceAnalysisContent(analysis: priceAnalysis)
+            } else {
+                priceAnalysisButton
+            }
+
+            if let priceAnalysis = priceAnalysisResult {
+                profitCalculatorButton(analysis: priceAnalysis)
+                    .padding(.top, 12)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    var marketplaceGridSection: some View {
+        VStack(spacing: 16) {
+            sectionDivider
+            marketplaceGrid
+        }
+        .padding(.top, 24)
+        .padding(.bottom, 32)
+    }
+}
+
+// MARK: - Item Preview Components
+private extension MarketplaceSelectionView {
+
+    @ViewBuilder
+    var itemImageView: some View {
+        Image(uiImage: capturedImage)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: 120, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(.systemGray5), lineWidth: 1)
+            )
+    }
+
+    @ViewBuilder
+    var itemDetailsView: some View {
+        VStack(spacing: 8) {
+            Text(scannedItem.itemName)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+
+            Text(scannedItem.estimatedValue)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.green)
+        }
+    }
+}
+
+// MARK: - Smart Recommendation Components
+private extension MarketplaceSelectionView {
+
+    @ViewBuilder
+    var sectionHeader: some View {
+        HStack {
+            Label("Smart Recommendation", systemImage: "sparkles")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    var priceAnalysisButton: some View {
+        Button(action: findBestMarketplace) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 44, height: 44)
+
+                    if isAnalyzingPrices {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isAnalyzingPrices ? "Analyzing Prices..." : "Find Best Marketplace")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text(isAnalyzingPrices ? "Searching all platforms" : "We'll find where this sells best")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if !isAnalyzingPrices {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.gray.opacity(0.6))
+                }
+            }
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .disabled(isAnalyzingPrices || !canAnalyzePrices())
+        .opacity((isAnalyzingPrices || !canAnalyzePrices()) ? 0.6 : 1.0)
+
+        if !canAnalyzePrices() {
+            Text("💡 Price analysis works best with specific brand items")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+        }
+    }
+
+    @ViewBuilder
+    func priceAnalysisContent(analysis: MarketplacePriceAnalysis) -> some View {
+        PriceAnalysisResultView(analysis: analysis, scannedItem: scannedItem) { marketplace in
+            saveScannedItem(marketplace: marketplace, priceAnalysis: analysis)
+        }
+    }
+
+    @ViewBuilder
+    func profitCalculatorButton(analysis: MarketplacePriceAnalysis) -> some View {
+        NavigationLink(destination: ProfitCalculatorView(priceAnalysis: analysis, capturedImage: capturedImage)) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.green.opacity(0.15))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "dollarsign.arrow.circlepath")
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundColor(.green)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Calculate Real Profit")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text("See profit after fees and costs")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.gray.opacity(0.6))
+            }
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    @ViewBuilder
+    var sectionDivider: some View {
+        HStack {
+            Rectangle()
+                .fill(Color(.systemGray4))
+                .frame(height: 1)
+
+            Text("Choose Platform")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+
+            Rectangle()
+                .fill(Color(.systemGray4))
+                .frame(height: 1)
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - Marketplace Grid Components
+private extension MarketplaceSelectionView {
+
+    @ViewBuilder
+    var marketplaceGrid: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ],
+            spacing: 16
+        ) {
+            ForEach(Marketplace.allCases) { marketplace in
+                marketplaceCard(for: marketplace)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    func marketplaceCard(for marketplace: Marketplace) -> some View {
+        NavigationLink {
+            destinationView(for: marketplace)
+        } label: {
+            VStack(spacing: 12) {
+                // Platform Icon
+                ZStack {
+                    Circle()
+                        .fill(marketplace.color.opacity(0.15))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: marketplace.systemImage)
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundColor(marketplace.color)
+                }
+
+                // Platform Info
+                VStack(spacing: 4) {
+                    Text(marketplace.displayName)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+
+                    Text(specificMarketplacePrice(for: marketplace))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.green)
+
+                    if getRecommendedMarketplaces().contains(marketplace) {
+                        Text("RECOMMENDED")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 140) // Uniform height
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(.systemGray5), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(MarketplaceCardButtonStyle())
+    }
+
+    @ViewBuilder
+    func destinationView(for marketplace: Marketplace) -> some View {
+        if marketplace == .ebay {
+            eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        } else if marketplace == .etsy {
+            EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        } else if marketplace == .amazon {
+            AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        } else if marketplace == .facebook {
+            FacebookMarketplaceView(listing: FacebookListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        } else if marketplace == .stockx {
+            StockXPrepView(listing: StockXListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        } else {
+            ListingPreparationView(
+                scannedItem: scannedItem,
+                capturedImage: capturedImage,
+                selectedMarketplace: marketplace
+            )
+        }
+    }
+}
+
+// MARK: - Business Logic
+private extension MarketplaceSelectionView {
+
+    func canAnalyzePrices() -> Bool {
+        let itemName = scannedItem.itemName.lowercased()
+        let genericTerms = ["unknown", "item", "object", "thing", "device", "electronic device"]
+
+        return !genericTerms.contains { itemName.contains($0) }
+    }
+
+    func findBestMarketplace() {
         isAnalyzingPrices = true
 
         Task {
@@ -199,38 +376,7 @@ struct MarketplaceSelectionView: View {
         }
     }
 
-    @ViewBuilder
-    private func viewForMarketplace(_ marketplace: Marketplace) -> some View {
-        NavigationLink {
-            // TODO: Update to use new `specificMarketplacePrice(for marketplace: Marketplace) -> String`
-            if marketplace == .ebay {
-                eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-            } else if marketplace == .etsy {
-                EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-            } else if marketplace == .amazon {
-                AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-            } else if marketplace == .facebook {
-                FacebookMarketplaceView(listing: FacebookListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-            } else if marketplace == .stockx {
-                StockXPrepView(listing: StockXListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-            } else {
-                ListingPreparationView(
-                    scannedItem: scannedItem,
-                    capturedImage: capturedImage,
-                    selectedMarketplace: marketplace
-                )
-            }
-        } label: {
-            MarketplaceCard(
-                marketplace: marketplace,
-                isRecommended: getRecommendedMarketplaces().contains(marketplace)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Storage Integration
-    private func saveScannedItem(marketplace: Marketplace, priceAnalysis: MarketplacePriceAnalysis? = nil) {
+    func saveScannedItem(marketplace: Marketplace, priceAnalysis: MarketplacePriceAnalysis? = nil) {
         let analysis = priceAnalysis ?? createDefaultAnalysis(for: marketplace)
 
         let newItem = ScannedItem(
@@ -243,18 +389,15 @@ struct MarketplaceSelectionView: View {
             priceAnalysis: analysis
         )
 
-        // Update existing item or create new one
         itemStorage.updateItem(matching: { item in
             item.itemName == scannedItem.itemName &&
-            abs(item.timestamp.timeIntervalSinceNow) < 300 // Within 5 minutes
+            abs(item.timestamp.timeIntervalSinceNow) < 300
         }, with: newItem)
     }
 
-    private func createDefaultAnalysis(for marketplace: Marketplace) -> MarketplacePriceAnalysis {
-        // Create a simple analysis if we don't have AI price data
+    func createDefaultAnalysis(for marketplace: Marketplace) -> MarketplacePriceAnalysis {
         let basePrice = extractPrice(from: scannedItem.estimatedValue)
 
-        // Create base prices for common marketplaces
         var prices: [Marketplace: Double] = [
             .ebay: basePrice * 0.9,
             .mercari: basePrice * 0.8,
@@ -263,7 +406,6 @@ struct MarketplaceSelectionView: View {
             .stockx: basePrice * 1.2
         ]
 
-        // Ensure the selected marketplace has the base price (and avoid duplicates)
         prices[marketplace] = basePrice
 
         return MarketplacePriceAnalysis(
@@ -273,15 +415,14 @@ struct MarketplaceSelectionView: View {
             reasoning: "User selected marketplace"
         )
     }
-    private func extractPrice(from value: String) -> Double {
-        // Extract a number from "$40-$60" format
+
+    func extractPrice(from value: String) -> Double {
         let numbers = value.replacingOccurrences(of: "$", with: "")
-            .components(separatedBy: CharacterSet(charactersIn: "-–"))
+            .components(separatedBy: CharacterSet(charactersIn: "-—"))
         return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
     }
 
-    // Keep existing helper methods...
-    private func getRecommendedMarketplaces() -> [Marketplace] {
+    func getRecommendedMarketplaces() -> [Marketplace] {
         let itemName = scannedItem.itemName.lowercased()
         let category = scannedItem.category.lowercased()
 
@@ -311,58 +452,22 @@ struct MarketplaceSelectionView: View {
         return Array(Set(recommended))
     }
 
-    private func specificMarketplacePrice(for marketplace: Marketplace) -> String {
+    func specificMarketplacePrice(for marketplace: Marketplace) -> String {
         if let priceAnalysisResult,
            let marketplacePrice = priceAnalysisResult.averagePrices.first(where: { $0.key == marketplace })?.value {
-            return String(marketplacePrice)
+            return "$\(Int(marketplacePrice))"
         } else {
             return scannedItem.estimatedValue
         }
     }
 }
 
-private extension MarketplaceSelectionView {
-    @ViewBuilder
-    private func priceAnalyticsView(analysis: MarketplacePriceAnalysis) -> some View {
-        // Add Profit Calculator Button
-        NavigationLink(
-            destination: ProfitCalculatorView(
-                priceAnalysis: analysis,
-                capturedImage: capturedImage
-            )
-        ) {
-            HStack {
-                Image(systemName: "calculator.fill")
-                    .font(.title2)
-                    .foregroundColor(.green)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Calculate Real Profit")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-
-                    Text("See profit after fees and costs")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.gray)
-            }
-            .padding()
-            .background(Color.green.opacity(0.1))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .padding(.horizontal)
+// MARK: - Custom Button Style
+struct MarketplaceCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }

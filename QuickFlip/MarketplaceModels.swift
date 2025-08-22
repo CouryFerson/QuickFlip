@@ -14,19 +14,6 @@ enum Marketplace: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var iconName: String {
-        switch self {
-        case .ebay: return "cart.fill"
-        case .facebook: return "person.2.fill"
-        case .amazon: return "shippingbox.fill"
-        case .stockx: return "sneaker.fill"
-        case .etsy: return "heart.fill"
-        case .mercari: return "bag.fill"
-        case .poshmark: return "tshirt.fill"
-        case .depop: return "star.fill"
-        }
-    }
-
     var color: Color {
         switch self {
         case .ebay: return .blue
@@ -50,6 +37,19 @@ enum Marketplace: String, CaseIterable, Identifiable {
         case .mercari: return "Simple selling"
         case .poshmark: return "Fashion & lifestyle"
         case .depop: return "Gen Z marketplace"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ebay: return "globe"
+        case .amazon: return "shippingbox"
+        case .etsy: return "heart"
+        case .facebook: return "person.2"
+        case .poshmark: return "tshirt"
+        case .mercari: return "bag"
+        case .depop: return "tshirt.fill"
+        case .stockx: return "shoe"
         }
     }
 
