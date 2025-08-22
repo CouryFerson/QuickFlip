@@ -397,8 +397,10 @@ extension CameraController {
     }
 
     private func saveAnalyzedItem(scannedItem: ScannedItem, storage: ItemStorageService) {
-        storage.saveItem(scannedItem)
-        print("QuickFlip: Auto-saved '\(scannedItem.itemName)' after AI analysis")
+        Task { @MainActor in
+            storage.saveItem(scannedItem)
+            print("QuickFlip: Auto-saved '\(scannedItem.itemName)' after AI analysis")
+        }
     }
 
     private func extractPrice(from value: String) -> Double {

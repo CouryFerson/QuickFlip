@@ -147,7 +147,7 @@ struct ItemDetailView: View {
                 }
                 .alert("Delete Item", isPresented: $showingDeleteAlert) {
                     Button("Delete", role: .destructive) {
-                        // Handle delete
+                        itemStorage.deleteItem(item)
                         presentationMode.wrappedValue.dismiss()
                     }
                     Button("Cancel", role: .cancel) { }

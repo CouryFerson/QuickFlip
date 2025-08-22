@@ -33,7 +33,6 @@ class AuthManager: ObservableObject {
         isLoading = true
 
         do {
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
             let session = try await supabase.auth.session
             self.isAuthenticated = true
             self.currentUser = session.user

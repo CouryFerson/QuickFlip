@@ -1,4 +1,3 @@
-
 import Foundation
 import UIKit
 import SwiftUI
@@ -12,12 +11,29 @@ struct ScannedItem: Codable, Identifiable, Equatable {
     let description: String
     let estimatedValue: String
     let timestamp: Date
-    let imageData: Data?
+    let imageData: String? // Changed to String (Base64) instead of Data
     let priceAnalysis: StorableMarketplacePriceAnalysis
     let userCostBasis: Double?
     let userNotes: String?
     let profitBreakdowns: [StorableProfitBreakdown]?
 
+    // MARK: - Database CodingKeys (maps Swift names to database columns)
+    enum CodingKeys: String, CodingKey {
+        case id
+        case itemName = "item_name"
+        case category
+        case condition
+        case description
+        case estimatedValue = "estimated_value"
+        case timestamp
+        case imageData = "image_data"
+        case priceAnalysis = "price_analysis"
+        case userCostBasis = "user_cost_basis"
+        case userNotes = "user_notes"
+        case profitBreakdowns = "profit_breakdowns"
+    }
+
+    // MARK: - Standard Initializer
     init(
         itemName: String,
         category: String,
@@ -37,16 +53,57 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.description = description
         self.estimatedValue = estimatedValue
         self.timestamp = Date()
-        self.imageData = image?.jpegData(compressionQuality: 0.8)
+
+        // Convert UIImage to Base64 string for database storage
+        if let image = image,
+           let jpegData = image.jpegData(compressionQuality: 0.8) {
+            self.imageData = jpegData.base64EncodedString()
+        } else {
+            self.imageData = nil
+        }
+
         self.priceAnalysis = StorableMarketplacePriceAnalysis(from: priceAnalysis)
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns?.map { StorableProfitBreakdown(from: $0) }
     }
 
+    // MARK: - Database Initializer (for Supabase loading)
+    init(
+        id: UUID,
+        itemName: String,
+        category: String,
+        condition: String,
+        description: String,
+        estimatedValue: String,
+        timestamp: Date,
+        imageData: String?, // Now Base64 string
+        priceAnalysis: StorableMarketplacePriceAnalysis,
+        userCostBasis: Double?,
+        userNotes: String?,
+        profitBreakdowns: [StorableProfitBreakdown]?
+    ) {
+        self.id = id
+        self.itemName = itemName
+        self.category = category
+        self.condition = condition
+        self.description = description
+        self.estimatedValue = estimatedValue
+        self.timestamp = timestamp
+        self.imageData = imageData
+        self.priceAnalysis = priceAnalysis
+        self.userCostBasis = userCostBasis
+        self.userNotes = userNotes
+        self.profitBreakdowns = profitBreakdowns
+    }
+
+    // MARK: - Computed Properties
     var image: UIImage? {
-        guard let imageData = imageData else { return nil }
-        return UIImage(data: imageData)
+        guard let base64String = imageData else { return nil }
+
+        // Convert Base64 string back to Data, then to UIImage
+        guard let data = Data(base64Encoded: base64String) else { return nil }
+        return UIImage(data: data)
     }
 
     var formattedTimestamp: String {
@@ -90,7 +147,6 @@ struct StorableMarketplacePriceAnalysis: Codable, Equatable {
             }
         }()
 
-        // Fix: Use reduce to build the dictionary
         let marketplacePrices: [Marketplace: Double] = averagePrices.reduce(into: [:]) { result, element in
             let (key, value) = element
             if let marketplace = Marketplace.allCases.first(where: { $0.rawValue == key }) {

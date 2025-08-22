@@ -204,7 +204,9 @@ struct SettingsView: View {
         }
         .alert("Clear All Data", isPresented: $showingDeleteAlert) {
             Button("Clear", role: .destructive) {
-                itemStorage.clearAllData()
+                Task {
+                    await itemStorage.clearAllData()
+                }
             }
             Button("Cancel", role: .cancel) { }
         } message: {
@@ -431,13 +433,5 @@ struct MarketplacePreferencesView: View {
         }
         .navigationTitle("Marketplace Preferences")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Preview
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettingsView()
-            .environmentObject(ItemStorageService())
     }
 }

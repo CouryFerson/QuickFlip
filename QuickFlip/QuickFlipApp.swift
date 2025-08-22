@@ -6,18 +6,26 @@
 //
 
 import SwiftUI
+import Supabase
 
 @main
 struct QuickFlipApp: App {
-    @StateObject private var itemStorage = ItemStorageService()
+    @StateObject private var itemStorage: ItemStorageService
     @StateObject private var supabaseService: SupabaseService
     @StateObject private var authManager: AuthManager
 
     init() {
-        let supabaseService = SupabaseService()
+        let client = SupabaseClient(
+            supabaseURL: URL(string: "https://caozetulkpyyuniwprtd.supabase.co")!,
+            supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhb3pldHVsa3B5eXVuaXdwcnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NjEyOTMsImV4cCI6MjA3MTIzNzI5M30.sdw4OMWXBl9-DrJX165M0Fz8NXBxSVJ6QQJb_qG11vM"
+        )
+
+        let authManager = AuthManager(supabase: client)
+        let supabaseService = SupabaseService(client: client, authManager: authManager)
 
         _supabaseService = StateObject(wrappedValue: supabaseService)
-        _authManager = StateObject(wrappedValue: AuthManager(supabase: supabaseService.client))
+        _authManager = StateObject(wrappedValue: authManager)
+        _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
     }
 
     var body: some Scene {
@@ -31,7 +39,12 @@ struct QuickFlipApp: App {
             } else {
                 // User is authenticated
                 MainTabView()
+                    .environmentObject(supabaseService)
+                    .environmentObject(authManager)
                     .environmentObject(itemStorage)
+                    .task {
+                        await itemStorage.refreshData()
+                    }
             }
         }
     }

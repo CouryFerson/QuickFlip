@@ -8,46 +8,108 @@
 import Foundation
 import Combine
 
+@MainActor
 class ItemStorageService: ObservableObject {
     @Published var scannedItems: [ScannedItem] = []
     @Published var userStats: UserStats = UserStats(from: [])
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
 
-    private let fileName = "scannedItems.json"
-    private let statsFileName = "userStats.json"
+    private let supabaseService: SupabaseService
 
-    init() {
-        loadItems()
-        updateStats()
+    init(supabaseService: SupabaseService) {
+        self.supabaseService = supabaseService
     }
 
     // MARK: - Public Methods
-    func saveItem(_ item: ScannedItem) {
-        scannedItems.insert(item, at: 0) // Most recent first
-        saveToFile()
-        updateStats()
 
-        print("QuickFlip: Saved item '\(item.itemName)' to storage")
+    func saveItem(_ item: ScannedItem) async {
+        // Optimistically update UI
+        scannedItems.insert(item, at: 0)
+        updateStatsLocally()
+
+        do {
+            try await supabaseService.saveScannedItem(item)
+            try await supabaseService.saveUserStats(userStats)
+            print("QuickFlip: Saved item '\(item.itemName)' to database")
+            clearError()
+        } catch {
+            // Revert optimistic update on failure
+            scannedItems.removeFirst()
+            updateStatsLocally()
+            setError("Failed to save item: \(error.localizedDescription)")
+            print("QuickFlip: Failed to save item: \(error)")
+        }
     }
 
-    func deleteItem(_ item: ScannedItem) {
-        scannedItems.removeAll { $0.id == item.id }
-        saveToFile()
-        updateStats()
+    func deleteItem(_ item: ScannedItem) async {
+        // Store the item and its index for potential rollback
+        guard let index = scannedItems.firstIndex(where: { $0.id == item.id }) else { return }
+        let itemToDelete = scannedItems[index]
 
-        print("QuickFlip: Deleted item '\(item.itemName)' from storage")
+        // Optimistically update UI
+        scannedItems.remove(at: index)
+        updateStatsLocally()
+
+        do {
+            try await supabaseService.deleteScannedItem(item)
+            try await supabaseService.saveUserStats(userStats)
+            print("QuickFlip: Deleted item '\(item.itemName)' from database")
+            clearError()
+        } catch {
+            // Revert optimistic update on failure
+            scannedItems.insert(itemToDelete, at: index)
+            updateStatsLocally()
+            setError("Failed to delete item: \(error.localizedDescription)")
+            print("QuickFlip: Failed to delete item: \(error)")
+        }
     }
 
-    func updateItem(matching predicate: (ScannedItem) -> Bool, with newItem: ScannedItem) {
+    func updateItem(matching predicate: (ScannedItem) -> Bool, with newItem: ScannedItem) async {
         if let index = scannedItems.firstIndex(where: predicate) {
+            let oldItem = scannedItems[index]
+
+            // Optimistically update UI
             scannedItems[index] = newItem
-            saveToFile()
-            updateStats()
-            print("QuickFlip: Updated existing item")
+            updateStatsLocally()
+
+            do {
+                try await supabaseService.updateScannedItem(newItem)
+                try await supabaseService.saveUserStats(userStats)
+                print("QuickFlip: Updated existing item")
+                clearError()
+            } catch {
+                // Revert optimistic update on failure
+                scannedItems[index] = oldItem
+                updateStatsLocally()
+                setError("Failed to update item: \(error.localizedDescription)")
+                print("QuickFlip: Failed to update item: \(error)")
+            }
         } else {
-            saveItem(newItem)
+            await saveItem(newItem)
             print("QuickFlip: Created new item (no match found)")
         }
     }
+
+    func refreshData() async {
+        await loadUserData()
+    }
+
+    // MARK: - Synchronous Methods (for existing SwiftUI compatibility)
+
+    func saveItem(_ item: ScannedItem) {
+        Task { await saveItem(item) }
+    }
+
+    func deleteItem(_ item: ScannedItem) {
+        Task { await deleteItem(item) }
+    }
+
+    func updateItem(matching predicate: @escaping (ScannedItem) -> Bool, with newItem: ScannedItem) {
+        Task { await updateItem(matching: predicate, with: newItem) }
+    }
+
+    // MARK: - Search and Filter Methods
 
     func searchItems(query: String) -> [ScannedItem] {
         guard !query.isEmpty else { return scannedItems }
@@ -71,66 +133,75 @@ class ItemStorageService: ObservableObject {
         do {
             return try JSONEncoder().encode(scannedItems)
         } catch {
-            print("QuickFlip: Failed to export data: \(error)")
+            setError("Failed to export data: \(error.localizedDescription)")
             return nil
         }
     }
 
-    func clearAllData() {
+    func clearAllData() async {
+        let itemsToDelete = scannedItems
+
+        // Optimistically clear UI
         scannedItems.removeAll()
-        saveToFile()
-        updateStats()
+        updateStatsLocally()
+
+        do {
+            // Delete all items from database
+            for item in itemsToDelete {
+                try await supabaseService.deleteScannedItem(item)
+            }
+            try await supabaseService.saveUserStats(userStats)
+            print("QuickFlip: Cleared all data")
+            clearError()
+        } catch {
+            // Revert optimistic update on failure
+            scannedItems = itemsToDelete
+            updateStatsLocally()
+            setError("Failed to clear data: \(error.localizedDescription)")
+            print("QuickFlip: Failed to clear data: \(error)")
+        }
     }
 
     // MARK: - Private Methods
-    private func saveToFile() {
-        let url = getDocumentsDirectory().appendingPathComponent(fileName)
+
+    private func loadUserData() async {
+        isLoading = true
+        clearError()
 
         do {
-            let data = try JSONEncoder().encode(scannedItems)
-            try data.write(to: url)
+            // Load scanned items
+            let items = try await supabaseService.fetchUserScannedItems()
+            scannedItems = items
+            print("QuickFlip: Loaded \(scannedItems.count) items from database")
+
+            // Load user stats
+            if let stats = try await supabaseService.fetchUserStats() {
+                userStats = stats
+            } else {
+                // Create initial stats if none exist
+                userStats = UserStats(from: scannedItems)
+                try await supabaseService.saveUserStats(userStats)
+            }
+
+            clearError()
         } catch {
-            print("QuickFlip: Failed to save items: \(error)")
+            setError("Failed to load data: \(error.localizedDescription)")
+            print("QuickFlip: Failed to load user data: \(error)")
         }
+
+        isLoading = false
     }
 
-    private func loadItems() {
-        let url = getDocumentsDirectory().appendingPathComponent(fileName)
-
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            print("QuickFlip: No saved items file found - starting fresh")
-            return
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            scannedItems = try JSONDecoder().decode([ScannedItem].self, from: data)
-            print("QuickFlip: Loaded \(scannedItems.count) items from storage")
-        } catch {
-            print("QuickFlip: Failed to load items: \(error)")
-            // Don't crash - just start with empty array
-            scannedItems = []
-        }
-    }
-
-    private func updateStats() {
+    private func updateStatsLocally() {
         userStats = UserStats(from: scannedItems)
-        saveStats()
     }
 
-    private func saveStats() {
-        let url = getDocumentsDirectory().appendingPathComponent(statsFileName)
-
-        do {
-            let data = try JSONEncoder().encode(userStats)
-            try data.write(to: url)
-        } catch {
-            print("QuickFlip: Failed to save stats: \(error)")
-        }
+    private func setError(_ message: String) {
+        errorMessage = message
     }
 
-    private func getDocumentsDirectory() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private func clearError() {
+        errorMessage = nil
     }
 }
 
@@ -150,5 +221,9 @@ extension ItemStorageService {
 
     var topMarketplace: String {
         return userStats.favoriteMarketplace
+    }
+
+    var hasError: Bool {
+        return errorMessage != nil
     }
 }

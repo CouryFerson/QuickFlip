@@ -10,15 +10,26 @@ import Supabase
 
 @MainActor
 class SupabaseService: ObservableObject {
+    private let client: SupabaseClient
+    private let authManager: AuthManager
 
-    let client = SupabaseClient(
-        supabaseURL: URL(string: "https://caozetulkpyyuniwprtd.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhb3pldHVsa3B5eXVuaXdwcnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NjEyOTMsImV4cCI6MjA3MTIzNzI5M30.sdw4OMWXBl9-DrJX165M0Fz8NXBxSVJ6QQJb_qG11vM"
-    )
+    init(client: SupabaseClient, authManager: AuthManager) {
+        self.client = client
+        self.authManager = authManager
+    }
+
+    // Get current user's profile ID
+    private var currentUserProfileId: String? {
+        return authManager.userId
+    }
 
     // MARK: - User Profile Operations
 
-    func getUserProfile(userId: String) async throws -> UserProfile {
+    func getUserProfile() async throws -> UserProfile {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
         let response: UserProfile = try await client
             .from("user_profiles")
             .select()
@@ -30,52 +41,236 @@ class SupabaseService: ObservableObject {
         return response
     }
 
-    func updateScanCount(userId: String, newCount: Int) async throws {
+    func updateScanCount(newCount: Int) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        struct ScanCountUpdate: Codable {
+            let totalItemsScanned: Int
+
+            enum CodingKeys: String, CodingKey {
+                case totalItemsScanned = "total_items_scanned"
+            }
+        }
+
+        let update = ScanCountUpdate(totalItemsScanned: newCount)
+
         try await client
             .from("user_profiles")
-            .update(["total_items_scanned": newCount])
+            .update(update)
             .eq("id", value: userId)
             .execute()
     }
 
-    func incrementScanCount(userId: String) async throws {
-        // Get current count first
-        let profile = try await getUserProfile(userId: userId)
+    func incrementScanCount() async throws {
+        let profile = try await getUserProfile()
         let newCount = profile.totalItemsScanned + 1
-
-        try await updateScanCount(userId: userId, newCount: newCount)
+        try await updateScanCount(newCount: newCount)
     }
 
-    func updateSubscriptionTier(userId: String, tier: String) async throws {
+    func updateSubscriptionTier(tier: String) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        struct TierUpdate: Codable {
+            let subscriptionTier: String
+
+            enum CodingKeys: String, CodingKey {
+                case subscriptionTier = "subscription_tier"
+            }
+        }
+
+        let update = TierUpdate(subscriptionTier: tier)
+
         try await client
             .from("user_profiles")
-            .update(["subscription_tier": tier])
+            .update(update)
             .eq("id", value: userId)
             .execute()
     }
 
-    // MARK: - Future Methods (placeholders for QuickFlip features)
+    // MARK: - Scanned Items Operations
 
-    func saveItemScan(userId: String, imageData: Data, predictions: [String: Any]) async throws {
-        // TODO: Save scanned item data
-        print("Saving item scan for user: \(userId)")
+    func saveScannedItem(_ item: ScannedItem) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        // Create a version with user_profile_id for database insert
+        // This is the ONLY place we need to add the user association
+        struct ScannedItemWithUser: Codable {
+            let userProfileId: String
+            let id: UUID
+            let itemName: String
+            let category: String
+            let condition: String
+            let description: String
+            let estimatedValue: String
+            let timestamp: Date
+            let imageData: String?
+            let priceAnalysis: StorableMarketplacePriceAnalysis
+            let userCostBasis: Double?
+            let userNotes: String?
+            let profitBreakdowns: [StorableProfitBreakdown]?
+
+            enum CodingKeys: String, CodingKey {
+                case userProfileId = "user_profile_id"
+                case id
+                case itemName = "item_name"
+                case category
+                case condition
+                case description
+                case estimatedValue = "estimated_value"
+                case timestamp
+                case imageData = "image_data"
+                case priceAnalysis = "price_analysis"
+                case userCostBasis = "user_cost_basis"
+                case userNotes = "user_notes"
+                case profitBreakdowns = "profit_breakdowns"
+            }
+        }
+
+        let itemWithUser = ScannedItemWithUser(
+            userProfileId: userId,
+            id: item.id,
+            itemName: item.itemName,
+            category: item.category,
+            condition: item.condition,
+            description: item.description,
+            estimatedValue: item.estimatedValue,
+            timestamp: item.timestamp,
+            imageData: item.imageData,
+            priceAnalysis: item.priceAnalysis,
+            userCostBasis: item.userCostBasis,
+            userNotes: item.userNotes,
+            profitBreakdowns: item.profitBreakdowns
+        )
+
+        try await client
+            .from("scanned_items")
+            .insert(itemWithUser)
+            .execute()
     }
 
-    func getMarketplaceRecommendations(itemData: [String: Any]) async throws -> [MarketplaceRecommendation] {
-        // TODO: Get marketplace recommendations
-        print("Getting marketplace recommendations")
-        return []
+    func fetchUserScannedItems() async throws -> [ScannedItem] {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        let response: [ScannedItem] = try await client
+            .from("scanned_items")
+            .select()
+            .eq("user_profile_id", value: userId)
+            .order("timestamp", ascending: false)
+            .execute()
+            .value
+
+        return response
     }
 
-    func uploadToMarketplace(itemId: String, marketplace: String) async throws {
-        // TODO: Upload item to specific marketplace
-        print("Uploading to \(marketplace)")
+    func deleteScannedItem(_ item: ScannedItem) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        try await client
+            .from("scanned_items")
+            .delete()
+            .eq("id", value: item.id.uuidString)
+            .eq("user_profile_id", value: userId)
+            .execute()
+    }
+
+    func updateScannedItem(_ item: ScannedItem) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        // For updates, we can use the ScannedItem directly
+        // Supabase will ignore the user_profile_id in the WHERE clause
+        try await client
+            .from("scanned_items")
+            .update(item)
+            .eq("id", value: item.id.uuidString)
+            .eq("user_profile_id", value: userId)
+            .execute()
+    }
+
+    // MARK: - User Stats Operations
+
+    func fetchUserStats() async throws -> UserStats? {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        do {
+            let response: UserStats = try await client
+                .from("user_stats")
+                .select()
+                .eq("user_profile_id", value: userId)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
+    func saveUserStats(_ stats: UserStats) async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        // Create version with user_profile_id for database
+        struct UserStatsWithUser: Codable {
+            let userProfileId: String
+            let totalPotentialSavings: Double
+            let favoriteMarketplace: String
+            let totalItemsScanned: Int
+            let averageProfit: Double
+            let lastUpdated: Date
+
+            enum CodingKeys: String, CodingKey {
+                case userProfileId = "user_profile_id"
+                case totalPotentialSavings = "total_potential_savings"
+                case favoriteMarketplace = "favorite_marketplace"
+                case totalItemsScanned = "total_items_scanned"
+                case averageProfit = "average_profit"
+                case lastUpdated = "last_updated"
+            }
+        }
+
+        let statsWithUser = UserStatsWithUser(
+            userProfileId: userId,
+            totalPotentialSavings: stats.totalPotentialSavings,
+            favoriteMarketplace: stats.favoriteMarketplace,
+            totalItemsScanned: stats.totalItemsScanned,
+            averageProfit: stats.averageProfit,
+            lastUpdated: stats.lastUpdated
+        )
+
+        // Try update first, then insert if it fails
+        do {
+            try await client
+                .from("user_stats")
+                .update(statsWithUser)
+                .eq("user_profile_id", value: userId)
+                .execute()
+        } catch {
+            try await client
+                .from("user_stats")
+                .insert(statsWithUser)
+                .execute()
+        }
     }
 
     // MARK: - Helper Methods
 
     func checkConnection() async throws -> Bool {
-        // Simple health check
         let _: [UserProfile] = try await client
             .from("user_profiles")
             .select()
@@ -86,7 +281,6 @@ class SupabaseService: ObservableObject {
         return true
     }
 }
-
 
 // MARK: - Custom Errors
 
@@ -105,7 +299,7 @@ enum SupabaseServiceError: LocalizedError {
         case .networkError:
             return "Network connection error"
         case .unauthorized:
-            return "Unauthorized access"
+            return "User not authenticated"
         }
     }
 }
