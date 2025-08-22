@@ -15,6 +15,7 @@ struct UserProfile: Codable {
     let appleTransactionId: String?
     let appleOriginalTransactionId: String?
     let autoRenewEnabled: Bool?
+    let tokens: Int
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -24,5 +25,6 @@ struct UserProfile: Codable {
         case appleTransactionId = "apple_transaction_id"
         case appleOriginalTransactionId = "apple_original_transaction_id"
         case autoRenewEnabled = "auto_renew_enabled"
+        case tokens
     }
 }

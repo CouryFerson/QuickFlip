@@ -109,7 +109,7 @@ class SupabaseService: ObservableObject {
             let description: String
             let estimatedValue: String
             let timestamp: Date
-            let imageData: String?
+            let imageData: String? // Changed to String for Base64
             let priceAnalysis: StorableMarketplacePriceAnalysis
             let userCostBasis: Double?
             let userNotes: String?
@@ -268,6 +268,87 @@ class SupabaseService: ObservableObject {
         }
     }
 
+    func getTokenCount() async throws -> Int {
+        let profile = try await getUserProfile()
+        return profile.tokens
+    }
+
+    func hasTokens() async throws -> Bool {
+        let tokenCount = try await getTokenCount()
+        return tokenCount > 0
+    }
+
+    func consumeToken() async throws -> Int {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        let currentProfile = try await getUserProfile()
+
+        guard currentProfile.tokens > 0 else {
+            throw SupabaseServiceError.insufficientTokens
+        }
+
+        let newTokenCount = currentProfile.tokens - 1
+
+        struct TokenUpdate: Codable {
+            let tokens: Int
+        }
+
+        let update = TokenUpdate(tokens: newTokenCount)
+
+        try await client
+            .from("user_profiles")
+            .update(update)
+            .eq("id", value: userId)
+            .execute()
+
+        return newTokenCount
+    }
+
+    func setTokensForTier(_ tier: String) async throws -> Int {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        let tokenCount: Int
+        switch tier.lowercased() {
+        case "free":
+            tokenCount = 10
+        case "starter":
+            tokenCount = 250
+        case "pro":
+            tokenCount = 1000
+        default:
+            tokenCount = 10 // Default to free tier
+        }
+
+        struct TierTokenUpdate: Codable {
+            let subscriptionTier: String
+            let tokens: Int
+
+            enum CodingKeys: String, CodingKey {
+                case subscriptionTier = "subscription_tier"
+                case tokens
+            }
+        }
+
+        let update = TierTokenUpdate(subscriptionTier: tier, tokens: tokenCount)
+
+        try await client
+            .from("user_profiles")
+            .update(update)
+            .eq("id", value: userId)
+            .execute()
+
+        return tokenCount
+    }
+
+    func refillTokens() async throws -> Int {
+        let profile = try await getUserProfile()
+        return try await setTokensForTier(profile.subscriptionTier)
+    }
+
     // MARK: - Helper Methods
 
     func checkConnection() async throws -> Bool {
@@ -289,6 +370,7 @@ enum SupabaseServiceError: LocalizedError {
     case invalidData
     case networkError
     case unauthorized
+    case insufficientTokens
 
     var errorDescription: String? {
         switch self {
@@ -300,6 +382,8 @@ enum SupabaseServiceError: LocalizedError {
             return "Network connection error"
         case .unauthorized:
             return "User not authenticated"
+        case .insufficientTokens:
+            return "Insufficient tokens to complete this request"
         }
     }
 }
