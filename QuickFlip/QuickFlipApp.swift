@@ -22,9 +22,14 @@ struct QuickFlipApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if !authManager.isAuthenticated {
+            if authManager.isLoading {
+                // Show loading spinner while checking session
+                LoadingView()
+            } else if !authManager.isAuthenticated {
+                // Show sign in only after we've confirmed no session
                 AppleSignInView(authManager: authManager, onSignInComplete: {})
             } else {
+                // User is authenticated
                 MainTabView()
                     .environmentObject(itemStorage)
             }

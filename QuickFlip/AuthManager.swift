@@ -13,12 +13,15 @@ import AuthenticationServices
 class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var currentUser: User?
+    @Published var isLoading = false
 
     let supabase: SupabaseClient
 
     init(supabase: SupabaseClient) {
         self.supabase = supabase
-        // Check for existing session on init
+
+        // Check for existing session on init, and show we are in a loading state
+        isLoading = true
         Task {
             await checkSession()
         }
@@ -27,14 +30,19 @@ class AuthManager: ObservableObject {
     // MARK: - Session Management
 
     func checkSession() async {
+        isLoading = true
+
         do {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
             let session = try await supabase.auth.session
             self.isAuthenticated = true
             self.currentUser = session.user
+            self.isLoading = false
             print("Found existing session for: \(session.user.email ?? "unknown")")
         } catch {
             self.isAuthenticated = false
             self.currentUser = nil
+            self.isLoading = false
         }
     }
 
