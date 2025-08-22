@@ -160,6 +160,9 @@ struct BarcodeCameraView: View {
                 }
             }
         }
+        .onDisappear {
+            cameraController.session.stopRunning()
+        }
         .onChange(of: cameraController.barcodeScannedItem) { _, result in
             if let itemAnalysis = cameraController.barcodeScannedItem,
                let capturedImage = cameraController.lastCapturedImage {

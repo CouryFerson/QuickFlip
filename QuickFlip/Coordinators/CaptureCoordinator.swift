@@ -78,7 +78,11 @@ extension CaptureCoordinatorView {
         case .marketplaceSelection(let scannedItem, let image):
             MarketplaceSelectionView(scannedItem: scannedItem, capturedImage: image)
         case .bulkAnalysis(let analysis):
-            BulkAnalysisResultsView(result: analysis)
+            BulkAnalysisResultsView(result: analysis) { scannedItem, image in
+                router.push(.marketplaceSelection(scannedItem, image))
+            } doneAction: {
+                router.popToRoot()
+            }
         }
     }
 }

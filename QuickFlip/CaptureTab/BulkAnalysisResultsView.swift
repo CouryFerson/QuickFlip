@@ -2,48 +2,43 @@ import SwiftUI
 
 struct BulkAnalysisResultsView: View {
     let result: BulkAnalysisResult
+    let listAction: (ScannedItem, UIImage) -> Void
+    let doneAction: () -> Void
+
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
     @State private var processedItems: Set<Int> = []
     @State private var showingPhotoPrompt = false
     @State private var showingCamera = false
-    @State private var showingMarketplaceSelection = false
     @State private var selectedItemIndex: Int = 0
     @State private var selectedItemImage: UIImage?
     @State private var isListingFlow = false
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    headerSection
-                    itemsListSection
-                    completionSection
+        ScrollView {
+            VStack(spacing: 24) {
+                headerSection
+                itemsListSection
+                completionSection
 
-                    Spacer(minLength: 50)
-                }
+                Spacer(minLength: 50)
             }
-            .navigationTitle("Bulk Analysis")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+        }
+        .navigationTitle("Bulk Analysis")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button("Share Results") {
+                        shareResults()
+                    }
+
                     Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
+                        doneAction()
                     }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("Share Results") {
-                            shareResults()
-                        }
-
-                        Button("Start Over", role: .destructive) {
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
@@ -55,27 +50,10 @@ struct BulkAnalysisResultsView: View {
             ) { image in
                 selectedItemImage = image
                 if isListingFlow {
-                    showingMarketplaceSelection = true
+                    listAction(createScannedItem(from: result.items[selectedItemIndex], image: image), image)
+                    saveItem(at: selectedItemIndex, with: image)
                 } else {
                     saveItem(at: selectedItemIndex, with: image)
-                }
-            }
-        }
-        .sheet(isPresented: $showingMarketplaceSelection) {
-            if let image = selectedItemImage {
-                NavigationView {
-                    MarketplaceSelectionView(
-                        scannedItem: createScannedItem(from: result.items[selectedItemIndex], image: image),
-                        capturedImage: image
-                    )
-                    .environmentObject(itemStorage)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Back") {
-                                showingMarketplaceSelection = false
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -166,7 +144,7 @@ private extension BulkAnalysisResultsView {
                 .cornerRadius(12)
 
                 Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
+                    doneAction()
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)

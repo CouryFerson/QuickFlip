@@ -134,6 +134,9 @@ struct BulkCameraView: View {
                 }
             }
         }
+        .onDisappear {
+            cameraController.session.stopRunning()
+        }
         .alert("Camera Permission Required", isPresented: $cameraController.showPermissionAlert) {
             Button("Settings") {
                 cameraController.openSettings()
