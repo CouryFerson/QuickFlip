@@ -21,7 +21,7 @@ struct QuickFlipApp: App {
         )
 
         let authManager = AuthManager(supabase: client)
-        let supabaseService = SupabaseService(client: client, authManager: authManager)
+        let supabaseService = SupabaseService(client: client)
 
         _supabaseService = StateObject(wrappedValue: supabaseService)
         _authManager = StateObject(wrappedValue: authManager)

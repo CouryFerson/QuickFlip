@@ -11,16 +11,14 @@ import Supabase
 @MainActor
 class SupabaseService: ObservableObject {
     private let client: SupabaseClient
-    private let authManager: AuthManager
 
-    init(client: SupabaseClient, authManager: AuthManager) {
+    init(client: SupabaseClient) {
         self.client = client
-        self.authManager = authManager
     }
 
     // Get current user's profile ID
     private var currentUserProfileId: String? {
-        return authManager.userId
+        return client.auth.currentUser?.id.uuidString
     }
 
     // MARK: - User Profile Operations

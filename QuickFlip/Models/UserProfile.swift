@@ -27,4 +27,59 @@ struct UserProfile: Codable {
         case autoRenewEnabled = "auto_renew_enabled"
         case tokens
     }
+
+    init(id: String,
+        totalItemsScanned: Int,
+        subscriptionTier: String,
+        tokens: Int) {
+        self.id = id
+        self.totalItemsScanned = totalItemsScanned
+        self.subscriptionTier = subscriptionTier
+        self.subscriptionExpiresAt = nil
+        self.appleTransactionId = nil
+        self.appleOriginalTransactionId = nil
+        self.autoRenewEnabled = nil
+        self.tokens = tokens
+    }
+
+    init(id: String,
+        totalItemsScanned: Int,
+        subscriptionTier: String,
+        subscriptionExpiresAt: Date?,
+        appleTransactionId: String?,
+        appleOriginalTransactionId: String?,
+        autoRenewEnabled: Bool?,
+        tokens: Int) {
+        self.id = id
+        self.totalItemsScanned = totalItemsScanned
+        self.subscriptionTier = subscriptionTier
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.appleTransactionId = appleTransactionId
+        self.appleOriginalTransactionId = appleOriginalTransactionId
+        self.autoRenewEnabled = autoRenewEnabled
+        self.tokens = tokens
+    }
+
+    func withUpdatedTokens(_ newTokenCount: Int) -> UserProfile {
+        return UserProfile(id: self.id,
+                           totalItemsScanned: self.totalItemsScanned,
+                           subscriptionTier: self.subscriptionTier,
+                           subscriptionExpiresAt: self.subscriptionExpiresAt,
+                           appleTransactionId: self.appleTransactionId,
+                           appleOriginalTransactionId: self.appleOriginalTransactionId,
+                           autoRenewEnabled: self.autoRenewEnabled,
+                           tokens: newTokenCount)
+    }
+
+    // Copy with tier and token update
+    func withUpdatedSubscription(tier: String, tokens: Int, expiresAt: Date? = nil) -> UserProfile {
+        return UserProfile(id: self.id,
+                           totalItemsScanned: self.totalItemsScanned,
+                           subscriptionTier: tier,
+                           subscriptionExpiresAt: expiresAt,
+                           appleTransactionId: self.appleTransactionId,
+                           appleOriginalTransactionId: self.appleOriginalTransactionId,
+                           autoRenewEnabled: self.autoRenewEnabled,
+                           tokens: tokens)
+    }
 }

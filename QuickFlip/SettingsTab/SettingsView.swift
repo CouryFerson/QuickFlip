@@ -227,102 +227,365 @@ struct SettingsView: View {
 }
 
 // MARK: - Subscription View
+import SwiftUI
+
+// MARK: - Subscription View
 struct SubscriptionView: View {
+    @EnvironmentObject var supabaseService: SupabaseService
+
+    @State private var availableTiers: [SubscriptionTier] = []
+    @State private var currentTier: SubscriptionTier?
+    @State private var userProfile: UserProfile?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 12) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.orange)
+                headerSection
 
-                    Text("QuickFlip Pro")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-
-                    Text("Unlock unlimited scans and advanced features")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
+                if isLoading {
+                    ProgressView("Loading subscription details...")
+                        .frame(height: 100)
+                } else if let errorMessage = errorMessage {
+                    errorSection(errorMessage)
+                } else {
+                    currentPlanSection
+                    tokensSection
+                    featuresSection
+                    upgradeSection
+                    manageSubscriptionSection
                 }
-                .padding(.top)
-
-                // Current Plan
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Current Plan")
-                        .font(.headline)
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Pro Monthly")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-
-                            Text("$9.99/month")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-
-                        Spacer()
-
-                        Text("Active")
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal)
-
-                // Features
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Pro Features")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    VStack(spacing: 12) {
-                        FeatureRow(icon: "infinity", title: "Unlimited Scans", description: "No daily limits")
-                        FeatureRow(icon: "chart.line.uptrend.xyaxis", title: "Price Tracking", description: "Track price changes over time")
-                        FeatureRow(icon: "bell.badge", title: "Price Alerts", description: "Get notified when items increase in value")
-                        FeatureRow(icon: "square.grid.3x3", title: "Bulk Analysis", description: "Scan multiple items at once")
-                        FeatureRow(icon: "icloud.and.arrow.up", title: "Cloud Sync", description: "Sync data across devices")
-                        FeatureRow(icon: "envelope", title: "Priority Support", description: "24/7 customer support")
-                    }
-                    .padding(.horizontal)
-                }
-
-                // Manage Subscription
-                VStack(spacing: 12) {
-                    Button("Manage Subscription") {
-                        // Open App Store subscriptions
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-
-                    Button("Cancel Subscription") {
-                        // Handle cancellation
-                    }
-                    .foregroundColor(.red)
-                }
-                .padding(.horizontal)
 
                 Spacer(minLength: 50)
             }
         }
         .navigationTitle("Subscription")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadSubscriptionData()
+        }
     }
 }
 
+// MARK: - View Components
+private extension SubscriptionView {
+
+    @ViewBuilder
+    var headerSection: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.orange)
+
+            Text("QuickFlip Pro")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+
+            Text("Unlock advanced features and more tokens")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top)
+    }
+
+    @ViewBuilder
+    var currentPlanSection: some View {
+        if let currentTier = currentTier {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Current Plan")
+                    .font(.headline)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(currentTier.tierName.capitalized)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+
+                        if currentTier.priceMonthly ?? 0 > 0 {
+                            Text("$\(currentTier.priceMonthly!, specifier: "%.2f")/month")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        } else {
+                            Text("Free")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+
+                    Spacer()
+
+                    Text("Active")
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(currentTier.tierName == "free" ? Color.gray : Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+                .padding()
+                .background(tierColor(for: currentTier.tierName).opacity(0.1))
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
+    var tokensSection: some View {
+        if let userProfile = userProfile, let currentTier = currentTier {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Usage")
+                    .font(.headline)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Tokens Remaining")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+
+                        Text("\(userProfile.tokens)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(tokenColor(for: userProfile.tokens, max: currentTier.tokensPerPeriod))
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Monthly Limit")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+
+                        Text("\(currentTier.tokensPerPeriod)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                    }
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+
+                // Progress bar
+                ProgressView(value: Double(userProfile.tokens), total: Double(currentTier.tokensPerPeriod))
+                    .progressViewStyle(LinearProgressViewStyle(tint: tokenColor(for: userProfile.tokens, max: currentTier.tokensPerPeriod)))
+                    .scaleEffect(x: 1, y: 2, anchor: .center)
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
+    var featuresSection: some View {
+        if let currentTier = currentTier {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("\(currentTier.tierName.capitalized) Features")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                VStack(spacing: 12) {
+                    ForEach(currentTier.features, id: \.self) { feature in
+                        FeatureRow(
+                            icon: iconForFeature(feature),
+                            title: titleForFeature(feature),
+                            description: descriptionForFeature(feature)
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var upgradeSection: some View {
+        if let currentTier = currentTier, currentTier.tierName != "pro" {
+            let upgradeTiers = availableTiers.filter { tier in
+                tier.tokensPerPeriod > currentTier.tokensPerPeriod
+            }
+
+            if !upgradeTiers.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Upgrade Options")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    ForEach(upgradeTiers, id: \.id) { tier in
+                        UpgradeTierCard(tier: tier) {
+                            await upgradeTo(tier: tier)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var manageSubscriptionSection: some View {
+        if let currentTier = currentTier, currentTier.priceMonthly ?? 0 > 0 {
+            VStack(spacing: 12) {
+                Button("Manage Subscription") {
+                    // Open App Store subscriptions or your billing portal
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+
+                Button("Cancel Subscription") {
+                    // Handle cancellation - could show confirmation dialog
+                }
+                .foregroundColor(.red)
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
+    func errorSection(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.orange)
+
+            Text("Error Loading Subscription")
+                .font(.headline)
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+
+            Button("Retry") {
+                Task { await loadSubscriptionData() }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 8)
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+        }
+        .padding()
+    }
+}
+
+// MARK: - Helper Functions
+private extension SubscriptionView {
+
+    func loadSubscriptionData() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            async let tiersRequest = supabaseService.getAllSubscriptionTiers()
+            async let profileRequest = supabaseService.getUserProfile()
+            async let currentTierRequest = supabaseService.getUserSubscriptionTier()
+
+            availableTiers = try await tiersRequest
+            userProfile = try await profileRequest
+            currentTier = try await currentTierRequest
+
+            // If no current tier found, default to free
+            if currentTier == nil {
+                currentTier = availableTiers.first { $0.tierName == "free" }
+            }
+
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func upgradeTo(tier: SubscriptionTier) async {
+        do {
+            let newTokenCount = try await supabaseService.setTokensForTier(tier.tierName)
+
+            // Refresh data
+            await loadSubscriptionData()
+
+            // Show success message or handle App Store purchase
+            print("Upgraded to \(tier.tierName) with \(newTokenCount) tokens")
+        } catch {
+            errorMessage = "Failed to upgrade: \(error.localizedDescription)"
+        }
+    }
+
+    func tierColor(for tierName: String) -> Color {
+        switch tierName.lowercased() {
+        case "free": return .gray
+        case "starter": return .blue
+        case "pro": return .orange
+        default: return .gray
+        }
+    }
+
+    func tokenColor(for tokens: Int, max: Int) -> Color {
+        let percentage = Double(tokens) / Double(max)
+        if percentage > 0.5 { return .green }
+        if percentage > 0.2 { return .orange }
+        return .red
+    }
+
+    func iconForFeature(_ feature: String) -> String {
+        switch feature {
+        case "ai_requests": return "brain"
+        case "basic_scanning": return "camera"
+        case "bulk_scanning": return "square.grid.3x3"
+        case "barcode_scanning": return "barcode"
+        case "marketplace_uploads": return "icloud.and.arrow.up"
+        case "daily_market_insights": return "chart.line.uptrend.xyaxis"
+        case "daily_price_history": return "clock.arrow.circlepath"
+        case "advanced_insights": return "chart.bar.doc.horizontal"
+        case "priority_support": return "envelope.badge"
+        case "item_history": return "clock"
+        case "price_analysis": return "dollarsign.circle"
+        default: return "checkmark.circle"
+        }
+    }
+
+    func titleForFeature(_ feature: String) -> String {
+        switch feature {
+        case "ai_requests": return "AI Requests"
+        case "basic_scanning": return "Basic Scanning"
+        case "bulk_scanning": return "Bulk Scanning"
+        case "barcode_scanning": return "Barcode Scanning"
+        case "marketplace_uploads": return "Marketplace Uploads"
+        case "daily_market_insights": return "Daily Market Insights"
+        case "daily_price_history": return "Price History"
+        case "advanced_insights": return "Advanced Analytics"
+        case "priority_support": return "Priority Support"
+        case "item_history": return "Item History"
+        case "price_analysis": return "Price Analysis"
+        default: return feature.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    func descriptionForFeature(_ feature: String) -> String {
+        switch feature {
+        case "ai_requests": return "Powered by advanced AI models"
+        case "basic_scanning": return "Scan individual items"
+        case "bulk_scanning": return "Scan multiple items at once"
+        case "barcode_scanning": return "Quick barcode recognition"
+        case "marketplace_uploads": return "Upload directly to eBay, Mercari, etc."
+        case "daily_market_insights": return "Daily market trends and opportunities"
+        case "daily_price_history": return "Track price changes over time"
+        case "advanced_insights": return "Deep analytics and recommendations"
+        case "priority_support": return "24/7 customer support"
+        case "item_history": return "Keep track of all your scans"
+        case "price_analysis": return "See detailed pricing across marketplaces"
+        default: return "Available in this tier"
+        }
+    }
+}
+
+// MARK: - Supporting Views
 struct FeatureRow: View {
     let icon: String
     let title: String
@@ -351,6 +614,51 @@ struct FeatureRow: View {
         .background(Color.white)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct UpgradeTierCard: View {
+    let tier: SubscriptionTier
+    let onUpgrade: () async -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tier.tierName.capitalized)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
+                    if let price = tier.priceMonthly {
+                        Text("$\(price, specifier: "%.2f")/month")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                }
+
+                Spacer()
+
+                Text("\(tier.tokensPerPeriod) tokens")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(6)
+            }
+
+            Button("Upgrade to \(tier.tierName.capitalized)") {
+                Task { await onUpgrade() }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(Color.orange)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+        }
+        .padding()
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(12)
     }
 }
 
