@@ -6,68 +6,54 @@
 import SwiftUI
 
 struct EnhancedHomeView: View {
+    let marketAnalysisAction: (MarketTrends?, PersonalInsights?, Bool, Bool, @escaping () -> Void) -> Void
+    let scanItemAction: () -> Void
+
     @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var marketIntelligence = MarketIntelligenceService()
     @StateObject private var personalAnalytics = PersonalAnalyticsService()
 
     @State private var userName = UserDefaults.standard.string(forKey: "userName") ?? "Flipper"
-    @State private var showingFullInsights = false
     @State private var showingPersonalDetails = false
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Welcome Header with Real Data
-                    welcomeHeaderView
+        ScrollView {
+            VStack(spacing: 24) {
+                // Welcome Header with Real Data
+                welcomeHeaderView
 
-                    // Real Performance Stats
-                    realPerformanceStatsView
+                // Real Performance Stats
+                realPerformanceStatsView
 
-                    // Market Insights Section (Original Design)
-                    marketInsightsSectionView
+                // Market Insights Section (Original Design)
+                marketInsightsSectionView
 
-                    // Personal AI Insights
-                    if !itemStorage.scannedItems.isEmpty {
-                        personalInsightsView
-                    }
-
-                    // Smart Quick Actions
-                    smartQuickActionsView
-
-                    // Recent Activity with Real Data
-                    if !itemStorage.scannedItems.isEmpty {
-                        recentActivityView
-                    } else {
-                        getStartedView
-                    }
-
-                    Spacer(minLength: 100)
+                // Personal AI Insights
+                if !itemStorage.scannedItems.isEmpty {
+                    personalInsightsView
                 }
-                .padding()
+
+                // Smart Quick Actions
+                smartQuickActionsView
+
+                // Recent Activity with Real Data
+                if !itemStorage.scannedItems.isEmpty {
+                    recentActivityView
+                } else {
+                    getStartedView
+                }
+
+                Spacer(minLength: 100)
             }
-            .navigationBarHidden(true)
-            .refreshable {
-                await refreshAllData()
-            }
+            .padding()
+        }
+        .refreshable {
+            await refreshAllData()
         }
         .onAppear {
             Task {
                 await loadInitialData()
             }
-        }
-        .sheet(isPresented: $showingFullInsights) {
-            FullMarketInsightsView(
-                trends: marketIntelligence.dailyTrends,
-                personalInsights: personalAnalytics.insights,
-                isLoadingTrends: marketIntelligence.isLoadingTrends,
-                isLoadingPersonal: personalAnalytics.isLoadingInsights,
-                onRefresh: {
-                    Task {
-                        await refreshAllData()
-                    }
-                }
-            )
         }
         .sheet(isPresented: $showingPersonalDetails) {
             PersonalPerformanceView(
@@ -191,7 +177,16 @@ struct EnhancedHomeView: View {
                     .fontWeight(.bold)
                 Spacer()
                 Button("See All") {
-                    showingFullInsights = true
+                    marketAnalysisAction(marketIntelligence.dailyTrends,
+                                         personalAnalytics.insights,
+                                         marketIntelligence.isLoadingTrends,
+                                         personalAnalytics.isLoadingInsights,
+                                         {
+                        Task {
+                            await refreshAllData()
+                        }
+                    })
+
                 }
                 .font(.subheadline)
                 .foregroundColor(.blue)
@@ -461,7 +456,7 @@ struct EnhancedHomeView: View {
                     color: .blue,
                     isRecommended: true
                 ) {
-                    // Navigate to camera
+                    scanItemAction()
                 }
 
                 SmartQuickActionCard(

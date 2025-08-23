@@ -11,21 +11,24 @@ import SwiftUI
 
 /// This is used for analytics
 enum HomeFlow: Hashable {
+    case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool, () -> Void)
+    case scanItem
+
+    var id: Int {
+        switch self {
+        case .marketInsights:
+            return 0
+        case .scanItem:
+            return 1
+        }
+    }
+
     static func == (lhs: HomeFlow, rhs: HomeFlow) -> Bool {
         return lhs.id == rhs.id
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
-    }
-
-    case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool, () -> Void)
-
-    var id: Int {
-        switch self {
-        case .marketInsights:
-            return 0
-        }
     }
 }
 
@@ -34,10 +37,14 @@ public struct HomeCoordinatorView: View {
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
-            HomeView()
-                .navigationDestination(for: HomeFlow.self) { path in
-                    viewForPath(path)
-                }
+            EnhancedHomeView { trends, insights, isTrendsLoading, isInsightsLoading, block in
+                router.push(.marketInsights(trends, insights, isTrendsLoading, isInsightsLoading, block))
+            } scanItemAction: {
+                router.push(.scanItem)
+            }
+            .navigationDestination(for: HomeFlow.self) { path in
+                viewForPath(path)
+            }
         }
     }
 
@@ -48,6 +55,8 @@ public struct HomeCoordinatorView: View {
         switch path {
         case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal, let block):
             FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal, onRefresh: block)
+        case .scanItem:
+            CaptureCoordinatorView()
         }
     }
 }
