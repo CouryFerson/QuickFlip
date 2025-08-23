@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
+
     @State private var notificationsEnabled = true
     @State private var autoSaveEnabled = true
     @State private var selectedCurrency = "USD"
@@ -232,6 +233,7 @@ import SwiftUI
 // MARK: - Subscription View
 struct SubscriptionView: View {
     @EnvironmentObject var supabaseService: SupabaseService
+    @EnvironmentObject var authManager: AuthManager
 
     @State private var availableTiers: [SubscriptionTier] = []
     @State private var currentTier: SubscriptionTier?
@@ -505,7 +507,7 @@ private extension SubscriptionView {
 
     func upgradeTo(tier: SubscriptionTier) async {
         do {
-            let newTokenCount = try await supabaseService.setTokensForTier(tier.tierName)
+            let newTokenCount: () = try await authManager.upgradeToTier(tier.tierName)
 
             // Refresh data
             await loadSubscriptionData()

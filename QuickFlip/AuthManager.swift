@@ -16,13 +16,14 @@ class AuthManager: ObservableObject {
     @Published var currentUser: User?
     @Published var isLoading = false
 
-    // MARK: - User Profile & Subscription State
+    // MARK: - User Data State
     @Published var userProfile: UserProfile?
+    @Published var userSubscription: UserSubscription?
     @Published var subscriptionTier: SubscriptionTier?
     @Published var availableSubscriptionTiers: [SubscriptionTier] = []
-    @Published var tokenCount: Int = 0
-    @Published var profileError: String?
+    @Published var errorMessage: String?
 
+    // MARK: - Services
     private let supabase: SupabaseClient
     private let supabaseService: SupabaseService
 
@@ -41,22 +42,23 @@ class AuthManager: ObservableObject {
 
     func checkSession() async {
         isLoading = true
+        clearError()
 
         do {
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay for UX
             let session = try await supabase.auth.session
-            self.isAuthenticated = true
-            self.currentUser = session.user
+            isAuthenticated = true
+            currentUser = session.user
 
             print("Found existing session for: \(session.user.email ?? "unknown")")
 
-            // Load user profile and subscription data
-            await loadUserProfileData()
+            // Load user data
+            await loadUserData()
 
         } catch {
-            self.isAuthenticated = false
-            self.currentUser = nil
-            self.clearUserData()
+            isAuthenticated = false
+            currentUser = nil
+            clearUserData()
+            print("No existing session found")
         }
 
         isLoading = false
@@ -68,6 +70,9 @@ class AuthManager: ObservableObject {
             throw AuthError.invalidToken
         }
 
+        isLoading = true
+        clearError()
+
         do {
             let session = try await supabase.auth.signInWithIdToken(
                 credentials: .init(
@@ -76,105 +81,171 @@ class AuthManager: ObservableObject {
                 )
             )
 
-            self.isAuthenticated = true
-            self.currentUser = session.user
+            isAuthenticated = true
+            currentUser = session.user
 
             print("Successfully signed in with Apple: \(session.user.email ?? "No email")")
 
-            // Load user profile and subscription data
-            await loadUserProfileData()
+            // Load user data
+            await loadUserData()
 
         } catch {
+            setError("Sign in failed: \(error.localizedDescription)")
             throw error
         }
+
+        isLoading = false
     }
 
     func signOut() async throws {
         try await supabase.auth.signOut()
-        self.isAuthenticated = false
-        self.currentUser = nil
-        self.clearUserData()
+        isAuthenticated = false
+        currentUser = nil
+        clearUserData()
+        print("User signed out")
     }
 
-    // MARK: - User Profile Methods
+    // MARK: - User Data Loading
 
-    func loadUserProfileData() async {
-        profileError = nil
+    func loadUserData() async {
+        clearError()
 
         do {
-            // Load all subscription tiers
-            availableSubscriptionTiers = try await supabaseService.getAllSubscriptionTiers()
-
-            // Load user profile
+            // Load profile
             userProfile = try await supabaseService.getUserProfile()
-            tokenCount = userProfile?.tokens ?? 0
 
-            // Load current subscription tier
-            if let profile = userProfile {
-                subscriptionTier = try await supabaseService.getSubscriptionTier(named: profile.subscriptionTier)
+            // Load subscription
+            userSubscription = try await supabaseService.getUserSubscription()
+
+            // If no subscription exists, create a free one
+            if userSubscription == nil {
+                userSubscription = try await supabaseService.createSubscription(tierName: "free")
             }
 
-            print("Loaded user profile: \(userProfile?.subscriptionTier ?? "unknown") with \(tokenCount) tokens")
+            // Load tier details
+            if let subscription = userSubscription {
+                subscriptionTier = try await supabaseService.getSubscriptionTier(named: subscription.tierName)
+            }
+
+            // Load available tiers
+            availableSubscriptionTiers = try await supabaseService.getAllSubscriptionTiers()
+
+            print("Loaded user data: \(currentTierName) with \(tokenCount) tokens")
 
         } catch {
-            profileError = "Failed to load profile: \(error.localizedDescription)"
-            print("Failed to load user profile: \(error)")
+            setError("Failed to load user data: \(error.localizedDescription)")
+            print("Failed to load user data: \(error)")
         }
     }
 
-    func refreshProfile() async {
-        await loadUserProfileData()
+    func refreshUserData() async {
+        await loadUserData()
+    }
+
+    // MARK: - Token Management
+
+    var tokenCount: Int {
+        userProfile?.tokens ?? 0
+    }
+
+    func hasTokens() -> Bool {
+        return tokenCount > 0
+    }
+
+    func consumeToken() async throws -> Int {
+        guard hasTokens() else {
+            throw AuthError.insufficientTokens
+        }
+
+        let newCount = try await supabaseService.consumeToken()
+
+        // Update local profile
+        if let profile = userProfile {
+            userProfile = UserProfile(
+                id: profile.id,
+                totalItemsScanned: profile.totalItemsScanned,
+                tokens: newCount
+            )
+        }
+
+        return newCount
+    }
+
+    func purchaseTokens(_ amount: Int) async throws -> Int {
+        let newCount = try await supabaseService.addTokens(amount)
+
+        // Update local profile
+        if let profile = userProfile {
+            userProfile = UserProfile(
+                id: profile.id,
+                totalItemsScanned: profile.totalItemsScanned,
+                tokens: newCount
+            )
+        }
+
+        print("Purchased \(amount) tokens, new total: \(newCount)")
+        return newCount
+    }
+
+    func refillMonthlyTokens() async throws -> Int {
+        let newCount = try await supabaseService.refillMonthlyTokens()
+
+        // Update local profile
+        if let profile = userProfile {
+            userProfile = UserProfile(
+                id: profile.id,
+                totalItemsScanned: profile.totalItemsScanned,
+                tokens: newCount
+            )
+        }
+
+        print("Monthly refill completed, new total: \(newCount)")
+        return newCount
     }
 
     // MARK: - Subscription Management
+
+    var currentTierName: String {
+        userSubscription?.tierName.capitalized ?? "Free"
+    }
+
+    var subscriptionExpiresAt: Date? {
+        userSubscription?.expiresAt
+    }
+
+    var isSubscriptionExpired: Bool {
+        userSubscription?.isExpired ?? false
+    }
+
+    var autoRenewEnabled: Bool {
+        userSubscription?.autoRenewEnabled ?? false
+    }
 
     func hasFeature(_ feature: String) -> Bool {
         guard let tier = subscriptionTier else { return false }
         return tier.features.contains(feature)
     }
 
-    func canMakeRequest() -> Bool {
-        return tokenCount > 0
-    }
-
-    func consumeToken() async throws -> Int {
-        guard canMakeRequest() else {
-            throw AuthError.insufficientTokens
-        }
-
-        let newTokenCount = try await supabaseService.consumeToken()
-        self.tokenCount = newTokenCount
-
-        // Update local profile using convenience method
-        if let profile = userProfile {
-            self.userProfile = profile.withUpdatedTokens(newTokenCount)
-        }
-
-        return newTokenCount
-    }
-
     func upgradeToTier(_ tierName: String) async throws {
-        let newTokenCount = try await supabaseService.setTokensForTier(tierName)
+        let (subscription, newTokenCount) = try await supabaseService.upgradeSubscription(to: tierName)
 
-        // Refresh user data
-        await loadUserProfileData()
+        // Update local state
+        userSubscription = subscription
+        if let profile = userProfile {
+            userProfile = UserProfile(
+                id: profile.id,
+                totalItemsScanned: profile.totalItemsScanned,
+                tokens: newTokenCount
+            )
+        }
+
+        // Refresh tier details
+        subscriptionTier = try await supabaseService.getSubscriptionTier(named: tierName)
 
         print("Upgraded to \(tierName) with \(newTokenCount) tokens")
     }
 
-    func refillTokens() async throws -> Int {
-        let newTokenCount = try await supabaseService.refillTokens()
-        self.tokenCount = newTokenCount
-
-        // Update local profile using convenience method
-        if let profile = userProfile {
-            self.userProfile = profile.withUpdatedTokens(newTokenCount)
-        }
-
-        return newTokenCount
-    }
-
-    func getTierUpgradeOptions() -> [SubscriptionTier] {
+    func getAvailableUpgrades() -> [SubscriptionTier] {
         guard let currentTier = subscriptionTier else {
             return availableSubscriptionTiers.filter { $0.tierName != "free" }
         }
@@ -184,7 +255,7 @@ class AuthManager: ObservableObject {
         }
     }
 
-    // MARK: - Helper Properties
+    // MARK: - Computed Properties
 
     var userEmail: String? {
         currentUser?.email
@@ -194,27 +265,35 @@ class AuthManager: ObservableObject {
         currentUser?.id.uuidString
     }
 
-    var currentTierName: String {
-        subscriptionTier?.tierName.capitalized ?? "Free"
+    var isDataLoaded: Bool {
+        userProfile != nil && userSubscription != nil && subscriptionTier != nil
     }
 
-    var isSubscriptionLoaded: Bool {
-        subscriptionTier != nil
-    }
-
-    var tokenPercentageRemaining: Double {
+    var tokenUsagePercentage: Double {
         guard let tier = subscriptionTier, tier.tokensPerPeriod > 0 else { return 0.0 }
         return Double(tokenCount) / Double(tier.tokensPerPeriod)
+    }
+
+    var hasError: Bool {
+        errorMessage != nil
     }
 
     // MARK: - Private Methods
 
     private func clearUserData() {
         userProfile = nil
+        userSubscription = nil
         subscriptionTier = nil
         availableSubscriptionTiers = []
-        tokenCount = 0
-        profileError = nil
+        errorMessage = nil
+    }
+
+    private func setError(_ message: String) {
+        errorMessage = message
+    }
+
+    private func clearError() {
+        errorMessage = nil
     }
 }
 
@@ -224,15 +303,21 @@ enum AuthError: LocalizedError {
     case invalidToken
     case signInFailed
     case insufficientTokens
+    case userNotFound
+    case subscriptionError
 
     var errorDescription: String? {
         switch self {
         case .invalidToken:
-            return "Unable to get valid identity token"
+            return "Invalid authentication token"
         case .signInFailed:
             return "Sign in process failed"
         case .insufficientTokens:
-            return "Insufficient tokens to complete this request"
+            return "Not enough tokens to complete this request"
+        case .userNotFound:
+            return "User profile not found"
+        case .subscriptionError:
+            return "Subscription management error"
         }
     }
 }

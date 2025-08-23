@@ -39,12 +39,52 @@ class SupabaseService: ObservableObject {
         return response
     }
 
-    func updateScanCount(newCount: Int) async throws {
+    func updateTokenCount(_ newCount: Int) async throws {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
 
-        struct ScanCountUpdate: Codable {
+        struct TokenUpdate: Codable {
+            let tokens: Int
+        }
+
+        let update = TokenUpdate(tokens: newCount)
+
+        try await client
+            .from("user_profiles")
+            .update(update)
+            .eq("id", value: userId)
+            .execute()
+    }
+
+    func addTokens(_ amount: Int) async throws -> Int {
+        let profile = try await getUserProfile()
+        let newCount = profile.tokens + amount
+        try await updateTokenCount(newCount)
+        return newCount
+    }
+
+    func consumeToken() async throws -> Int {
+        let profile = try await getUserProfile()
+
+        guard profile.tokens > 0 else {
+            throw SupabaseServiceError.insufficientTokens
+        }
+
+        let newCount = profile.tokens - 1
+        try await updateTokenCount(newCount)
+        return newCount
+    }
+
+    func incrementScanCount() async throws {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        let profile = try await getUserProfile()
+        let newCount = profile.totalItemsScanned + 1
+
+        struct ScanUpdate: Codable {
             let totalItemsScanned: Int
 
             enum CodingKeys: String, CodingKey {
@@ -52,7 +92,7 @@ class SupabaseService: ObservableObject {
             }
         }
 
-        let update = ScanCountUpdate(totalItemsScanned: newCount)
+        let update = ScanUpdate(totalItemsScanned: newCount)
 
         try await client
             .from("user_profiles")
@@ -61,32 +101,171 @@ class SupabaseService: ObservableObject {
             .execute()
     }
 
-    func incrementScanCount() async throws {
-        let profile = try await getUserProfile()
-        let newCount = profile.totalItemsScanned + 1
-        try await updateScanCount(newCount: newCount)
-    }
+    // MARK: - Subscription Operations
 
-    func updateSubscriptionTier(tier: String) async throws {
+    func getUserSubscription() async throws -> UserSubscription? {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
 
-        struct TierUpdate: Codable {
-            let subscriptionTier: String
+        do {
+            let response: UserSubscription = try await client
+                .from("user_subscriptions")
+                .select()
+                .eq("user_id", value: userId)
+                .eq("status", value: "active")
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
+    func createSubscription(tierName: String, expiresAt: Date? = nil) async throws -> UserSubscription {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        struct NewSubscription: Codable {
+            let userId: String
+            let tierName: String
+            let expiresAt: Date?
+            let status: String
 
             enum CodingKeys: String, CodingKey {
-                case subscriptionTier = "subscription_tier"
+                case userId = "user_id"
+                case tierName = "tier_name"
+                case expiresAt = "expires_at"
+                case status
             }
         }
 
-        let update = TierUpdate(subscriptionTier: tier)
+        let newSub = NewSubscription(
+            userId: userId,
+            tierName: tierName,
+            expiresAt: expiresAt,
+            status: "active"
+        )
 
-        try await client
-            .from("user_profiles")
-            .update(update)
-            .eq("id", value: userId)
+        let response: UserSubscription = try await client
+            .from("user_subscriptions")
+            .insert(newSub)
+            .select()
+            .single()
             .execute()
+            .value
+
+        return response
+    }
+
+    func updateSubscription(tierName: String, expiresAt: Date? = nil) async throws -> UserSubscription {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        struct SubscriptionUpdate: Codable {
+            let tierName: String
+            let expiresAt: Date?
+            let updatedAt: Date
+
+            enum CodingKeys: String, CodingKey {
+                case tierName = "tier_name"
+                case expiresAt = "expires_at"
+                case updatedAt = "updated_at"
+            }
+        }
+
+        let update = SubscriptionUpdate(
+            tierName: tierName,
+            expiresAt: expiresAt,
+            updatedAt: Date()
+        )
+
+        let response: UserSubscription = try await client
+            .from("user_subscriptions")
+            .update(update)
+            .eq("user_id", value: userId)
+            .eq("status", value: "active")
+            .select()
+            .single()
+            .execute()
+            .value
+
+        return response
+    }
+
+    func upgradeSubscription(to tierName: String) async throws -> (UserSubscription, Int) {
+        // Get the new tier details
+        guard let tier = try await getSubscriptionTier(named: tierName) else {
+            throw SupabaseServiceError.invalidData
+        }
+
+        // Update subscription
+        let subscription = try await updateSubscription(tierName: tierName)
+
+        // Add tokens for the new tier (rollover approach)
+        let newTokenCount = try await addTokens(tier.tokensPerPeriod)
+
+        return (subscription, newTokenCount)
+    }
+
+    func refillMonthlyTokens() async throws -> Int {
+        guard let subscription = try await getUserSubscription() else {
+            throw SupabaseServiceError.userNotFound
+        }
+
+        guard let tier = try await getSubscriptionTier(named: subscription.tierName) else {
+            throw SupabaseServiceError.invalidData
+        }
+
+        // Add monthly allocation to existing tokens (rollover)
+        return try await addTokens(tier.tokensPerPeriod)
+    }
+
+    // MARK: - Subscription Tier Operations
+
+    func getAllSubscriptionTiers() async throws -> [SubscriptionTier] {
+        let response: [SubscriptionTier] = try await client
+            .from("subscription_tiers")
+            .select()
+            .eq("is_active", value: true)
+            .order("tokens_per_period", ascending: true)
+            .execute()
+            .value
+
+        return response
+    }
+
+    func getSubscriptionTier(named tierName: String) async throws -> SubscriptionTier? {
+        do {
+            let response: SubscriptionTier = try await client
+                .from("subscription_tiers")
+                .select()
+                .eq("tier_name", value: tierName.lowercased())
+                .eq("is_active", value: true)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
+    func getUserSubscriptionTier() async throws -> SubscriptionTier? {
+        guard let subscription = try await getUserSubscription() else {
+            return try await getSubscriptionTier(named: "free") // Default to free
+        }
+        return try await getSubscriptionTier(named: subscription.tierName)
+    }
+
+    func hasFeature(_ feature: String) async throws -> Bool {
+        guard let tier = try await getUserSubscriptionTier() else { return false }
+        return tier.features.contains(feature)
     }
 
     // MARK: - Scanned Items Operations
@@ -96,9 +275,7 @@ class SupabaseService: ObservableObject {
             throw SupabaseServiceError.unauthorized
         }
 
-        // Create a version with user_profile_id for database insert
-        // This is the ONLY place we need to add the user association
-        struct ScannedItemWithUser: Codable {
+        struct ScannedItemForDB: Codable {
             let userProfileId: String
             let id: UUID
             let itemName: String
@@ -107,7 +284,7 @@ class SupabaseService: ObservableObject {
             let description: String
             let estimatedValue: String
             let timestamp: Date
-            let imageData: String? // Changed to String for Base64
+            let imageData: String?
             let priceAnalysis: StorableMarketplacePriceAnalysis
             let userCostBasis: Double?
             let userNotes: String?
@@ -130,7 +307,7 @@ class SupabaseService: ObservableObject {
             }
         }
 
-        let itemWithUser = ScannedItemWithUser(
+        let itemForDB = ScannedItemForDB(
             userProfileId: userId,
             id: item.id,
             itemName: item.itemName,
@@ -148,7 +325,7 @@ class SupabaseService: ObservableObject {
 
         try await client
             .from("scanned_items")
-            .insert(itemWithUser)
+            .insert(itemForDB)
             .execute()
     }
 
@@ -186,8 +363,6 @@ class SupabaseService: ObservableObject {
             throw SupabaseServiceError.unauthorized
         }
 
-        // For updates, we can use the ScannedItem directly
-        // Supabase will ignore the user_profile_id in the WHERE clause
         try await client
             .from("scanned_items")
             .update(item)
@@ -223,8 +398,7 @@ class SupabaseService: ObservableObject {
             throw SupabaseServiceError.unauthorized
         }
 
-        // Create version with user_profile_id for database
-        struct UserStatsWithUser: Codable {
+        struct UserStatsForDB: Codable {
             let userProfileId: String
             let totalPotentialSavings: Double
             let favoriteMarketplace: String
@@ -242,7 +416,7 @@ class SupabaseService: ObservableObject {
             }
         }
 
-        let statsWithUser = UserStatsWithUser(
+        let statsForDB = UserStatsForDB(
             userProfileId: userId,
             totalPotentialSavings: stats.totalPotentialSavings,
             favoriteMarketplace: stats.favoriteMarketplace,
@@ -251,17 +425,17 @@ class SupabaseService: ObservableObject {
             lastUpdated: stats.lastUpdated
         )
 
-        // Try update first, then insert if it fails
+        // Try update first, then insert
         do {
             try await client
                 .from("user_stats")
-                .update(statsWithUser)
+                .update(statsForDB)
                 .eq("user_profile_id", value: userId)
                 .execute()
         } catch {
             try await client
                 .from("user_stats")
-                .insert(statsWithUser)
+                .insert(statsForDB)
                 .execute()
         }
     }
@@ -277,131 +451,6 @@ class SupabaseService: ObservableObject {
             .value
 
         return true
-    }
-}
-
-// MARK: - Subscription Tier Operations
-
-extension SupabaseService {
-
-    func getAllSubscriptionTiers() async throws -> [SubscriptionTier] {
-        let response: [SubscriptionTier] = try await client
-            .from("subscription_tiers")
-            .select()
-            .eq("is_active", value: true)
-            .order("tokens_per_period", ascending: true)
-            .execute()
-            .value
-
-        return response
-    }
-
-    func getSubscriptionTier(named tierName: String) async throws -> SubscriptionTier? {
-        do {
-            let response: SubscriptionTier = try await client
-                .from("subscription_tiers")
-                .select()
-                .eq("tier_name", value: tierName.lowercased())
-                .eq("is_active", value: true)
-                .single()
-                .execute()
-                .value
-
-            return response
-        } catch {
-            return nil
-        }
-    }
-
-    func getUserSubscriptionTier() async throws -> SubscriptionTier? {
-        let profile = try await getUserProfile()
-        return try await getSubscriptionTier(named: profile.subscriptionTier)
-    }
-
-    func hasFeature(_ feature: String) async throws -> Bool {
-        guard let tier = try await getUserSubscriptionTier() else { return false }
-        return tier.features.contains(feature)
-    }
-}
-
-// MARK: - Token Management
-
-extension SupabaseService {
-
-    func getTokenCount() async throws -> Int {
-        let profile = try await getUserProfile()
-        return profile.tokens
-    }
-
-    func hasTokens() async throws -> Bool {
-        let tokenCount = try await getTokenCount()
-        return tokenCount > 0
-    }
-
-    func consumeToken() async throws -> Int {
-        guard let userId = currentUserProfileId else {
-            throw SupabaseServiceError.unauthorized
-        }
-
-        let currentProfile = try await getUserProfile()
-
-        guard currentProfile.tokens > 0 else {
-            throw SupabaseServiceError.insufficientTokens
-        }
-
-        let newTokenCount = currentProfile.tokens - 1
-
-        struct TokenUpdate: Codable {
-            let tokens: Int
-        }
-
-        let update = TokenUpdate(tokens: newTokenCount)
-
-        try await client
-            .from("user_profiles")
-            .update(update)
-            .eq("id", value: userId)
-            .execute()
-
-        return newTokenCount
-    }
-
-    func setTokensForTier(_ tierName: String) async throws -> Int {
-        guard let userId = currentUserProfileId else {
-            throw SupabaseServiceError.unauthorized
-        }
-
-        guard let tier = try await getSubscriptionTier(named: tierName) else {
-            throw SupabaseServiceError.invalidData
-        }
-
-        struct TierTokenUpdate: Codable {
-            let subscriptionTier: String
-            let tokens: Int
-
-            enum CodingKeys: String, CodingKey {
-                case subscriptionTier = "subscription_tier"
-                case tokens
-            }
-        }
-
-        let update = TierTokenUpdate(
-            subscriptionTier: tier.tierName,
-            tokens: tier.tokensPerPeriod
-        )
-
-        try await client
-            .from("user_profiles")
-            .update(update)
-            .eq("id", value: userId)
-            .execute()
-
-        return tier.tokensPerPeriod
-    }
-
-    func refillTokens() async throws -> Int {
-        let profile = try await getUserProfile()
-        return try await setTokensForTier(profile.subscriptionTier)
     }
 }
 
