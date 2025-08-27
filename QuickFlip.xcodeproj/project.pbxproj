@@ -14,8 +14,6 @@
 		285A2FCD2E55825900F123EA /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FCC2E55825900F123EA /* Storage */; };
 		285A2FD22E55852E00F123EA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FD12E55852E00F123EA /* Supabase */; };
 		28B723AB2E5E9E4D0000A258 /* QuickFlipProducts.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 28B723AA2E5E9E4D0000A258 /* QuickFlipProducts.storekit */; };
-		28B9C1742E5A0F16009A6A48 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B9C1732E5A0F13009A6A48 /* SubscriptionManager.swift */; };
-		28B9C1762E5A0F21009A6A48 /* StoreKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B9C1752E5A0F1E009A6A48 /* StoreKitManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,8 +38,6 @@
 		28A1E8BC2E524E9C00BBFCB7 /* QuickFlipTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickFlipTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28A1E8C62E524E9C00BBFCB7 /* QuickFlipUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickFlipUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28B723AA2E5E9E4D0000A258 /* QuickFlipProducts.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = QuickFlipProducts.storekit; sourceTree = "<group>"; };
-		28B9C1732E5A0F13009A6A48 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
-		28B9C1752E5A0F1E009A6A48 /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -117,8 +113,6 @@
 			isa = PBXGroup;
 			children = (
 				28B723AA2E5E9E4D0000A258 /* QuickFlipProducts.storekit */,
-				28B9C1752E5A0F1E009A6A48 /* StoreKitManager.swift */,
-				28B9C1732E5A0F13009A6A48 /* SubscriptionManager.swift */,
 				28A1E8AE2E524E9500BBFCB7 /* QuickFlip */,
 				28A1E8BF2E524E9C00BBFCB7 /* QuickFlipTests */,
 				28A1E8C92E524E9C00BBFCB7 /* QuickFlipUITests */,
@@ -291,8 +285,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				28B9C1762E5A0F21009A6A48 /* StoreKitManager.swift in Sources */,
-				28B9C1742E5A0F16009A6A48 /* SubscriptionManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

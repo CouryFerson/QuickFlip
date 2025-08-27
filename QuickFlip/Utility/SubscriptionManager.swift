@@ -147,7 +147,31 @@ class SubscriptionManager: ObservableObject {
         }
     }
 
+    func canAccessFeature(_ feature: String) -> Bool {
+        guard let currentTier = currentTier else { return false }
+        return currentTier.features.contains(feature)
+    }
+
+    func requiresUpgradeFor(_ feature: String) -> Bool {
+        return !canAccessFeature(feature)
+    }
+
     // MARK: - Helper Properties
+
+    var upgradePromptMessage: String {
+        guard let currentTier = currentTier else {
+            return "Upgrade to access premium features"
+        }
+
+        switch currentTier.tierName {
+        case "free":
+            return "Upgrade to Starter ($9.99/month) for more tokens and features"
+        case "starter":
+            return "Upgrade to Pro ($19.99/month) for unlimited features"
+        default:
+            return "Purchase more tokens to continue"
+        }
+    }
 
     var hasActiveSubscription: Bool {
         return !purchasedSubscriptions.isEmpty
