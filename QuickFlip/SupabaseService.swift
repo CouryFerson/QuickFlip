@@ -371,6 +371,60 @@ class SupabaseService: ObservableObject {
             .execute()
     }
 
+    func getCurrentUserID() -> UUID? {
+        guard let userIdString = currentUserProfileId,
+              let uuid = UUID(uuidString: userIdString) else {
+            return nil
+        }
+        return uuid
+    }
+
+    /// Create user subscription (using your existing UserSubscription model)
+    func createUserSubscription(_ subscription: UserSubscription) async throws {
+        try await client
+            .from("user_subscriptions")
+            .insert(subscription)
+            .execute()
+    }
+
+    /// Update user tokens count
+    func updateUserTokens(count: Int) async throws {
+        try await updateTokenCount(count)
+    }
+
+    /// Cancel active subscriptions for user
+    func cancelActiveSubscriptions(for userId: String) async throws {
+        struct SubscriptionUpdate: Codable {
+            let status: String
+            let updatedAt: Date
+
+            enum CodingKeys: String, CodingKey {
+                case status
+                case updatedAt = "updated_at"
+            }
+        }
+
+        let update = SubscriptionUpdate(
+            status: "cancelled",
+            updatedAt: Date()
+        )
+
+        try await client
+            .from("user_subscriptions")
+            .update(update)
+            .eq("user_id", value: userId)
+            .eq("status", value: "active")
+            .execute()
+    }
+
+    /// Create token purchase record
+    func createTokenPurchaseRecord(_ purchase: TokenPurchaseRecord) async throws {
+        try await client
+            .from("token_purchases")
+            .insert(purchase)
+            .execute()
+    }
+
     // MARK: - User Stats Operations
 
     func fetchUserStats() async throws -> UserStats? {

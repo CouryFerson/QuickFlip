@@ -1,14 +1,9 @@
-//
-//  SettingsView.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 8/17/25.
-//
-
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var authManager: AuthManager
 
     @State private var notificationsEnabled = true
     @State private var autoSaveEnabled = true
@@ -24,180 +19,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             List {
-                // Profile Section
-                Section {
-                    HStack {
-                        Circle()
-                            .fill(Color.blue.opacity(0.2))
-                            .frame(width: 60, height: 60)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.title)
-                                    .foregroundColor(.blue)
-                            )
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("John Flipper")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-
-                            Text("john.flipper@example.com")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-
-                            Text("Pro Member")
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(Color.orange)
-                                .foregroundColor(.white)
-                                .cornerRadius(4)
-                        }
-
-                        Spacer()
-
-                        Button("Edit") {
-                            // TODO: Edit profile
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
-                    .padding(.vertical, 8)
-                }
-
-                // Account Settings
-                Section("Account") {
-                    NavigationLink(destination: SubscriptionView()) {
-                        Label("Subscription", systemImage: "crown.fill")
-                            .foregroundColor(.orange)
-                    }
-
-                    NavigationLink(destination: Text("Profile Settings")) {
-                        Label("Profile Settings", systemImage: "person.circle")
-                    }
-
-                    NavigationLink(destination: Text("Privacy")) {
-                        Label("Privacy & Security", systemImage: "lock.shield")
-                    }
-                }
-
-                // App Preferences
-                Section("Preferences") {
-                    HStack {
-                        Label("Currency", systemImage: "dollarsign.circle")
-                        Spacer()
-                        Picker("Currency", selection: $selectedCurrency) {
-                            ForEach(currencies, id: \.self) { currency in
-                                Text(currency).tag(currency)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                    }
-
-                    HStack {
-                        Label("Theme", systemImage: "paintbrush")
-                        Spacer()
-                        Picker("Theme", selection: $selectedTheme) {
-                            ForEach(themes, id: \.self) { theme in
-                                Text(theme).tag(theme)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                    }
-
-                    Toggle(isOn: $notificationsEnabled) {
-                        Label("Push Notifications", systemImage: "bell")
-                    }
-
-                    Toggle(isOn: $autoSaveEnabled) {
-                        Label("Auto-save Scans", systemImage: "square.and.arrow.down")
-                    }
-                }
-
-                // Data & Storage
-                Section("Data & Storage") {
-                    Button {
-                        showingExportSheet = true
-                    } label: {
-                        Label("Export Data", systemImage: "square.and.arrow.up")
-                    }
-
-                    NavigationLink(destination: Text("Storage Usage: 2.3 MB")) {
-                        Label("Storage Usage", systemImage: "internaldrive")
-                    }
-
-                    NavigationLink(destination: BackupSettingsView()) {
-                        Label("Backup Settings", systemImage: "icloud")
-                    }
-
-                    Button {
-                        showingDeleteAlert = true
-                    } label: {
-                        Label("Clear All Data", systemImage: "trash")
-                            .foregroundColor(.red)
-                    }
-                }
-
-                // Analysis Settings
-                Section("Analysis Settings") {
-                    NavigationLink(destination: Text("AI Model: GPT-4o")) {
-                        Label("AI Model", systemImage: "brain.head.profile")
-                    }
-
-                    NavigationLink(destination: MarketplacePreferencesView()) {
-                        Label("Marketplace Preferences", systemImage: "storefront")
-                    }
-
-                    NavigationLink(destination: Text("Fee Calculator Settings")) {
-                        Label("Fee Calculator", systemImage: "calculator")
-                    }
-                }
-
-                // Support & Info
-                Section("Support & Info") {
-                    NavigationLink(destination: Text("Help Center")) {
-                        Label("Help Center", systemImage: "questionmark.circle")
-                    }
-
-                    Button {
-                        contactSupport()
-                    } label: {
-                        Label("Contact Support", systemImage: "envelope")
-                    }
-
-                    Button {
-                        showingAbout = true
-                    } label: {
-                        Label("About QuickFlip", systemImage: "info.circle")
-                    }
-
-                    NavigationLink(destination: Text("Privacy Policy")) {
-                        Label("Privacy Policy", systemImage: "doc.text")
-                    }
-
-                    NavigationLink(destination: Text("Terms of Service")) {
-                        Label("Terms of Service", systemImage: "doc.plaintext")
-                    }
-                }
-
-                // App Info
-                Section {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.0.0 (Build 42)")
-                            .foregroundColor(.gray)
-                    }
-
-                    HStack {
-                        Text("Items Scanned")
-                        Spacer()
-                        Text("\(itemStorage.totalItemCount)")
-                            .foregroundColor(.gray)
-                    }
-                }
+                profileSection
+                accountSection
+                preferencesSection
+                dataStorageSection
+                analysisSettingsSection
+                supportInfoSection
+                appInfoSection
             }
             .navigationTitle("Settings")
+            .task {
+                await subscriptionManager.refreshSubscriptionData()
+            }
         }
         .sheet(isPresented: $showingExportSheet) {
             ExportDataView()
@@ -219,41 +52,482 @@ struct SettingsView: View {
             Text("QuickFlip v1.0.0\n\nThe ultimate marketplace analysis tool for resellers. Scan items, get AI-powered price analysis, and maximize your profits.\n\nMade with ❤️ for the flipping community.")
         }
     }
+}
 
-    private func contactSupport() {
-        if let url = URL(string: "mailto:support@quickflip.app?subject=QuickFlip Support") {
-            UIApplication.shared.open(url)
+// MARK: - View Sections
+private extension SettingsView {
+
+    @ViewBuilder
+    var profileSection: some View {
+        Section {
+            HStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.title)
+                            .foregroundColor(.blue)
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(userDisplayName)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+
+                    Text(userEmail)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+
+                    userMembershipBadge
+                }
+
+                Spacer()
+
+                Button("Edit") {
+                    // TODO: Edit profile
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    @ViewBuilder
+    var userMembershipBadge: some View {
+        if let currentTier = subscriptionManager.currentTier {
+            Text(membershipLabel(for: currentTier.tierName))
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(subscriptionManager.getTierColor(currentTier.tierName))
+                .foregroundColor(.white)
+                .cornerRadius(4)
+        } else {
+            Text("Free Member")
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.gray)
+                .foregroundColor(.white)
+                .cornerRadius(4)
+        }
+    }
+
+    @ViewBuilder
+    var accountSection: some View {
+        Section("Account") {
+            NavigationLink(destination: SubscriptionView()) {
+                HStack {
+                    Label("Subscription", systemImage: "crown.fill")
+                        .foregroundColor(.orange)
+
+                    Spacer()
+
+                    if let profile = subscriptionManager.userProfile {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(profile.tokens) tokens")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+
+                            if let currentTier = subscriptionManager.currentTier {
+                                Text(currentTier.tierName.capitalized)
+                                    .font(.caption2)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+            }
+
+            NavigationLink(destination: ProfileSettingsView()) {
+                Label("Profile Settings", systemImage: "person.circle")
+            }
+
+            NavigationLink(destination: PrivacySettingsView()) {
+                Label("Privacy & Security", systemImage: "lock.shield")
+            }
+
+            Button(action: {
+                signOut()
+            }) {
+                Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    .foregroundColor(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var preferencesSection: some View {
+        Section("Preferences") {
+            HStack {
+                Label("Currency", systemImage: "dollarsign.circle")
+                Spacer()
+                Picker("Currency", selection: $selectedCurrency) {
+                    ForEach(currencies, id: \.self) { currency in
+                        Text(currency).tag(currency)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+            }
+
+            HStack {
+                Label("Theme", systemImage: "paintbrush")
+                Spacer()
+                Picker("Theme", selection: $selectedTheme) {
+                    ForEach(themes, id: \.self) { theme in
+                        Text(theme).tag(theme)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+            }
+
+            Toggle(isOn: $notificationsEnabled) {
+                Label("Push Notifications", systemImage: "bell")
+            }
+
+            Toggle(isOn: $autoSaveEnabled) {
+                Label("Auto-save Scans", systemImage: "square.and.arrow.down")
+            }
+        }
+    }
+
+    @ViewBuilder
+    var dataStorageSection: some View {
+        Section("Data & Storage") {
+            Button {
+                showingExportSheet = true
+            } label: {
+                Label("Export Data", systemImage: "square.and.arrow.up")
+            }
+
+            NavigationLink(destination: StorageUsageView()) {
+                Label("Storage Usage", systemImage: "internaldrive")
+            }
+
+            NavigationLink(destination: BackupSettingsView()) {
+                Label("Backup Settings", systemImage: "icloud")
+            }
+
+            Button {
+                showingDeleteAlert = true
+            } label: {
+                Label("Clear All Data", systemImage: "trash")
+                    .foregroundColor(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var analysisSettingsSection: some View {
+        Section("Analysis Settings") {
+            NavigationLink(destination: AIModelSettingsView()) {
+                Label("AI Model", systemImage: "brain.head.profile")
+            }
+
+            NavigationLink(destination: MarketplacePreferencesView()) {
+                Label("Marketplace Preferences", systemImage: "storefront")
+            }
+
+            NavigationLink(destination: FeeCalculatorSettingsView()) {
+                Label("Fee Calculator", systemImage: "calculator")
+            }
+        }
+    }
+
+    @ViewBuilder
+    var supportInfoSection: some View {
+        Section("Support & Info") {
+            NavigationLink(destination: HelpCenterView()) {
+                Label("Help Center", systemImage: "questionmark.circle")
+            }
+
+            Button {
+                contactSupport()
+            } label: {
+                Label("Contact Support", systemImage: "envelope")
+            }
+
+            Button {
+                showingAbout = true
+            } label: {
+                Label("About QuickFlip", systemImage: "info.circle")
+            }
+
+            NavigationLink(destination: PrivacyPolicyView()) {
+                Label("Privacy Policy", systemImage: "doc.text")
+            }
+
+            NavigationLink(destination: TermsOfServiceView()) {
+                Label("Terms of Service", systemImage: "doc.plaintext")
+            }
+        }
+    }
+
+    @ViewBuilder
+    var appInfoSection: some View {
+        Section {
+            HStack {
+                Text("Version")
+                Spacer()
+                Text("1.0.0 (Build 42)")
+                    .foregroundColor(.gray)
+            }
+
+            HStack {
+                Text("Items Scanned")
+                Spacer()
+                Text("\(itemStorage.totalItemCount)")
+                    .foregroundColor(.gray)
+            }
+
+            if let profile = subscriptionManager.userProfile {
+                HStack {
+                    Text("Tokens Used")
+                    Spacer()
+                    if let currentTier = subscriptionManager.currentTier {
+                        Text("\(currentTier.tokensPerPeriod - profile.tokens)/\(currentTier.tokensPerPeriod)")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
         }
     }
 }
 
-// MARK: - Subscription View
+// MARK: - Helper Methods
+private extension SettingsView {
+
+    var userDisplayName: String {
+        // You can get this from your auth manager or user profile
+        return "John Flipper"
+    }
+
+    var userEmail: String {
+        // You can get this from your auth manager
+        return "john.flipper@example.com"
+    }
+
+    func membershipLabel(for tierName: String) -> String {
+        switch tierName.lowercased() {
+        case "free":
+            return "Free Member"
+        case "starter":
+            return "Starter Member"
+        case "pro":
+            return "Pro Member"
+        default:
+            return "Member"
+        }
+    }
+
+    func contactSupport() {
+        if let url = URL(string: "mailto:support@quickflip.app?subject=QuickFlip Support") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    func signOut() {
+        Task {
+            try? await authManager.signOut()
+        }
+    }
+}
+
+// MARK: - Placeholder Views (You can implement these later)
+
+struct ProfileSettingsView: View {
+    var body: some View {
+        Text("Profile Settings")
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct PrivacySettingsView: View {
+    var body: some View {
+        Text("Privacy & Security Settings")
+            .navigationTitle("Privacy & Security")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct StorageUsageView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Storage Usage: 2.3 MB")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Text("Your scanned items and analysis data")
+                .foregroundColor(.gray)
+
+            Spacer()
+        }
+        .padding()
+        .navigationTitle("Storage Usage")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct AIModelSettingsView: View {
+    var body: some View {
+        List {
+            Section("Current Model") {
+                HStack {
+                    Text("AI Model")
+                    Spacer()
+                    Text("GPT-4o")
+                        .foregroundColor(.gray)
+                }
+            }
+
+            Section("Model Options") {
+                Text("Advanced model selection coming soon")
+                    .foregroundColor(.gray)
+            }
+        }
+        .navigationTitle("AI Model")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct FeeCalculatorSettingsView: View {
+    var body: some View {
+        Text("Fee Calculator Settings")
+            .navigationTitle("Fee Calculator")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct HelpCenterView: View {
+    var body: some View {
+        Text("Help Center")
+            .navigationTitle("Help Center")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct PrivacyPolicyView: View {
+    var body: some View {
+        Text("Privacy Policy")
+            .navigationTitle("Privacy Policy")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct TermsOfServiceView: View {
+    var body: some View {
+        Text("Terms of Service")
+            .navigationTitle("Terms of Service")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Backup Settings View
+struct BackupSettingsView: View {
+    @State private var iCloudEnabled = true
+    @State private var autoBackup = true
+    @State private var lastBackup = "2 hours ago"
+
+    var body: some View {
+        List {
+            Section("iCloud Backup") {
+                Toggle("Enable iCloud Sync", isOn: $iCloudEnabled)
+
+                Toggle("Automatic Backup", isOn: $autoBackup)
+
+                HStack {
+                    Text("Last Backup")
+                    Spacer()
+                    Text(lastBackup)
+                        .foregroundColor(.gray)
+                }
+
+                Button("Backup Now") {
+                    // Trigger manual backup
+                }
+                .disabled(!iCloudEnabled)
+            }
+
+            Section("Backup Settings") {
+                NavigationLink("What's Backed Up", destination: Text("• Scanned items\n• Analysis results\n• User preferences\n• App settings"))
+
+                NavigationLink("Restore from Backup", destination: Text("Restore Settings"))
+            }
+        }
+        .navigationTitle("Backup Settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Marketplace Preferences View
+struct MarketplacePreferencesView: View {
+    @State private var enabledMarketplaces: Set<String> = ["eBay", "StockX", "Mercari", "Facebook"]
+    @State private var defaultMarketplace = "eBay"
+    @State private var showPriceAnalysis = true
+
+    let allMarketplaces = ["eBay", "StockX", "Mercari", "Facebook", "Amazon", "Etsy", "Poshmark", "Depop"]
+
+    var body: some View {
+        List {
+            Section("Enabled Marketplaces") {
+                ForEach(allMarketplaces, id: \.self) { marketplace in
+                    Toggle(marketplace, isOn: Binding(
+                        get: { enabledMarketplaces.contains(marketplace) },
+                        set: { isEnabled in
+                            if isEnabled {
+                                enabledMarketplaces.insert(marketplace)
+                            } else {
+                                enabledMarketplaces.remove(marketplace)
+                            }
+                        }
+                    ))
+                }
+            }
+
+            Section("Default Marketplace") {
+                Picker("Default", selection: $defaultMarketplace) {
+                    ForEach(Array(enabledMarketplaces).sorted(), id: \.self) { marketplace in
+                        Text(marketplace).tag(marketplace)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+            }
+
+            Section("Analysis Preferences") {
+                Toggle("Show Price Analysis", isOn: $showPriceAnalysis)
+
+                NavigationLink("Fee Calculator Settings", destination: FeeCalculatorSettingsView())
+            }
+        }
+        .navigationTitle("Marketplace Preferences")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 import SwiftUI
+import StoreKit
 
 // MARK: - Subscription View
 struct SubscriptionView: View {
-    @EnvironmentObject var supabaseService: SupabaseService
-    @EnvironmentObject var authManager: AuthManager
-
-    @State private var availableTiers: [SubscriptionTier] = []
-    @State private var currentTier: SubscriptionTier?
-    @State private var userProfile: UserProfile?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @State private var showingTokenPurchase = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 headerSection
 
-                if isLoading {
-                    ProgressView("Loading subscription details...")
-                        .frame(height: 100)
-                } else if let errorMessage = errorMessage {
+                if subscriptionManager.isLoading {
+                    loadingSection
+                } else if let errorMessage = subscriptionManager.errorMessage {
                     errorSection(errorMessage)
                 } else {
                     currentPlanSection
                     tokensSection
+                    tokenPurchaseSection
                     featuresSection
                     upgradeSection
                     manageSubscriptionSection
@@ -264,8 +538,15 @@ struct SubscriptionView: View {
         }
         .navigationTitle("Subscription")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingTokenPurchase) {
+            TokenPurchaseView()
+                .environmentObject(subscriptionManager)
+        }
         .task {
-            await loadSubscriptionData()
+            await subscriptionManager.initialize()
+        }
+        .refreshable {
+            await subscriptionManager.refreshSubscriptionData()
         }
     }
 }
@@ -293,8 +574,14 @@ private extension SubscriptionView {
     }
 
     @ViewBuilder
+    var loadingSection: some View {
+        ProgressView("Loading subscription details...")
+            .frame(height: 100)
+    }
+
+    @ViewBuilder
     var currentPlanSection: some View {
-        if let currentTier = currentTier {
+        if let currentTier = subscriptionManager.currentTier {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Current Plan")
                     .font(.headline)
@@ -305,8 +592,8 @@ private extension SubscriptionView {
                             .font(.title3)
                             .fontWeight(.semibold)
 
-                        if currentTier.priceMonthly ?? 0 > 0 {
-                            Text("$\(currentTier.priceMonthly!, specifier: "%.2f")/month")
+                        if let price = currentTier.priceMonthly, price > 0 {
+                            Text("$\(price, specifier: "%.2f")/month")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         } else {
@@ -318,16 +605,10 @@ private extension SubscriptionView {
 
                     Spacer()
 
-                    Text("Active")
-                        .font(.caption)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(currentTier.tierName == "free" ? Color.gray : Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                    subscriptionStatusBadge
                 }
                 .padding()
-                .background(tierColor(for: currentTier.tierName).opacity(0.1))
+                .background(subscriptionManager.getTierColor(currentTier.tierName).opacity(0.1))
                 .cornerRadius(12)
             }
             .padding(.horizontal)
@@ -335,8 +616,22 @@ private extension SubscriptionView {
     }
 
     @ViewBuilder
+    var subscriptionStatusBadge: some View {
+        let isActive = subscriptionManager.hasActiveSubscription
+
+        Text(isActive ? "Active" : "Inactive")
+            .font(.caption)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(isActive ? Color.green : Color.gray)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+    }
+
+    @ViewBuilder
     var tokensSection: some View {
-        if let userProfile = userProfile, let currentTier = currentTier {
+        if let userProfile = subscriptionManager.userProfile,
+           let currentTier = subscriptionManager.currentTier {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Usage")
                     .font(.headline)
@@ -379,8 +674,41 @@ private extension SubscriptionView {
     }
 
     @ViewBuilder
+    var tokenPurchaseSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Need More Tokens?")
+                .font(.headline)
+                .padding(.horizontal)
+
+            if !subscriptionManager.consumables.isEmpty {
+                LazyVStack(spacing: 12) {
+                    ForEach(subscriptionManager.consumables, id: \.id) { product in
+                        TokenPackageCard(
+                            product: product,
+                            isPurchasing: subscriptionManager.isPurchasing
+                        ) {
+                            await purchaseTokens(product)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            } else {
+                Button("Buy More Tokens") {
+                    showingTokenPurchase = true
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
     var featuresSection: some View {
-        if let currentTier = currentTier {
+        if let currentTier = subscriptionManager.currentTier {
             VStack(alignment: .leading, spacing: 16) {
                 Text("\(currentTier.tierName.capitalized) Features")
                     .font(.headline)
@@ -402,20 +730,21 @@ private extension SubscriptionView {
 
     @ViewBuilder
     var upgradeSection: some View {
-        if let currentTier = currentTier, currentTier.tierName != "pro" {
-            let upgradeTiers = availableTiers.filter { tier in
-                tier.tokensPerPeriod > currentTier.tokensPerPeriod
-            }
+        if subscriptionManager.canUpgradeFromCurrentTier {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Upgrade Options")
+                    .font(.headline)
+                    .padding(.horizontal)
 
-            if !upgradeTiers.isEmpty {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Upgrade Options")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    ForEach(upgradeTiers, id: \.id) { tier in
-                        UpgradeTierCard(tier: tier) {
-                            await upgradeTo(tier: tier)
+                LazyVStack(spacing: 12) {
+                    ForEach(subscriptionManager.subscriptions, id: \.id) { product in
+                        if subscriptionManager.shouldShowUpgrade(for: product) {
+                            SubscriptionUpgradeCard(
+                                product: product,
+                                isPurchasing: subscriptionManager.isPurchasing
+                            ) {
+                                await purchaseSubscription(product)
+                            }
                         }
                     }
                 }
@@ -426,27 +755,26 @@ private extension SubscriptionView {
 
     @ViewBuilder
     var manageSubscriptionSection: some View {
-        if let currentTier = currentTier, currentTier.priceMonthly ?? 0 > 0 {
-            VStack(spacing: 12) {
-                Button("Manage Subscription") {
-                    // Open App Store subscriptions or your billing portal
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        UIApplication.shared.open(url)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-
-                Button("Cancel Subscription") {
-                    // Handle cancellation - could show confirmation dialog
-                }
-                .foregroundColor(.red)
+        VStack(spacing: 12) {
+            Button("Manage Subscription") {
+                openAppStoreSubscriptions()
             }
-            .padding(.horizontal)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+
+            Button("Restore Purchases") {
+                Task { await restorePurchases() }
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.green)
+            .foregroundColor(.white)
+            .cornerRadius(12)
         }
+        .padding(.horizontal)
     }
 
     @ViewBuilder
@@ -465,7 +793,7 @@ private extension SubscriptionView {
                 .multilineTextAlignment(.center)
 
             Button("Retry") {
-                Task { await loadSubscriptionData() }
+                Task { await subscriptionManager.refreshSubscriptionData() }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 8)
@@ -477,56 +805,45 @@ private extension SubscriptionView {
     }
 }
 
-// MARK: - Helper Functions
+// MARK: - Actions
 private extension SubscriptionView {
 
-    func loadSubscriptionData() async {
-        isLoading = true
-        errorMessage = nil
-
+    func purchaseSubscription(_ product: Product) async {
         do {
-            async let tiersRequest = supabaseService.getAllSubscriptionTiers()
-            async let profileRequest = supabaseService.getUserProfile()
-            async let currentTierRequest = supabaseService.getUserSubscriptionTier()
-
-            availableTiers = try await tiersRequest
-            userProfile = try await profileRequest
-            currentTier = try await currentTierRequest
-
-            // If no current tier found, default to free
-            if currentTier == nil {
-                currentTier = availableTiers.first { $0.tierName == "free" }
-            }
-
+            try await subscriptionManager.purchaseSubscription(product)
         } catch {
-            errorMessage = error.localizedDescription
+            // Error is already handled by SubscriptionManager
+            print("Subscription purchase failed: \(error)")
         }
-
-        isLoading = false
     }
 
-    func upgradeTo(tier: SubscriptionTier) async {
+    func purchaseTokens(_ product: Product) async {
         do {
-            let newTokenCount: () = try await authManager.upgradeToTier(tier.tierName)
-
-            // Refresh data
-            await loadSubscriptionData()
-
-            // Show success message or handle App Store purchase
-            print("Upgraded to \(tier.tierName) with \(newTokenCount) tokens")
+            try await subscriptionManager.purchaseTokens(product)
         } catch {
-            errorMessage = "Failed to upgrade: \(error.localizedDescription)"
+            // Error is already handled by SubscriptionManager
+            print("Token purchase failed: \(error)")
         }
     }
 
-    func tierColor(for tierName: String) -> Color {
-        switch tierName.lowercased() {
-        case "free": return .gray
-        case "starter": return .blue
-        case "pro": return .orange
-        default: return .gray
+    func restorePurchases() async {
+        do {
+            try await subscriptionManager.restorePurchases()
+        } catch {
+            // Error is already handled by SubscriptionManager
+            print("Restore purchases failed: \(error)")
         }
     }
+
+    func openAppStoreSubscriptions() {
+        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+// MARK: - Helper Functions
+private extension SubscriptionView {
 
     func tokenColor(for tokens: Int, max: Int) -> Color {
         let percentage = Double(tokens) / Double(max)
@@ -619,129 +936,134 @@ struct FeatureRow: View {
     }
 }
 
-struct UpgradeTierCard: View {
-    let tier: SubscriptionTier
+struct TokenPackageCard: View {
+    let product: Product
+    let isPurchasing: Bool
+    let onPurchase: () async -> Void
+
+    private var tokenCount: Int {
+        switch product.id {
+        case "com.fersonix.quikflip.tokens_100":
+            return 100
+        default:
+            return 0
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(tokenCount) Tokens")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
+                    Text("One-time purchase")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                Text(product.displayPrice)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+            }
+
+            Button(action: {
+                Task { await onPurchase() }
+            }) {
+                HStack {
+                    if isPurchasing {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .foregroundColor(.white)
+                    }
+                    Text(isPurchasing ? "Purchasing..." : "Buy \(tokenCount) Tokens")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isPurchasing ? Color.gray : Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .disabled(isPurchasing)
+        }
+        .padding()
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct SubscriptionUpgradeCard: View {
+    let product: Product
+    let isPurchasing: Bool
     let onUpgrade: () async -> Void
+
+    private var tierName: String {
+        switch product.id {
+        case "com.fersonix.quikflip.starter_sub_monthly":
+            return "Starter"
+        case "com.fersonix.quikflip.pro_sub_monthly":
+            return "Pro"
+        default:
+            return "Unknown"
+        }
+    }
+
+    private var tierColor: Color {
+        switch product.id {
+        case "com.fersonix.quikflip.starter_sub_monthly":
+            return .blue
+        case "com.fersonix.quikflip.pro_sub_monthly":
+            return .orange
+        default:
+            return .gray
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(tier.tierName.capitalized)
+                    Text(tierName)
                         .font(.title3)
                         .fontWeight(.semibold)
 
-                    if let price = tier.priceMonthly {
-                        Text("$\(price, specifier: "%.2f")/month")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
+                    Text(product.displayPrice + "/month")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
                 }
 
                 Spacer()
 
-                Text("\(tier.tokensPerPeriod) tokens")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(6)
+                Image(systemName: tierName == "Pro" ? "crown.fill" : "star.fill")
+                    .font(.title2)
+                    .foregroundColor(tierColor)
             }
 
-            Button("Upgrade to \(tier.tierName.capitalized)") {
+            Button(action: {
                 Task { await onUpgrade() }
+            }) {
+                HStack {
+                    if isPurchasing {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .foregroundColor(.white)
+                    }
+                    Text(isPurchasing ? "Upgrading..." : "Upgrade to \(tierName)")
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(Color.orange)
+            .background(isPurchasing ? Color.gray : tierColor)
             .foregroundColor(.white)
             .cornerRadius(8)
+            .disabled(isPurchasing)
         }
         .padding()
-        .background(Color.orange.opacity(0.1))
+        .background(tierColor.opacity(0.1))
         .cornerRadius(12)
-    }
-}
-
-// MARK: - Backup Settings View
-struct BackupSettingsView: View {
-    @State private var iCloudEnabled = true
-    @State private var autoBackup = true
-    @State private var lastBackup = "2 hours ago"
-
-    var body: some View {
-        List {
-            Section("iCloud Backup") {
-                Toggle("Enable iCloud Sync", isOn: $iCloudEnabled)
-
-                Toggle("Automatic Backup", isOn: $autoBackup)
-
-                HStack {
-                    Text("Last Backup")
-                    Spacer()
-                    Text(lastBackup)
-                        .foregroundColor(.gray)
-                }
-
-                Button("Backup Now") {
-                    // Trigger manual backup
-                }
-                .disabled(!iCloudEnabled)
-            }
-
-            Section("Backup Settings") {
-                NavigationLink("What's Backed Up", destination: Text("• Scanned items\n• Analysis results\n• User preferences\n• App settings"))
-
-                NavigationLink("Restore from Backup", destination: Text("Restore Settings"))
-            }
-        }
-        .navigationTitle("Backup Settings")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Marketplace Preferences View
-struct MarketplacePreferencesView: View {
-    @State private var enabledMarketplaces: Set<String> = ["eBay", "StockX", "Mercari", "Facebook"]
-    @State private var defaultMarketplace = "eBay"
-    @State private var showPriceAnalysis = true
-
-    let allMarketplaces = ["eBay", "StockX", "Mercari", "Facebook", "Amazon", "Etsy", "Poshmark", "Depop"]
-
-    var body: some View {
-        List {
-            Section("Enabled Marketplaces") {
-                ForEach(allMarketplaces, id: \.self) { marketplace in
-                    Toggle(marketplace, isOn: Binding(
-                        get: { enabledMarketplaces.contains(marketplace) },
-                        set: { isEnabled in
-                            if isEnabled {
-                                enabledMarketplaces.insert(marketplace)
-                            } else {
-                                enabledMarketplaces.remove(marketplace)
-                            }
-                        }
-                    ))
-                }
-            }
-
-            Section("Default Marketplace") {
-                Picker("Default", selection: $defaultMarketplace) {
-                    ForEach(Array(enabledMarketplaces).sorted(), id: \.self) { marketplace in
-                        Text(marketplace).tag(marketplace)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-            }
-
-            Section("Analysis Preferences") {
-                Toggle("Show Price Analysis", isOn: $showPriceAnalysis)
-
-                NavigationLink("Fee Calculator Settings", destination: Text("Fee Settings"))
-            }
-        }
-        .navigationTitle("Marketplace Preferences")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
