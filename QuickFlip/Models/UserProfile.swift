@@ -1,21 +1,17 @@
 
 import Foundation
 
-// Updated UserProfile model (simplified)
 struct UserProfile: Codable {
     let id: String
-    let totalItemsScanned: Int
     let tokens: Int
 
     enum CodingKeys: String, CodingKey {
         case id
-        case totalItemsScanned = "total_items_scanned"
         case tokens
     }
 
-    init(id: String, totalItemsScanned: Int, tokens: Int) {
+    init(id: String, tokens: Int) {
         self.id = id
-        self.totalItemsScanned = totalItemsScanned
         self.tokens = tokens
     }
 }

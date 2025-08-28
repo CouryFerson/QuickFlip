@@ -45,9 +45,6 @@ struct QuickFlipApp: App {
                     .environmentObject(authManager)
                     .environmentObject(itemStorage)
                     .environmentObject(subscriptionManager)
-                    .task {
-                        await itemStorage.refreshData()
-                    }
             }
         }
     }

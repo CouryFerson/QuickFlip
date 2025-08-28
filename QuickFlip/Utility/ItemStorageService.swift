@@ -181,6 +181,7 @@ class ItemStorageService: ObservableObject {
                 // Create initial stats if none exist
                 userStats = UserStats(from: scannedItems)
                 try await supabaseService.saveUserStats(userStats)
+                print("Created initial user stats")
             }
 
             clearError()

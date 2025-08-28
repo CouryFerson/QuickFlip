@@ -10,6 +10,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @StateObject private var appState = AppState()
+    @EnvironmentObject private var itemStorage: ItemStorageService
 
     var body: some View {
         TabView {
@@ -38,5 +39,8 @@ struct MainTabView: View {
                 }
         }
         .accentColor(.blue)
+        .task {
+            await itemStorage.refreshData()
+        }
     }
 }

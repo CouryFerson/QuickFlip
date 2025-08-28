@@ -21,6 +21,15 @@ class SupabaseService: ObservableObject {
         return client.auth.currentUser?.id.uuidString
     }
 
+    private var currentUserUUID: UUID? {
+        guard let userIdString = client.auth.currentUser?.id.uuidString,
+              let uuid = UUID(uuidString: userIdString) else {
+            return nil
+        }
+
+        return uuid
+    }
+
     // MARK: - User Profile Operations
 
     func getUserProfile() async throws -> UserProfile {
@@ -74,31 +83,6 @@ class SupabaseService: ObservableObject {
         let newCount = profile.tokens - 1
         try await updateTokenCount(newCount)
         return newCount
-    }
-
-    func incrementScanCount() async throws {
-        guard let userId = currentUserProfileId else {
-            throw SupabaseServiceError.unauthorized
-        }
-
-        let profile = try await getUserProfile()
-        let newCount = profile.totalItemsScanned + 1
-
-        struct ScanUpdate: Codable {
-            let totalItemsScanned: Int
-
-            enum CodingKeys: String, CodingKey {
-                case totalItemsScanned = "total_items_scanned"
-            }
-        }
-
-        let update = ScanUpdate(totalItemsScanned: newCount)
-
-        try await client
-            .from("user_profiles")
-            .update(update)
-            .eq("id", value: userId)
-            .execute()
     }
 
     // MARK: - Subscription Operations
@@ -428,9 +412,14 @@ class SupabaseService: ObservableObject {
     // MARK: - User Stats Operations
 
     func fetchUserStats() async throws -> UserStats? {
-        guard let userId = currentUserProfileId else {
+        guard let userId = currentUserUUID else {
             throw SupabaseServiceError.unauthorized
         }
+
+        // Debug: Check what IDs we're working with
+        let authUser = client.auth.currentUser
+        print("Auth user ID: \(authUser?.id)")
+        print("Current user UUID: \(userId)")
 
         do {
             let response: UserStats = try await client
@@ -448,12 +437,12 @@ class SupabaseService: ObservableObject {
     }
 
     func saveUserStats(_ stats: UserStats) async throws {
-        guard let userId = currentUserProfileId else {
+        guard let userId = currentUserUUID else {
             throw SupabaseServiceError.unauthorized
         }
 
         struct UserStatsForDB: Codable {
-            let userProfileId: String
+            let userProfileId: UUID
             let totalPotentialSavings: Double
             let favoriteMarketplace: String
             let totalItemsScanned: Int
@@ -479,14 +468,23 @@ class SupabaseService: ObservableObject {
             lastUpdated: stats.lastUpdated
         )
 
-        // Try update first, then insert
-        do {
+        // Check if row exists first
+        let existingCount = try await client
+            .from("user_stats")
+            .select("id", count: .exact)
+            .eq("user_profile_id", value: userId)
+            .execute()
+            .count ?? 0
+
+        if existingCount > 0 {
+            // Update existing row
             try await client
                 .from("user_stats")
                 .update(statsForDB)
                 .eq("user_profile_id", value: userId)
                 .execute()
-        } catch {
+        } else {
+            // Insert new row
             try await client
                 .from("user_stats")
                 .insert(statsForDB)

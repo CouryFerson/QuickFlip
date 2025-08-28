@@ -163,7 +163,6 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                totalItemsScanned: profile.totalItemsScanned,
                 tokens: newCount
             )
         }
@@ -178,7 +177,6 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                totalItemsScanned: profile.totalItemsScanned,
                 tokens: newCount
             )
         }
@@ -194,7 +192,6 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                totalItemsScanned: profile.totalItemsScanned,
                 tokens: newCount
             )
         }
@@ -234,7 +231,6 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                totalItemsScanned: profile.totalItemsScanned,
                 tokens: newTokenCount
             )
         }
