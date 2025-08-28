@@ -416,11 +416,6 @@ class SupabaseService: ObservableObject {
             throw SupabaseServiceError.unauthorized
         }
 
-        // Debug: Check what IDs we're working with
-        let authUser = client.auth.currentUser
-        print("Auth user ID: \(authUser?.id)")
-        print("Current user UUID: \(userId)")
-
         do {
             let response: UserStats = try await client
                 .from("user_stats")
@@ -468,28 +463,11 @@ class SupabaseService: ObservableObject {
             lastUpdated: stats.lastUpdated
         )
 
-        // Check if row exists first
-        let existingCount = try await client
+        // Single upsert operation
+        try await client
             .from("user_stats")
-            .select("id", count: .exact)
-            .eq("user_profile_id", value: userId)
+            .upsert(statsForDB)
             .execute()
-            .count ?? 0
-
-        if existingCount > 0 {
-            // Update existing row
-            try await client
-                .from("user_stats")
-                .update(statsForDB)
-                .eq("user_profile_id", value: userId)
-                .execute()
-        } else {
-            // Insert new row
-            try await client
-                .from("user_stats")
-                .insert(statsForDB)
-                .execute()
-        }
     }
 
     // MARK: - Helper Methods

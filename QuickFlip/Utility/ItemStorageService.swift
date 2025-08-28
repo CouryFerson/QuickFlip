@@ -169,13 +169,16 @@ class ItemStorageService: ObservableObject {
         clearError()
 
         do {
-            // Load scanned items
-            let items = try await supabaseService.fetchUserScannedItems()
+            // Run both queries simultaneously
+            async let itemsTask = supabaseService.fetchUserScannedItems()
+            async let statsTask = supabaseService.fetchUserStats()
+
+            let (items, stats) = try await (itemsTask, statsTask)
+
             scannedItems = items
             print("QuickFlip: Loaded \(scannedItems.count) items from database")
 
-            // Load user stats
-            if let stats = try await supabaseService.fetchUserStats() {
+            if let stats = stats {
                 userStats = stats
             } else {
                 // Create initial stats if none exist
