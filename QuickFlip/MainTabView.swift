@@ -39,8 +39,5 @@ struct MainTabView: View {
                 }
         }
         .accentColor(.blue)
-        .task {
-            await itemStorage.refreshData()
-        }
     }
 }

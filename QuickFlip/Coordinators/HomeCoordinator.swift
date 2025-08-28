@@ -33,7 +33,7 @@ enum HomeFlow: Hashable {
 }
 
 public struct HomeCoordinatorView: View {
-    @ObservedObject private var router = Router<HomeFlow>()
+    @StateObject private var router = Router<HomeFlow>()
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
@@ -56,7 +56,7 @@ public struct HomeCoordinatorView: View {
         case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal, let block):
             FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal, onRefresh: block)
         case .scanItem:
-            CaptureCoordinatorView()
+            Text("got here")
         }
     }
 }

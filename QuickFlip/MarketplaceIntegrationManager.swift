@@ -686,28 +686,255 @@ struct UniversalListing {
 
     // Convert from your existing StockXListing
     init(from stockxListing: StockXListing, condition: String = "New", targetPrice: StockXListing.StockXPriceStrategy = .competitive) {
-            // Create title from product name and colorway
-            self.title = stockxListing.colorway.isEmpty ?
-                stockxListing.productName :
-                "\(stockxListing.productName) \(stockxListing.colorway)"
+        // Create title from product name and colorway
+        self.title = stockxListing.colorway.isEmpty ?
+            stockxListing.productName :
+            "\(stockxListing.productName) \(stockxListing.colorway)"
 
-            // Create market-aware description
-            self.description = stockxListing.createStockXDescription(condition: condition)
+        // Create market-aware description
+        self.description = stockxListing.createStockXDescription(condition: condition)
 
-            // Set price based on strategy
-            self.price = stockxListing.calculateStockXPrice(strategy: targetPrice)
+        // Set price based on strategy
+        self.price = stockxListing.calculateStockXPrice(strategy: targetPrice)
 
-            // StockX categories are typically sneakers, streetwear, electronics, etc.
-            self.category = stockxListing.inferStockXCategory()
+        // StockX categories are typically sneakers, streetwear, electronics, etc.
+        self.category = stockxListing.inferStockXCategory()
 
-            self.condition = condition
+        self.condition = condition
 
-            // StockX is marketplace-wide shipping
-            self.location = "Global (StockX Authenticated)"
-            self.isShippingAvailable = true
+        // StockX is marketplace-wide shipping
+        self.location = "Global (StockX Authenticated)"
+        self.isShippingAvailable = true
 
-            // Create StockX-specific tags
-            self.tags = stockxListing.createStockXTags()
+        // Create StockX-specific tags
+        self.tags = stockxListing.createStockXTags()
+    }
+
+    // Convert from MercariListing
+    init(from mercariListing: MercariListing, condition: String, targetPrice: PricingStrategy = .competitive) {
+        self.title = mercariListing.title
+
+        // Create Mercari-style description
+        self.description = UniversalListing.createMercariDescription(from: mercariListing)
+
+        // Set price based on strategy
+        self.price = UniversalListing.calculateMercariPrice(from: mercariListing, strategy: targetPrice)
+
+        self.category = mercariListing.suggestedCategory
+        self.condition = mercariListing.condition
+        self.location = "United States" // Mercari US marketplace
+        self.isShippingAvailable = true
+
+        // Create Mercari-optimized tags
+        self.tags = UniversalListing.createMercariTags(from: mercariListing)
+    }
+
+    // Convert from PoshmarkListing
+    init(from poshmarkListing: PoshmarkListing, condition: String, targetPrice: PricingStrategy = .competitive) {
+        self.title = UniversalListing.createPoshmarkTitle(from: poshmarkListing)
+
+        // Create fashion-focused description
+        self.description = UniversalListing.createPoshmarkDescription(from: poshmarkListing)
+
+        // Set price based on strategy (Poshmark users often price high for offers)
+        self.price = UniversalListing.calculatePoshmarkPrice(from: poshmarkListing, strategy: targetPrice)
+
+        self.category = poshmarkListing.category
+        self.condition = poshmarkListing.condition
+        self.location = "United States" // Poshmark marketplace
+        self.isShippingAvailable = true
+
+        // Create fashion-focused tags
+        self.tags = UniversalListing.createPoshmarkTags(from: poshmarkListing)
+    }
+
+    // Convert from DepopListing
+    init(from depopListing: DepopListing, condition: String, targetPrice: PricingStrategy = .competitive) {
+        self.title = depopListing.title
+
+        // Create creative, Gen-Z friendly description
+        self.description = UniversalListing.createDepopDescription(from: depopListing)
+
+        // Set price based on strategy (Depop users often look for deals)
+        self.price = UniversalListing.calculateDepopPrice(from: depopListing, strategy: targetPrice)
+
+        self.category = depopListing.category
+        self.condition = depopListing.condition
+        self.location = "Global" // Depop international marketplace
+        self.isShippingAvailable = true
+
+        // Create style and hashtag-focused tags
+        self.tags = UniversalListing.createDepopTags(from: depopListing)
+    }
+
+    // MARK: - Pricing Strategies
+    enum PricingStrategy {
+        case aggressive    // Quick sale, lower price
+        case competitive   // Market average
+        case premium      // Higher price for max profit
+    }
+
+    // MARK: - Helper Methods for Mercari
+    private static func createMercariDescription(from listing: MercariListing) -> String {
+        var description = listing.title
+
+        if !listing.brand.isEmpty {
+            description += "\n\nBrand: \(listing.brand)"
         }
 
+        description += "\nCondition: \(listing.condition)"
+        description += "\n\n✅ Mercari Protection included"
+        description += "\n📦 Fast shipping within 3 days"
+        description += "\n💯 Honest description, authentic item"
+
+        return description
+    }
+
+    private static func calculateMercariPrice(from listing: MercariListing, strategy: PricingStrategy) -> Double {
+        let avgPrice = (listing.suggestedMinPrice + listing.suggestedMaxPrice) / 2
+
+        switch strategy {
+        case .aggressive:
+            return listing.suggestedMinPrice
+        case .competitive:
+            return avgPrice
+        case .premium:
+            return listing.suggestedMaxPrice
+        }
+    }
+
+    private static func createMercariTags(from listing: MercariListing) -> [String] {
+        var tags = ["Mercari", "Authentic"]
+
+        if !listing.brand.isEmpty {
+            tags.append(listing.brand)
+        }
+
+        tags.append(listing.suggestedCategory)
+        tags.append(listing.condition)
+
+        return tags
+    }
+
+    // MARK: - Helper Methods for Poshmark
+    private static func createPoshmarkTitle(from listing: PoshmarkListing) -> String {
+        var title = ""
+
+        if !listing.brand.isEmpty {
+            title += "\(listing.brand) "
+        }
+
+        title += listing.title
+
+        if !listing.size.isEmpty && listing.size != "OS" {
+            title += " Size \(listing.size)"
+        }
+
+        return title
+    }
+
+    private static func createPoshmarkDescription(from listing: PoshmarkListing) -> String {
+        var description = listing.title
+
+        if !listing.brand.isEmpty {
+            description += "\n\nBrand: \(listing.brand)"
+        }
+
+        if !listing.size.isEmpty {
+            description += "\nSize: \(listing.size)"
+        }
+
+        description += "\nCondition: \(listing.condition)"
+        description += "\n\n💕 From a smoke-free closet"
+        description += "\n✨ Fast shipping with Posh Protection"
+        description += "\n🛍️ Bundle 2+ items for 15% off!"
+        description += "\n📏 Measurements available upon request"
+
+        return description
+    }
+
+    private static func calculatePoshmarkPrice(from listing: PoshmarkListing, strategy: PricingStrategy) -> Double {
+        // Poshmark users typically price high to allow for offers
+        let avgPrice = (listing.suggestedMinPrice + listing.suggestedMaxPrice) / 2
+
+        switch strategy {
+        case .aggressive:
+            return avgPrice * 0.9  // Still allow room for offers
+        case .competitive:
+            return listing.suggestedMaxPrice * 0.9
+        case .premium:
+            return listing.suggestedMaxPrice
+        }
+    }
+
+    private static func createPoshmarkTags(from listing: PoshmarkListing) -> [String] {
+        var tags = ["Poshmark", "Fashion"]
+
+        if !listing.brand.isEmpty {
+            tags.append(listing.brand)
+        }
+
+        tags.append(listing.category)
+        tags.append(listing.size)
+        tags.append(listing.condition)
+
+        return tags
+    }
+
+    // MARK: - Helper Methods for Depop
+    private static func createDepopDescription(from listing: DepopListing) -> String {
+        var description = listing.title
+
+        if !listing.style.isEmpty {
+            description += "\n\n#\(listing.style) vibes ✨"
+        }
+
+        if !listing.size.isEmpty {
+            description += "\nSize: \(listing.size)"
+        }
+
+        description += "\nCondition: \(listing.condition)"
+        description += "\n\n🌟 authentic & as described"
+        description += "\n📱 DM for more pics/info"
+        description += "\n🚚 ships same/next day"
+        description += "\n💚 sustainable fashion"
+
+        // Add relevant hashtags for discovery
+        if !listing.style.isEmpty {
+            description += "\n\n#\(listing.style) #vintage #thrifted #sustainable"
+        }
+
+        return description
+    }
+
+    private static func calculateDepopPrice(from listing: DepopListing, strategy: PricingStrategy) -> Double {
+        let avgPrice = (listing.suggestedMinPrice + listing.suggestedMaxPrice) / 2
+
+        switch strategy {
+        case .aggressive:
+            return listing.suggestedMinPrice
+        case .competitive:
+            return avgPrice
+        case .premium:
+            return listing.suggestedMaxPrice * 0.95  // Slightly below max for Gen-Z market
+        }
+    }
+
+    private static func createDepopTags(from listing: DepopListing) -> [String] {
+        var tags = ["Depop", "Vintage", "Sustainable"]
+
+        if !listing.style.isEmpty {
+            tags.append(listing.style)
+        }
+
+        tags.append(listing.category)
+        tags.append(listing.size)
+        tags.append(listing.condition)
+
+        // Add trendy tags for Gen-Z discovery
+        tags.append("thrifted")
+        tags.append("unique")
+
+        return tags
+    }
 }

@@ -30,7 +30,7 @@ enum HistoryFlow: Hashable {
 }
 
 public struct HistoryCoordinator: View {
-    @ObservedObject private var router = Router<HistoryFlow>()
+    @StateObject private var router = Router<HistoryFlow>()
 
     public var body: some View {
         NavigationStack(path: $router.paths) {

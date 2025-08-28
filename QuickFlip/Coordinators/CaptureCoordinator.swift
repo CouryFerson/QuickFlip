@@ -39,7 +39,7 @@ enum CaptureFlow: Hashable {
 }
 
 public struct CaptureCoordinatorView: View {
-    @ObservedObject private var router = Router<CaptureFlow>()
+    @StateObject private var router = Router<CaptureFlow>()
 
     public var body: some View {
         NavigationStack(path: $router.paths) {

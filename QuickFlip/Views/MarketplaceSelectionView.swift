@@ -321,22 +321,23 @@ private extension MarketplaceSelectionView {
 
     @ViewBuilder
     func destinationView(for marketplace: Marketplace) -> some View {
-        if marketplace == .ebay {
+        switch marketplace {
+        case .ebay:
             eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-        } else if marketplace == .etsy {
-            EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-        } else if marketplace == .amazon {
-            AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-        } else if marketplace == .facebook {
+        case .facebook:
             FacebookMarketplaceView(listing: FacebookListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-        } else if marketplace == .stockx {
+        case .amazon:
+            AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        case .stockx:
             StockXPrepView(listing: StockXListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
-        } else {
-            ListingPreparationView(
-                scannedItem: scannedItem,
-                capturedImage: capturedImage,
-                selectedMarketplace: marketplace
-            )
+        case .etsy:
+            EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        case .mercari:
+            MercariPrepView(listing: MercariListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        case .poshmark:
+            PoshmarkPrepView(listing: PoshmarkListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+        case .depop:
+            DepopPrepView(listing: DepopListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
         }
     }
 }
