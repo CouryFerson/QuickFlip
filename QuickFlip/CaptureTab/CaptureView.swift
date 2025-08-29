@@ -238,6 +238,24 @@ struct CaptureOptionCard: View {
                     .fill(Color.white)
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isRecommended ? color : Color.clear, lineWidth: 2)
+                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            )
+//            .overlay(alignment: .top) {
+//                if isRecommended {
+//                    Text("RECOMMENDED")
+//                        .font(.caption2)
+//                        .fontWeight(.bold)
+//                        .padding(.horizontal, 6)
+//                        .padding(.vertical, 2)
+//                        .background(color)
+//                        .foregroundColor(.white)
+//                        .cornerRadius(4)
+//                        .padding(.top, -9)
+//                }
+//            }
         }
         .buttonStyle(PlainButtonStyle())
         .opacity(isComingSoon ? 0.6 : 1.0)
