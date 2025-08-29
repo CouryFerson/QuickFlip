@@ -463,10 +463,10 @@ class SupabaseService: ObservableObject {
             lastUpdated: stats.lastUpdated
         )
 
-        // Single upsert operation
+        // Specify the conflict resolution column for upsert
         try await client
             .from("user_stats")
-            .upsert(statsForDB)
+            .upsert(statsForDB, onConflict: "user_profile_id")
             .execute()
     }
 
