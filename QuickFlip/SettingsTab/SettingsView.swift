@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    let actions: SettingsActions
+
     @EnvironmentObject var itemStorage: ItemStorageService
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @EnvironmentObject var authManager: AuthManager
@@ -85,7 +87,8 @@ private extension SettingsView {
                 Spacer()
 
                 Button("Edit") {
-                    // TODO: Edit profile
+                    let action = actions.actions[.profile]
+                    action?()
                 }
                 .font(.caption)
                 .foregroundColor(.blue)
@@ -118,7 +121,10 @@ private extension SettingsView {
     @ViewBuilder
     var accountSection: some View {
         Section("Account") {
-            NavigationLink(destination: SubscriptionView()) {
+            Button {
+                let action = actions.actions[.subscription]
+                action?()
+            } label: {
                 HStack {
                     Label("Subscription", systemImage: "crown.fill")
                         .foregroundColor(.orange)
@@ -141,13 +147,7 @@ private extension SettingsView {
                 }
             }
 
-            NavigationLink(destination: ProfileSettingsView()) {
-                Label("Profile Settings", systemImage: "person.circle")
-            }
-
-            NavigationLink(destination: PrivacySettingsView()) {
-                Label("Privacy & Security", systemImage: "lock.shield")
-            }
+            actionRow(flow: .privacy, text: "Privacy & Security", systemImage: "lock.shield")
 
             Button(action: {
                 signOut()
@@ -164,7 +164,7 @@ private extension SettingsView {
             HStack {
                 Label("Currency", systemImage: "dollarsign.circle")
                 Spacer()
-                Picker("Currency", selection: $selectedCurrency) {
+                Picker("", selection: $selectedCurrency) {
                     ForEach(currencies, id: \.self) { currency in
                         Text(currency).tag(currency)
                     }
@@ -202,13 +202,8 @@ private extension SettingsView {
                 Label("Export Data", systemImage: "square.and.arrow.up")
             }
 
-            NavigationLink(destination: StorageUsageView()) {
-                Label("Storage Usage", systemImage: "internaldrive")
-            }
-
-            NavigationLink(destination: BackupSettingsView()) {
-                Label("Backup Settings", systemImage: "icloud")
-            }
+            actionRow(flow: .storageUsage, text: "Storage Usage", systemImage: "internaldrive")
+            actionRow(flow: .backUPSettings, text: "Backup Settings", systemImage: "icloud")
 
             Button {
                 showingDeleteAlert = true
@@ -222,26 +217,15 @@ private extension SettingsView {
     @ViewBuilder
     var analysisSettingsSection: some View {
         Section("Analysis Settings") {
-            NavigationLink(destination: AIModelSettingsView()) {
-                Label("AI Model", systemImage: "brain.head.profile")
-            }
-
-            NavigationLink(destination: MarketplacePreferencesView()) {
-                Label("Marketplace Preferences", systemImage: "storefront")
-            }
-
-            NavigationLink(destination: FeeCalculatorSettingsView()) {
-                Label("Fee Calculator", systemImage: "calculator")
-            }
+            actionRow(flow: .aiModel, text: "AI Model", systemImage: "brain.head.profile")
+            actionRow(flow: .marketplacePreferances, text: "Marketplace Preferences", systemImage: "storefront")
         }
     }
 
     @ViewBuilder
     var supportInfoSection: some View {
         Section("Support & Info") {
-            NavigationLink(destination: HelpCenterView()) {
-                Label("Help Center", systemImage: "questionmark.circle")
-            }
+            actionRow(flow: .helpCenter, text: "Help Center", systemImage: "questionmark.circle")
 
             Button {
                 contactSupport()
@@ -255,13 +239,7 @@ private extension SettingsView {
                 Label("About QuickFlip", systemImage: "info.circle")
             }
 
-            NavigationLink(destination: PrivacyPolicyView()) {
-                Label("Privacy Policy", systemImage: "doc.text")
-            }
-
-            NavigationLink(destination: TermsOfServiceView()) {
-                Label("Terms of Service", systemImage: "doc.plaintext")
-            }
+            actionRow(flow: .termsOfService, text: "Terms of Service", systemImage: "doc.plaintext")
         }
     }
 
@@ -297,7 +275,24 @@ private extension SettingsView {
 }
 
 // MARK: - Helper Methods
-private extension SettingsView {
+ extension SettingsView {
+    @ViewBuilder
+    private func actionRow(flow: SettingsFlow, text: String, systemImage: String) -> some View {
+        Button {
+            let action = actions.actions[flow]
+            action?()
+        } label: {
+            HStack {
+                Label(text, systemImage: systemImage)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .resizable()
+                    .frame(width: 6, height: 12)
+                    .foregroundStyle(.gray)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
 
     var userDisplayName: String {
         // You can get this from your auth manager or user profile

@@ -32,7 +32,7 @@ struct MainTabView: View {
                     Text("History")
                 }
 
-            SettingsView()
+            SettingsCoordinatorView()
                 .tabItem {
                     Image(systemName: "gearshape.fill")
                     Text("Settings")
