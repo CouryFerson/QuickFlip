@@ -11,6 +11,7 @@ class CameraController: NSObject, ObservableObject {
     @Published var barcodeScannedItem: ScannedItem?
     @Published var isFocusing = false
     @Published var focusScreenLocation: CGPoint?
+    @Published var currentZoom: CGFloat = 1.0
 
     var itemStorage: ItemStorageService?
     private var photoOutput = AVCapturePhotoOutput()
@@ -45,9 +46,8 @@ class CameraController: NSObject, ObservableObject {
     private func setupCamera() {
         session.sessionPreset = .photo
 
-        guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera,
-                                                       for: .video,
-                                                       position: .back) else {
+        // Try to get the best available multi-camera device
+        guard let backCamera = getBestAvailableCamera() else {
             print("QuickFlip: Unable to access back camera")
             return
         }
@@ -59,6 +59,9 @@ class CameraController: NSObject, ObservableObject {
                 backCamera.focusMode = .continuousAutoFocus
                 print("Set focus mode to: \(backCamera.focusMode.rawValue)")
             }
+
+            // Print available zoom range
+            print("QuickFlip: Zoom range: \(backCamera.minAvailableVideoZoomFactor)x to \(backCamera.maxAvailableVideoZoomFactor)x")
 
             backCamera.unlockForConfiguration()
 
@@ -83,10 +86,34 @@ class CameraController: NSObject, ObservableObject {
         }
     }
 
+    private func getBestAvailableCamera() -> AVCaptureDevice? {
+        // Try multi-camera devices first (these support wider zoom ranges)
+        if let tripleCamera = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back) {
+            print("QuickFlip: Using Triple Camera")
+            return tripleCamera
+        }
+
+        if let dualWideCamera = AVCaptureDevice.default(.builtInDualWideCamera, for: .video, position: .back) {
+            print("QuickFlip: Using Dual Wide Camera")
+            return dualWideCamera
+        }
+
+        if let dualCamera = AVCaptureDevice.default(.builtInDualCamera, for: .video, position: .back) {
+            print("QuickFlip: Using Dual Camera")
+            return dualCamera
+        }
+
+        // Fallback to single wide camera
+        if let wideCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+            print("QuickFlip: Using Wide Angle Camera (limited zoom)")
+            return wideCamera
+        }
+
+        return nil
+    }
+
     func focusAt(point: CGPoint, screenLocation: CGPoint) {
-        guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera,
-                                                       for: .video,
-                                                       position: .back) else { return }
+        guard let backCamera = getBestAvailableCamera() else { return }
 
         let startTime = CFAbsoluteTimeGetCurrent()
 
@@ -125,6 +152,18 @@ class CameraController: NSObject, ObservableObject {
             let focusTime = CFAbsoluteTimeGetCurrent() - startTime
             print("QuickFlip: Focus completed in approximately \(String(format: "%.2f", focusTime)) seconds")
 
+            // Reset focus mode back to continuous auto focus
+            do {
+                try device.lockForConfiguration()
+                if device.isFocusModeSupported(.continuousAutoFocus) {
+                    device.focusMode = .continuousAutoFocus
+                    print("QuickFlip: Reset focus mode back to: \(device.focusMode.rawValue)")
+                }
+                device.unlockForConfiguration()
+            } catch {
+                print("QuickFlip: Error resetting focus mode: \(error)")
+            }
+
             DispatchQueue.main.async {
                 self.isFocusing = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -132,6 +171,35 @@ class CameraController: NSObject, ObservableObject {
                 }
             }
         }
+    }
+
+    func setZoom(factor: CGFloat) {
+        guard let backCamera = getBestAvailableCamera() else { return }
+
+        do {
+            try backCamera.lockForConfiguration()
+
+            // Use the device's actual available zoom range
+            let minZoom = backCamera.minAvailableVideoZoomFactor
+            let maxZoom = backCamera.maxAvailableVideoZoomFactor
+            let clampedZoom = max(minZoom, min(factor, maxZoom))
+
+            backCamera.videoZoomFactor = clampedZoom
+            backCamera.unlockForConfiguration()
+
+            print("QuickFlip: Zoom set to \(clampedZoom)x (range: \(minZoom)x-\(maxZoom)x)")
+
+            DispatchQueue.main.async {
+                self.currentZoom = clampedZoom
+            }
+        } catch {
+            print("QuickFlip: Error setting zoom: \(error)")
+        }
+    }
+
+    func getAvailableZoomRange() -> ClosedRange<CGFloat> {
+        guard let backCamera = getBestAvailableCamera() else { return 1.0...1.0 }
+        return backCamera.minAvailableVideoZoomFactor...backCamera.maxAvailableVideoZoomFactor
     }
 
     func capturePhoto(analysisService: ImageAnalysisService) {

@@ -17,6 +17,7 @@ struct BulkCameraView: View {
     @State private var bulkResult: BulkAnalysisResult?
     @State private var photoDelegate: BulkPhotoDelegate?
     @State private var showTips = true
+    @State private var lastZoom: CGFloat = 1.0
 
     var body: some View {
         ZStack {
@@ -122,6 +123,7 @@ struct BulkCameraView: View {
                 .padding(.bottom, 50)
             }
         }
+        .gesture(pinchGesture)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
@@ -188,6 +190,19 @@ struct BulkCameraView: View {
         }
 
         cameraController.captureBulkPhoto(delegate: photoDelegate!)
+    }
+}
+
+private extension BulkCameraView {
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let newZoom = lastZoom * value
+                cameraController.setZoom(factor: newZoom)
+            }
+            .onEnded { _ in
+                lastZoom = cameraController.currentZoom
+            }
     }
 }
 

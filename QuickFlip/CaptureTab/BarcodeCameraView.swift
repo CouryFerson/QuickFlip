@@ -8,6 +8,7 @@ struct BarcodeCameraView: View {
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
     @State private var showTips = true
+    @State private var lastZoom: CGFloat = 1.0
 
     var body: some View {
         ZStack {
@@ -150,6 +151,7 @@ struct BarcodeCameraView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationViewStyle(StackNavigationViewStyle())
+        .gesture(pinchGesture)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
@@ -170,6 +172,19 @@ struct BarcodeCameraView: View {
                 captureAction(itemAnalysis, capturedImage)
             }
         }
+    }
+}
+
+private extension BarcodeCameraView {
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let newZoom = lastZoom * value
+                cameraController.setZoom(factor: newZoom)
+            }
+            .onEnded { _ in
+                lastZoom = cameraController.currentZoom
+            }
     }
 }
 

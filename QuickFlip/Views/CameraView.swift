@@ -13,6 +13,7 @@ struct CameraView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
     @EnvironmentObject var imageAnalysisService: ImageAnalysisService
     @State private var showTips = true
+    @State private var lastZoom: CGFloat = 1.0
 
     var body: some View {
         ZStack {
@@ -119,6 +120,7 @@ struct CameraView: View {
                 .padding(.bottom, 50)
             }
         }
+        .gesture(pinchGesture)
         .onAppear {
             cameraController.requestCameraPermission()
             cameraController.itemStorage = itemStorage
@@ -147,6 +149,19 @@ struct CameraView: View {
                 captureAction(result, image)
             }
         }
+    }
+}
+
+private extension CameraView {
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let newZoom = lastZoom * value
+                cameraController.setZoom(factor: newZoom)
+            }
+            .onEnded { _ in
+                lastZoom = cameraController.currentZoom
+            }
     }
 }
 
