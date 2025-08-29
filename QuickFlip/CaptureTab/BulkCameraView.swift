@@ -10,9 +10,8 @@ import SwiftUI
 
 struct BulkCameraView: View {
     let cameraAction: (BulkAnalysisResult) -> Void
-
+    @EnvironmentObject private var analysisService: ImageAnalysisService
     @StateObject private var cameraController = CameraController()
-    @StateObject private var bulkAnalysisService = BulkAnalysisService()
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var isAnalyzing = false
     @State private var bulkResult: BulkAnalysisResult?
@@ -169,7 +168,7 @@ struct BulkCameraView: View {
 
             Task {
                 do {
-                    let result = try await self.bulkAnalysisService.analyzeBulkItems(image: capturedImage)
+                    let result = try await self.analysisService.analyzeBulkItems(capturedImage)
 
                     await MainActor.run {
                         self.bulkResult = result

@@ -64,25 +64,6 @@ class SubscriptionManager: ObservableObject {
         isLoading = false
     }
 
-    func canMakeAIRequest() async -> Bool {
-        guard let profile = userProfile else { return false }
-        return profile.tokens > 0
-    }
-
-    func consumeToken() async throws {
-        guard let profile = userProfile else {
-            throw SubscriptionError.userNotFound
-        }
-
-        guard profile.tokens > 0 else {
-            throw SubscriptionError.insufficientTokens
-        }
-
-        // Use your existing method
-        _ = try await supabaseService.consumeToken()
-        await refreshUserProfile()
-    }
-
     func purchaseSubscription(_ product: Product) async throws {
         isPurchasing = true
         errorMessage = nil

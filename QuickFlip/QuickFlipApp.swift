@@ -14,6 +14,7 @@ struct QuickFlipApp: App {
     @StateObject private var supabaseService: SupabaseService
     @StateObject private var authManager: AuthManager
     @StateObject private var subscriptionManager: SubscriptionManager
+    @StateObject private var analysisService: ImageAnalysisService
 
     init() {
         let client = SupabaseClient(
@@ -28,6 +29,7 @@ struct QuickFlipApp: App {
         _authManager = StateObject(wrappedValue: authManager)
         _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
         _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(storeKitManager: StoreKitManager(), supabaseService: supabaseService))
+        _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager))
     }
 
     var body: some Scene {
@@ -45,6 +47,7 @@ struct QuickFlipApp: App {
                     .environmentObject(authManager)
                     .environmentObject(itemStorage)
                     .environmentObject(subscriptionManager)
+                    .environmentObject(analysisService)
                     .task {
                         await itemStorage.fetchScannedItems()
                     }

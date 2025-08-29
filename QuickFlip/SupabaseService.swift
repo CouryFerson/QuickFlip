@@ -73,14 +73,14 @@ class SupabaseService: ObservableObject {
         return newCount
     }
 
-    func consumeToken() async throws -> Int {
+    func consumeTokens(_ amount: Int) async throws -> Int {
         let profile = try await getUserProfile()
 
         guard profile.tokens > 0 else {
             throw SupabaseServiceError.insufficientTokens
         }
 
-        let newCount = profile.tokens - 1
+        let newCount = profile.tokens - amount
         try await updateTokenCount(newCount)
         return newCount
     }

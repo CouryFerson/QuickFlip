@@ -91,10 +91,6 @@ class ItemStorageService: ObservableObject {
         }
     }
 
-    func refreshData() async {
-        await loadUserData()
-    }
-
     // MARK: - Synchronous Methods (for existing SwiftUI compatibility)
 
     func saveItem(_ item: ScannedItem) {
@@ -162,9 +158,7 @@ class ItemStorageService: ObservableObject {
         }
     }
 
-    // MARK: - Private Methods
-
-    private func loadUserData() async {
+    func fetchScannedItems() async {
         isLoading = true
         clearError()
 
@@ -195,6 +189,8 @@ class ItemStorageService: ObservableObject {
 
         isLoading = false
     }
+
+    // MARK: - Private Methods
 
     private func updateStatsLocally() {
         userStats = UserStats(from: scannedItems)

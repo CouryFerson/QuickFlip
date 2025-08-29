@@ -148,28 +148,6 @@ class AuthManager: ObservableObject {
         userProfile?.tokens ?? 0
     }
 
-    func hasTokens() -> Bool {
-        return tokenCount > 0
-    }
-
-    func consumeToken() async throws -> Int {
-        guard hasTokens() else {
-            throw AuthError.insufficientTokens
-        }
-
-        let newCount = try await supabaseService.consumeToken()
-
-        // Update local profile
-        if let profile = userProfile {
-            userProfile = UserProfile(
-                id: profile.id,
-                tokens: newCount
-            )
-        }
-
-        return newCount
-    }
-
     func purchaseTokens(_ amount: Int) async throws -> Int {
         let newCount = try await supabaseService.addTokens(amount)
 
@@ -291,6 +269,34 @@ class AuthManager: ObservableObject {
     private func clearError() {
         errorMessage = nil
     }
+}
+
+
+// MARK: - AuthManager Extension
+extension AuthManager: @preconcurrency TokenManaging {
+    func hasTokens() -> Bool {
+        return tokenCount > 0
+    }
+    
+    func consumeTokens(_ amount: Int) async throws -> Int {
+        guard tokenCount >= amount else {
+            throw AuthError.insufficientTokens
+        }
+
+        let newCount = try await supabaseService.consumeTokens(amount)
+
+        // Update local profile
+        if let profile = userProfile {
+            userProfile = UserProfile(
+                id: profile.id,
+                tokens: newCount
+            )
+        }
+
+        return newCount
+    }
+
+    // You already have consumeToken() for single token consumption
 }
 
 // MARK: - Custom Errors
