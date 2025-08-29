@@ -4,6 +4,7 @@ struct MarketplaceSelectionView: View {
     let scannedItem: ScannedItem
     let capturedImage: UIImage
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var imageAnalysisService: ImageAnalysisService
     @State private var isAnalyzingPrices = false
     @State private var priceAnalysisResult: MarketplacePriceAnalysis?
 
@@ -357,11 +358,7 @@ private extension MarketplaceSelectionView {
 
         Task {
             do {
-                let priceService = OpenAIPriceResearchService()
-                let analysis = try await priceService.researchPrices(
-                    for: scannedItem.itemName,
-                    category: scannedItem.category
-                )
+                let analysis = try await imageAnalysisService.researchPrices(for: scannedItem.itemName, category: scannedItem.category)
 
                 await MainActor.run {
                     self.priceAnalysisResult = analysis
