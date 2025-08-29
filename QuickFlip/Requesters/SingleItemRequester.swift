@@ -69,16 +69,19 @@ struct SingleItemRequester: OpenAIRequester {
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if trimmedLine.hasPrefix("ITEM:") {
-                itemName = extractValue(from: trimmedLine, prefix: "ITEM:")
-            } else if trimmedLine.hasPrefix("CONDITION:") {
-                condition = extractValue(from: trimmedLine, prefix: "CONDITION:")
-            } else if trimmedLine.hasPrefix("DESCRIPTION:") {
-                description = extractValue(from: trimmedLine, prefix: "DESCRIPTION:")
-            } else if trimmedLine.hasPrefix("VALUE:") {
-                estimatedValue = extractValue(from: trimmedLine, prefix: "VALUE:")
-            } else if trimmedLine.hasPrefix("CATEGORY:") {
-                category = extractValue(from: trimmedLine, prefix: "CATEGORY:")
+            // Remove markdown formatting first
+            let cleanLine = trimmedLine.replacingOccurrences(of: "**", with: "")
+
+            if cleanLine.hasPrefix("ITEM:") {
+                itemName = String(cleanLine.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if cleanLine.hasPrefix("CONDITION:") {
+                condition = String(cleanLine.dropFirst(10)).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if cleanLine.hasPrefix("DESCRIPTION:") {
+                description = String(cleanLine.dropFirst(12)).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if cleanLine.hasPrefix("VALUE:") {
+                estimatedValue = String(cleanLine.dropFirst(6)).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if cleanLine.hasPrefix("CATEGORY:") {
+                category = String(cleanLine.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
 
