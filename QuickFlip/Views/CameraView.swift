@@ -11,6 +11,7 @@ struct CameraView: View {
     let captureAction: (ScannedItem, UIImage) -> Void
     @StateObject private var cameraController = CameraController()
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var imageAnalysisService: ImageAnalysisService
     @State private var showTips = true
 
     var body: some View {
@@ -89,7 +90,7 @@ struct CameraView: View {
 
                     // Capture button
                     Button(action: {
-                        cameraController.capturePhoto()
+                        cameraController.capturePhoto(analysisService: imageAnalysisService)
                     }) {
                         ZStack {
                             Circle()

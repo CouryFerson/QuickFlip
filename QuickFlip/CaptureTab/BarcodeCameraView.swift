@@ -4,6 +4,7 @@ import AVFoundation
 struct BarcodeCameraView: View {
     let captureAction: (ScannedItem, UIImage) -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var imageAnalysisService: ImageAnalysisService
     @StateObject private var cameraController = CameraController()
     @State private var errorMessage: String?
     @State private var showTips = true
@@ -118,7 +119,7 @@ struct BarcodeCameraView: View {
 
                     // Capture button
                     Button(action: {
-                        cameraController.captureBarcodePhoto()
+                        cameraController.captureBarcodePhoto(analysisService: imageAnalysisService)
                     }) {
                         ZStack {
                             Circle()
