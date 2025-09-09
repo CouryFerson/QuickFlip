@@ -53,7 +53,12 @@ public struct HistoryCoordinator: View {
                 router.push(.marketplaceSelection(item))
             }
         case .marketplaceSelection(let scannedImage):
-            MarketplaceSelectionView(scannedItem: scannedImage, capturedImage: scannedImage.image!)
+            if let imageUrl = scannedImage.imageUrl,
+               let image = ImageCacheManager.shared.loadImageFromDisk(url: imageUrl) {
+                MarketplaceSelectionView(scannedItem: scannedImage, capturedImage: image)
+            } else {
+                Text("Something went wrong. Try again")
+            }
         }
     }
 }

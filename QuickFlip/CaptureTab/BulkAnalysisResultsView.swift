@@ -174,7 +174,7 @@ private extension BulkAnalysisResultsView {
         let item = result.items[index]
         let scannedItem = createScannedItem(from: item, image: image)
 
-        itemStorage.saveItem(scannedItem)
+        itemStorage.saveItem(scannedItem, image: image)
         processedItems.insert(index)
 
         // Show success feedback
@@ -191,7 +191,6 @@ private extension BulkAnalysisResultsView {
             condition: analysis.condition,
             description: analysis.description,
             estimatedValue: analysis.estimatedValue,
-            image: image,
             priceAnalysis: createDefaultAnalysis(for: analysis)
         )
     }

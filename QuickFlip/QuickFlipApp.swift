@@ -30,6 +30,7 @@ struct QuickFlipApp: App {
         _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
         _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(storeKitManager: StoreKitManager(), supabaseService: supabaseService))
         _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager))
+        ImageCacheManager.shared.configure(with: supabaseService)
     }
 
     var body: some Scene {
@@ -49,9 +50,22 @@ struct QuickFlipApp: App {
                     .environmentObject(subscriptionManager)
                     .environmentObject(analysisService)
                     .task {
-                        await itemStorage.fetchScannedItems()
+                        async let fetchUserData: ()  = itemStorage.fetchScannedItems()
+                        async let fetchScannedItems: () = fetchScannedItems()
+                        _ = await [fetchUserData, fetchScannedItems]
                     }
             }
+        }
+    }
+}
+
+private extension QuickFlipApp {
+    private func fetchScannedItems() async {
+        do {
+            let items = try await supabaseService.fetchUserScannedItems()
+            await ImageCacheManager.shared.preloadImages(for: items)
+        } catch {
+            print("failed to fetch images on startup")
         }
     }
 }

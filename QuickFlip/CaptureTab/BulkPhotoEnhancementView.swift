@@ -238,11 +238,10 @@ private extension BulkPhotoEnhancementView {
                 condition: analysis.condition,
                 description: analysis.description,
                 estimatedValue: analysis.estimatedValue,
-                image: itemImage,
                 priceAnalysis: createDefaultAnalysis(for: analysis)
             )
 
-            itemStorage.saveItem(scannedItem)
+            itemStorage.saveItem(scannedItem, image: itemImage)
             savedItems.append(scannedItem)
         }
 

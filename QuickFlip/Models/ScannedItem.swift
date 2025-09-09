@@ -11,7 +11,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
     let description: String
     let estimatedValue: String
     let timestamp: Date
-    let imageData: String? // Changed to String (Base64) instead of Data
+    let imageUrl: String?
     let priceAnalysis: StorableMarketplacePriceAnalysis
     let userCostBasis: Double?
     let userNotes: String?
@@ -26,21 +26,21 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         case description
         case estimatedValue = "estimated_value"
         case timestamp
-        case imageData = "image_data"
+        case imageUrl = "image_url"
         case priceAnalysis = "price_analysis"
         case userCostBasis = "user_cost_basis"
         case userNotes = "user_notes"
         case profitBreakdowns = "profit_breakdowns"
     }
 
-    // MARK: - Standard Initializer
+    // MARK: - Standard Initializer (for creating new items)
     init(
         itemName: String,
         category: String,
         condition: String,
         description: String,
         estimatedValue: String,
-        image: UIImage?,
+        imageUrl: String? = nil,
         priceAnalysis: MarketplacePriceAnalysis,
         userCostBasis: Double? = nil,
         userNotes: String? = nil,
@@ -53,15 +53,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.description = description
         self.estimatedValue = estimatedValue
         self.timestamp = Date()
-
-        // Convert UIImage to Base64 string for database storage
-        if let image = image,
-           let jpegData = image.jpegData(compressionQuality: 0.8) {
-            self.imageData = jpegData.base64EncodedString()
-        } else {
-            self.imageData = nil
-        }
-
+        self.imageUrl = imageUrl // Store the URL directly
         self.priceAnalysis = StorableMarketplacePriceAnalysis(from: priceAnalysis)
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
@@ -77,7 +69,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         description: String,
         estimatedValue: String,
         timestamp: Date,
-        imageData: String?, // Now Base64 string
+        imageUrl: String?,
         priceAnalysis: StorableMarketplacePriceAnalysis,
         userCostBasis: Double?,
         userNotes: String?,
@@ -90,22 +82,13 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.description = description
         self.estimatedValue = estimatedValue
         self.timestamp = timestamp
-        self.imageData = imageData
+        self.imageUrl = imageUrl
         self.priceAnalysis = priceAnalysis
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns
     }
-
-    // MARK: - Computed Properties
-    var image: UIImage? {
-        guard let base64String = imageData else { return nil }
-
-        // Convert Base64 string back to Data, then to UIImage
-        guard let data = Data(base64Encoded: base64String) else { return nil }
-        return UIImage(data: data)
-    }
-
+    
     var formattedTimestamp: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated

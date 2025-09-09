@@ -23,11 +23,8 @@ struct ItemDetailView: View {
                 LazyVStack(spacing: 0) {
                     // Hero Image Section
                     ZStack {
-                        if let image = item.image {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: 400)
+                        if let imageURL = item.imageUrl {
+                            CachedImageView.detail(width: geometry.size.width, imageUrl: imageURL)
                                 .clipped()
                                 .scaleEffect(imageScale)
                                 .animation(.easeInOut(duration: 0.3), value: imageScale)
@@ -155,8 +152,8 @@ struct ItemDetailView: View {
                     Text("Are you sure you want to delete this item? This action cannot be undone.")
                 }
                 .sheet(isPresented: $showingShareSheet) {
-                    if let image = item.image {
-                        ShareSheet(items: [image, item.itemName])
+                    if let imageURL = item.imageUrl {
+                        CachedImageView.listItem(imageUrl: imageURL)
                     } else {
                         ShareSheet(items: [item.itemName])
                     }

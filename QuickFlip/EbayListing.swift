@@ -60,11 +60,11 @@ extension EbayListing {
         self.returnsAccepted = true
         self.returnPeriod = 30
 
-        if let image = scannedItem.image {
-            self.photos = [image]
-        } else {
+//        if let image = scannedItem.image {
+//            self.photos = [image]
+//        } else {
             self.photos = []
-        }
+//        }
     }
 
     // Convenience initializer from ItemAnalysis + Image

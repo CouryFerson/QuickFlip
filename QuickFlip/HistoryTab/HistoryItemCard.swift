@@ -10,10 +10,8 @@ struct HistoryItemCard: View {
             HStack(spacing: 12) {
                 // Item Image
                 Group {
-                    if let image = item.image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                    if let imageUrl = item.imageUrl {
+                        CachedImageView.listItem(imageUrl: imageUrl)
                     } else {
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))

@@ -456,23 +456,8 @@ struct EnhancedHistoryItemCard: View {
     }
 
     private var itemImageView: some View {
-        Group {
-            if let image = item.image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.2))
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(.gray)
-                            .font(.title3)
-                    )
-            }
-        }
-        .frame(width: 70, height: 70)
-        .cornerRadius(12)
+        CachedImageView.listItem(imageUrl: item.imageUrl)
+            .cornerRadius(12)
     }
 
     private func shareItem() {

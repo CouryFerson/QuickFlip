@@ -346,7 +346,7 @@ extension CameraController {
             }
 
             let scannedItem = convertAnalysisToScannedImage(analysis: analysis, image: image)
-            saveAnalyzedItem(scannedItem: scannedItem, storage: storage)
+            saveAnalyzedItem(scannedItem: scannedItem, storage: storage, image: image)
             self.scannedItem = scannedItem
             isAnalyzing = false
 
@@ -371,7 +371,7 @@ extension CameraController {
             }
 
             let scannedItem = convertAnalysisToScannedImage(analysis: analysis, image: image)
-            saveAnalyzedItem(scannedItem: scannedItem, storage: storage)
+            saveAnalyzedItem(scannedItem: scannedItem, storage: storage, image: image)
             self.barcodeScannedItem = scannedItem
             isBarcodeAnalyzing = false
 
@@ -408,14 +408,13 @@ extension CameraController {
             condition: analysis.condition,
             description: analysis.description,
             estimatedValue: analysis.estimatedValue,
-            image: image,
             priceAnalysis: defaultAnalysis
         )
     }
 
-    private func saveAnalyzedItem(scannedItem: ScannedItem, storage: ItemStorageService) {
+    private func saveAnalyzedItem(scannedItem: ScannedItem, storage: ItemStorageService, image: UIImage) {
         Task { @MainActor in
-            storage.saveItem(scannedItem)
+            storage.saveItem(scannedItem, image: image)
             print("QuickFlip: Auto-saved '\(scannedItem.itemName)' after AI analysis")
         }
     }

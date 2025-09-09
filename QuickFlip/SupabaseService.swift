@@ -7,6 +7,7 @@
 
 import Foundation
 import Supabase
+import UIKit
 
 @MainActor
 class SupabaseService: ObservableObject {
@@ -252,9 +253,46 @@ class SupabaseService: ObservableObject {
         return tier.features.contains(feature)
     }
 
+    func createSignedUrl(for imagePath: String) async throws -> String {
+        let signedURL = try await client.storage
+            .from("scanned-items-images")
+            .createSignedURL(path: imagePath, expiresIn: 3600)
+
+        return signedURL.absoluteString
+    }
+
     // MARK: - Scanned Items Operations
 
-    func saveScannedItem(_ item: ScannedItem) async throws {
+    // MARK: - Image Upload Functions
+    private func uploadImageToStorage(_ image: UIImage, itemId: UUID) async throws -> String {
+        guard let userId = currentUserProfileId else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        // Convert UIImage to JPEG data
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            throw SupabaseServiceError.invalidImageData
+        }
+
+        // Create file path: userId/itemId.jpg
+        let fileName = "\(itemId.uuidString).jpg"
+        let filePath = "\(userId)/\(fileName)"
+
+        // Upload to Supabase Storage
+        try await client.storage
+            .from("scanned-items-images") // Your bucket name
+            .upload(filePath, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+
+        return filePath
+    }
+
+    private func deleteImageFromStorage(_ imageUrl: String) async throws {
+        try await client.storage
+            .from("scanned-items-images")
+            .remove(paths: [imageUrl])
+    }
+
+    func saveScannedItem(_ item: ScannedItem, image: UIImage?) async throws {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
@@ -268,7 +306,7 @@ class SupabaseService: ObservableObject {
             let description: String
             let estimatedValue: String
             let timestamp: Date
-            let imageData: String?
+            let imageUrl: String? // Updated to imageUrl
             let priceAnalysis: StorableMarketplacePriceAnalysis
             let userCostBasis: Double?
             let userNotes: String?
@@ -283,7 +321,7 @@ class SupabaseService: ObservableObject {
                 case description
                 case estimatedValue = "estimated_value"
                 case timestamp
-                case imageData = "image_data"
+                case imageUrl = "image_url" // Updated mapping
                 case priceAnalysis = "price_analysis"
                 case userCostBasis = "user_cost_basis"
                 case userNotes = "user_notes"
@@ -291,6 +329,13 @@ class SupabaseService: ObservableObject {
             }
         }
 
+        // Step 1: Upload image first (if provided)
+        var imageUrl: String? = nil
+        if let image = image {
+            imageUrl = try await uploadImageToStorage(image, itemId: item.id)
+        }
+
+        // Step 2: Save to database with image URL
         let itemForDB = ScannedItemForDB(
             userProfileId: userId,
             id: item.id,
@@ -300,7 +345,7 @@ class SupabaseService: ObservableObject {
             description: item.description,
             estimatedValue: item.estimatedValue,
             timestamp: item.timestamp,
-            imageData: item.imageData,
+            imageUrl: imageUrl, // Store the file path/URL
             priceAnalysis: item.priceAnalysis,
             userCostBasis: item.userCostBasis,
             userNotes: item.userNotes,
@@ -334,6 +379,12 @@ class SupabaseService: ObservableObject {
             throw SupabaseServiceError.unauthorized
         }
 
+        // Step 1: Delete image from storage if it exists
+        if let imageUrl = item.imageUrl {
+            try? await deleteImageFromStorage(imageUrl) // Use try? to not fail if image doesn't exist
+        }
+
+        // Step 2: Delete from database
         try await client
             .from("scanned_items")
             .delete()
@@ -342,14 +393,41 @@ class SupabaseService: ObservableObject {
             .execute()
     }
 
-    func updateScannedItem(_ item: ScannedItem) async throws {
+    func updateScannedItem(_ item: ScannedItem, newImage: UIImage? = nil) async throws {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
 
+        var updatedItem = item
+
+        // Handle image update if new image provided
+        if let newImage = newImage {
+            // Delete old image if it exists
+            if let oldImageUrl = item.imageUrl {
+                try? await deleteImageFromStorage(oldImageUrl)
+            }
+
+            // Upload new image
+            let newImageUrl = try await uploadImageToStorage(newImage, itemId: item.id)
+            updatedItem = ScannedItem(
+                id: item.id,
+                itemName: item.itemName,
+                category: item.category,
+                condition: item.condition,
+                description: item.description,
+                estimatedValue: item.estimatedValue,
+                timestamp: item.timestamp,
+                imageUrl: newImageUrl, // Updated with new URL
+                priceAnalysis: item.priceAnalysis,
+                userCostBasis: item.userCostBasis,
+                userNotes: item.userNotes,
+                profitBreakdowns: item.profitBreakdowns
+            )
+        }
+
         try await client
             .from("scanned_items")
-            .update(item)
+            .update(updatedItem)
             .eq("id", value: item.id.uuidString)
             .eq("user_profile_id", value: userId)
             .execute()
@@ -492,6 +570,8 @@ enum SupabaseServiceError: LocalizedError {
     case networkError
     case unauthorized
     case insufficientTokens
+    case invalidImageData
+    case unknown
 
     var errorDescription: String? {
         switch self {
@@ -505,6 +585,10 @@ enum SupabaseServiceError: LocalizedError {
             return "User not authenticated"
         case .insufficientTokens:
             return "Insufficient tokens to complete this request"
+        case .invalidImageData:
+            return "Invalid image data"
+        case .unknown:
+            return "Unknown error"
         }
     }
 }

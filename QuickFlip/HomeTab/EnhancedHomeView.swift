@@ -792,21 +792,7 @@ struct EnhancedRecentItemCard: View {
     var body: some View {
         HStack {
             // Item image or placeholder
-            Group {
-                if let image = item.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.3))
-                        .overlay(
-                            Image(systemName: "photo")
-                                .foregroundColor(.gray)
-                        )
-                }
-            }
-            .frame(width: 50, height: 50)
+            CachedImageView.listItem(imageUrl: item.imageUrl)
             .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 2) {

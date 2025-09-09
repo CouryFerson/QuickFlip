@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 @MainActor
 class ItemStorageService: ObservableObject {
@@ -23,13 +24,13 @@ class ItemStorageService: ObservableObject {
 
     // MARK: - Public Methods
 
-    func saveItem(_ item: ScannedItem) async {
+    func saveItem(_ item: ScannedItem, image: UIImage?) async {
         // Optimistically update UI
         scannedItems.insert(item, at: 0)
         updateStatsLocally()
 
         do {
-            try await supabaseService.saveScannedItem(item)
+            try await supabaseService.saveScannedItem(item, image: image)
             try await supabaseService.saveUserStats(userStats)
             print("QuickFlip: Saved item '\(item.itemName)' to database")
             clearError()
@@ -86,15 +87,17 @@ class ItemStorageService: ObservableObject {
                 print("QuickFlip: Failed to update item: \(error)")
             }
         } else {
-            await saveItem(newItem)
+            await saveItem(newItem, image: nil)
             print("QuickFlip: Created new item (no match found)")
         }
     }
 
     // MARK: - Synchronous Methods (for existing SwiftUI compatibility)
 
-    func saveItem(_ item: ScannedItem) {
-        Task { await saveItem(item) }
+    func saveItem(_ item: ScannedItem, image: UIImage?) {
+        Task {
+            await saveItem(item, image: image)
+        }
     }
 
     func deleteItem(_ item: ScannedItem) {

@@ -383,7 +383,6 @@ private extension MarketplaceSelectionView {
             condition: scannedItem.condition,
             description: scannedItem.description,
             estimatedValue: scannedItem.estimatedValue,
-            image: capturedImage,
             priceAnalysis: analysis
         )
 
