@@ -28,7 +28,7 @@ struct QuickFlipApp: App {
         _supabaseService = StateObject(wrappedValue: supabaseService)
         _authManager = StateObject(wrappedValue: authManager)
         _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
-        _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(storeKitManager: StoreKitManager(), supabaseService: supabaseService))
+        _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(authManager: authManager, storeKitManager: StoreKitManager(), supabaseService: supabaseService))
         _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager))
         ImageCacheManager.shared.configure(with: supabaseService)
     }

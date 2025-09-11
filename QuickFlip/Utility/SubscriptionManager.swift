@@ -19,13 +19,16 @@ class SubscriptionManager: ObservableObject {
     @Published var errorMessage: String?
 
     // MARK: - Dependencies
+    private let authManager: AuthManager
     private let storeKitManager: StoreKitManager
     private let supabaseService: SupabaseService
     private var cancellables = Set<AnyCancellable>()
 
-    init(storeKitManager: StoreKitManager, supabaseService: SupabaseService) {
+    init(authManager: AuthManager, storeKitManager: StoreKitManager, supabaseService: SupabaseService) {
+        self.authManager = authManager
         self.storeKitManager = storeKitManager
         self.supabaseService = supabaseService
+
         setupBindings()
     }
 
@@ -78,7 +81,6 @@ class SubscriptionManager: ObservableObject {
             let tierName = getTierName(from: product.id)
             try await processSubscriptionPurchase(transaction: transaction, tierName: tierName)
             await refreshSubscriptionData()
-
         } catch {
             errorMessage = "Subscription purchase failed: \(error.localizedDescription)"
             throw error
@@ -99,7 +101,7 @@ class SubscriptionManager: ObservableObject {
             let tokenCount = getTokenCount(from: product.id)
             try await processTokenPurchase(transaction: transaction, tokenCount: tokenCount)
             await refreshUserProfile()
-
+            await authManager.refreshUserData()
         } catch {
             errorMessage = "Token purchase failed: \(error.localizedDescription)"
             throw error
@@ -154,6 +156,10 @@ class SubscriptionManager: ObservableObject {
         }
     }
 
+    var addTokensMessage: String {
+        return "Purchase more tokens to continue"
+    }
+
     var hasActiveSubscription: Bool {
         return !purchasedSubscriptions.isEmpty
     }
@@ -206,6 +212,7 @@ private extension SubscriptionManager {
     func refreshUserProfile() async {
         do {
             userProfile = try await supabaseService.getUserProfile()
+            await authManager.refreshUserData()
         } catch {
             errorMessage = "Failed to refresh user profile: \(error.localizedDescription)"
         }

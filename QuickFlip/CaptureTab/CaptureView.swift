@@ -12,10 +12,12 @@ struct CaptureView: View {
     let captureBulktemsAction: () -> Void
     let captureBarcodeAction: () -> Void
 
-    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var authManager: AuthManager
     @State private var showingImagePicker = false
     @State private var showingUpgradeAlert = false
     @State private var showingSubscriptionView = false
+    @State private var showingTokenAlert = false
 
     var body: some View {
         ScrollView {
@@ -47,7 +49,11 @@ struct CaptureView: View {
                         color: .blue,
                         isRecommended: false
                     ) {
-                        captureSingleItemAction()
+                        if authManager.hasTokens() {
+                            captureSingleItemAction()
+                        } else {
+                            showingTokenAlert = true
+                        }
                     }
 
                     // Bulk Analysis Option (Premium)
@@ -60,7 +66,11 @@ struct CaptureView: View {
                         isPremium: !subscriptionManager.canAccessFeature("bulk_scanning")
                     ) {
                         if subscriptionManager.canAccessFeature("bulk_scanning") {
-                            captureBulktemsAction()
+                            if authManager.hasTokens() {
+                                captureBulktemsAction()
+                            } else {
+                                showingTokenAlert = true
+                            }
                         } else {
                             showingUpgradeAlert = true
                         }
@@ -75,7 +85,11 @@ struct CaptureView: View {
                         isPremium: !subscriptionManager.canAccessFeature("barcode_scanning")
                     ) {
                         if subscriptionManager.canAccessFeature("barcode_scanning") {
-                            captureBarcodeAction()
+                            if authManager.hasTokens() {
+                                captureBarcodeAction()
+                            } else {
+                                showingTokenAlert = true
+                            }
                         } else {
                             showingUpgradeAlert = true
                         }
@@ -138,6 +152,11 @@ struct CaptureView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text(subscriptionManager.upgradePromptMessage)
+        }
+        .alert("No tokens left", isPresented: $showingTokenAlert) {
+            Button("Done", role: .cancel) { }
+        } message: {
+            Text(subscriptionManager.addTokensMessage)
         }
     }
 

@@ -3,10 +3,13 @@ import SwiftUI
 struct MarketplaceSelectionView: View {
     let scannedItem: ScannedItem
     let capturedImage: UIImage
+    @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var itemStorage: ItemStorageService
     @EnvironmentObject var imageAnalysisService: ImageAnalysisService
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var isAnalyzingPrices = false
     @State private var priceAnalysisResult: MarketplacePriceAnalysis?
+    @State private var showingTokenAlert = false
 
     var body: some View {
         ScrollView {
@@ -15,6 +18,11 @@ struct MarketplaceSelectionView: View {
                 smartRecommendationSection
                 marketplaceGridSection
             }
+        }
+        .alert("No tokens left", isPresented: $showingTokenAlert) {
+            Button("Done", role: .cancel) { }
+        } message: {
+            Text(subscriptionManager.addTokensMessage)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Choose Marketplace")
@@ -354,6 +362,11 @@ private extension MarketplaceSelectionView {
     }
 
     func findBestMarketplace() {
+        guard authManager.hasTokens() else {
+            showingTokenAlert = true
+            return
+        }
+
         isAnalyzingPrices = true
 
         Task {
