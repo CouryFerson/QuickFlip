@@ -292,10 +292,32 @@ class SupabaseService: ObservableObject {
             .remove(paths: [imageUrl])
     }
 
-    func saveScannedItem(_ item: ScannedItem, image: UIImage?) async throws {
+    func saveScannedItem(_ item: ScannedItem, image: UIImage?) async throws -> ScannedItem {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized
         }
+
+        // Step 1: Upload image first (if provided)
+        var imageUrl: String? = nil
+        if let image = image {
+            imageUrl = try await uploadImageToStorage(image, itemId: item.id)
+        }
+
+        // Step 2: Create updated item with imageUrl
+        let updatedItem = ScannedItem(
+            id: item.id,
+            itemName: item.itemName,
+            category: item.category,
+            condition: item.condition,
+            description: item.description,
+            estimatedValue: item.estimatedValue,
+            timestamp: item.timestamp,
+            imageUrl: imageUrl, // ← Now has the actual URL
+            priceAnalysis: item.priceAnalysis,
+            userCostBasis: item.userCostBasis,
+            userNotes: item.userNotes,
+            profitBreakdowns: item.profitBreakdowns
+        )
 
         struct ScannedItemForDB: Codable {
             let userProfileId: String
@@ -329,33 +351,29 @@ class SupabaseService: ObservableObject {
             }
         }
 
-        // Step 1: Upload image first (if provided)
-        var imageUrl: String? = nil
-        if let image = image {
-            imageUrl = try await uploadImageToStorage(image, itemId: item.id)
-        }
-
-        // Step 2: Save to database with image URL
+        // Step 3: Save to database with image URL
         let itemForDB = ScannedItemForDB(
             userProfileId: userId,
-            id: item.id,
-            itemName: item.itemName,
-            category: item.category,
-            condition: item.condition,
-            description: item.description,
-            estimatedValue: item.estimatedValue,
-            timestamp: item.timestamp,
-            imageUrl: imageUrl, // Store the file path/URL
-            priceAnalysis: item.priceAnalysis,
-            userCostBasis: item.userCostBasis,
-            userNotes: item.userNotes,
-            profitBreakdowns: item.profitBreakdowns
+            id: updatedItem.id,
+            itemName: updatedItem.itemName,
+            category: updatedItem.category,
+            condition: updatedItem.condition,
+            description: updatedItem.description,
+            estimatedValue: updatedItem.estimatedValue,
+            timestamp: updatedItem.timestamp,
+            imageUrl: updatedItem.imageUrl,
+            priceAnalysis: updatedItem.priceAnalysis,
+            userCostBasis: updatedItem.userCostBasis,
+            userNotes: updatedItem.userNotes,
+            profitBreakdowns: updatedItem.profitBreakdowns
         )
 
         try await client
             .from("scanned_items")
             .insert(itemForDB)
             .execute()
+
+        return updatedItem // ← Return the updated item
     }
 
     func fetchUserScannedItems() async throws -> [ScannedItem] {

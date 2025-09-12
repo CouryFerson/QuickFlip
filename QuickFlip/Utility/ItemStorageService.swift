@@ -25,18 +25,17 @@ class ItemStorageService: ObservableObject {
     // MARK: - Public Methods
 
     func saveItem(_ item: ScannedItem, image: UIImage?) async {
-        // Optimistically update UI
-        scannedItems.insert(item, at: 0)
-        updateStatsLocally()
-
         do {
-            try await supabaseService.saveScannedItem(item, image: image)
+            let updatedItem = try await supabaseService.saveScannedItem(item, image: image)
+            // Now add the updated item with proper imageUrl
+            scannedItems.insert(updatedItem, at: 0)
+            updateStatsLocally()
+
             try await supabaseService.saveUserStats(userStats)
-            print("QuickFlip: Saved item '\(item.itemName)' to database")
+            print("QuickFlip: Saved item '\(updatedItem.itemName)' to database")
             clearError()
         } catch {
-            // Revert optimistic update on failure
-            scannedItems.removeFirst()
+            // Revert stats update on failure since we never added the item
             updateStatsLocally()
             setError("Failed to save item: \(error.localizedDescription)")
             print("QuickFlip: Failed to save item: \(error)")
