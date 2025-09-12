@@ -8,6 +8,7 @@ import SwiftUI
 struct EnhancedHomeView: View {
     let marketAnalysisAction: (MarketTrends?, PersonalInsights?, Bool, Bool, @escaping () -> Void) -> Void
     let scanItemAction: () -> Void
+    let viewAllScansAction: () -> Void
 
     @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var marketIntelligence = MarketIntelligenceService()
@@ -491,12 +492,13 @@ struct EnhancedHomeView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
-                NavigationLink("View All") {
-                    // Navigate to history view
-                    Text("History View")
+                Button {
+                    viewAllScansAction()
+                } label: {
+                    Text("View All")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
                 }
-                .font(.subheadline)
-                .foregroundColor(.blue)
             }
 
             LazyVStack(spacing: 12) {
@@ -523,7 +525,7 @@ struct EnhancedHomeView: View {
                 .multilineTextAlignment(.center)
 
             Button(action: {
-                // Navigate to camera
+                scanItemAction()
             }) {
                 HStack {
                     Image(systemName: "camera.fill")

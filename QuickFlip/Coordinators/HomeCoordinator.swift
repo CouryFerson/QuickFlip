@@ -12,14 +12,11 @@ import SwiftUI
 /// This is used for analytics
 enum HomeFlow: Hashable {
     case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool, () -> Void)
-    case scanItem
 
     var id: Int {
         switch self {
         case .marketInsights:
             return 0
-        case .scanItem:
-            return 1
         }
     }
 
@@ -34,13 +31,16 @@ enum HomeFlow: Hashable {
 
 public struct HomeCoordinatorView: View {
     @StateObject private var router = Router<HomeFlow>()
+    @EnvironmentObject private var appRouter: AppRouter
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
             EnhancedHomeView { trends, insights, isTrendsLoading, isInsightsLoading, block in
                 router.push(.marketInsights(trends, insights, isTrendsLoading, isInsightsLoading, block))
             } scanItemAction: {
-                router.push(.scanItem)
+                appRouter.navigateToCapture()
+            } viewAllScansAction: {
+                appRouter.navigateToHistory()
             }
             .navigationDestination(for: HomeFlow.self) { path in
                 viewForPath(path)
@@ -55,8 +55,6 @@ public struct HomeCoordinatorView: View {
         switch path {
         case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal, let block):
             FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal, onRefresh: block)
-        case .scanItem:
-            Text("got here")
         }
     }
 }

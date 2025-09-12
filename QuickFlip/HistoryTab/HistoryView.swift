@@ -7,6 +7,7 @@ import SwiftUI
 
 struct HistoryView: View {
     let itemSelectionAction: (ScannedItem) -> Void
+    let scanFirstItemAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @State private var searchText = ""
     @State private var selectedSegment = 0
@@ -51,7 +52,9 @@ struct HistoryView: View {
         ScrollView {
             VStack(spacing: 0) {
                 if itemStorage.isEmpty {
-                    EmptyHistoryView()
+                    EmptyHistoryView {
+                        scanFirstItemAction()
+                    }
                 } else {
                     // Stats Header (keeping your design)
                     if !isEditMode {
@@ -603,6 +606,8 @@ struct MarketplaceBadge: View {
 // MARK: - Empty State (keeping your original design)
 
 struct EmptyHistoryView: View {
+    let scanFirstItemAction: () -> Void
+
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -628,7 +633,7 @@ struct EmptyHistoryView: View {
                     .font(.headline)
 
                 Button("Scan Your First Item") {
-                    // TODO: Navigate to capture tab
+                    scanFirstItemAction()
                 }
                 .buttonStyle(PrimaryButtonStyle())
             }

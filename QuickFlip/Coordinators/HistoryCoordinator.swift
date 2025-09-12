@@ -31,11 +31,14 @@ enum HistoryFlow: Hashable {
 
 public struct HistoryCoordinator: View {
     @StateObject private var router = Router<HistoryFlow>()
+    @EnvironmentObject private var appRouter: AppRouter
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
             HistoryView { scannedItem in
                 router.push(.itemDetail(scannedItem))
+            } scanFirstItemAction: {
+                appRouter.navigateToCapture()
             }
             .navigationDestination(for: HistoryFlow.self) { path in
                 viewForPath(path)
