@@ -1164,41 +1164,38 @@ struct FullMarketInsightsView: View {
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Market Intelligence Section
-                    if isLoadingTrends {
-                        aiLoadingSection
-                    } else if let trends = trends {
-                        marketTrendsSection(trends: trends)
-                    } else {
-                        noMarketDataSection
-                    }
-
-                    // Personal Analytics Section
-                    if isLoadingPersonal {
-                        personalLoadingSection
-                    } else if let insights = personalInsights {
-                        personalAnalyticsSection(insights: insights)
-                    } else {
-                        noPersonalDataSection
-                    }
-
-                    Spacer(minLength: 50)
+        ScrollView {
+            VStack(spacing: 24) {
+                // Market Intelligence Section
+                if isLoadingTrends {
+                    aiLoadingSection
+                } else if let trends = trends {
+                    marketTrendsSection(trends: trends)
+                } else {
+                    noMarketDataSection
                 }
-                .padding()
+
+                // Personal Analytics Section
+                if isLoadingPersonal {
+                    personalLoadingSection
+                } else if let insights = personalInsights {
+                    personalAnalyticsSection(insights: insights)
+                } else {
+                    noPersonalDataSection
+                }
+
+                Spacer(minLength: 50)
             }
-            .navigationTitle("Market Intelligence")
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarItems(
-                leading: Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing: Button("Refresh") {
+            .padding()
+        }
+        .navigationTitle("Market Intelligence")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Refresh") {
                     onRefresh()
                 }
-            )
+            }
         }
     }
 
