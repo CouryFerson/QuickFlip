@@ -15,7 +15,7 @@ class MarketIntelligenceService: ObservableObject {
     @Published var lastUpdated: Date?
 
     private let cacheKey = "dailyMarketTrends"
-    private let cacheExpiryHours = 1 // Refresh every 6 hours
+    private let cacheExpiryHours = 24 // Refresh every 24 hours
 
     func loadDailyTrends() async {
         // Check cache first
