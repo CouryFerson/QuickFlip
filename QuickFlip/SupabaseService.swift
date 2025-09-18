@@ -566,6 +566,23 @@ class SupabaseService: ObservableObject {
             .execute()
     }
 
+    func fetchCachedMarketTrends() async throws -> MarketTrends? {
+        do {
+            let response: MarketTrends = try await client
+                .from("market_insights")
+                .select()
+                .order("timestamp", ascending: false)
+                .limit(1)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Helper Methods
 
     func checkConnection() async throws -> Bool {

@@ -11,7 +11,9 @@ struct EnhancedHomeView: View {
     let viewAllScansAction: () -> Void
     let viewDealsActions: () -> Void
 
+    @EnvironmentObject var supabaseService: SupabaseService
     @EnvironmentObject var itemStorage: ItemStorageService
+
     @StateObject private var marketIntelligence = MarketIntelligenceService()
     @StateObject private var personalAnalytics = PersonalAnalyticsService()
 
@@ -559,7 +561,7 @@ struct EnhancedHomeView: View {
     private func loadInitialData() async {
         // Check if we have valid cached market data first
         if marketIntelligence.dailyTrends == nil {
-            await marketIntelligence.loadDailyTrends()
+            await marketIntelligence.loadDailyTrends(supabaseService: supabaseService)
         } else {
             print("QuickFlip: Using existing market trends data")
         }
@@ -571,7 +573,7 @@ struct EnhancedHomeView: View {
     }
 
     private func refreshAllData() async {
-        await marketIntelligence.loadDailyTrends()
+        await marketIntelligence.loadDailyTrends(supabaseService: supabaseService)
         await personalAnalytics.analyzeUserData(itemStorage.scannedItems)
     }
 

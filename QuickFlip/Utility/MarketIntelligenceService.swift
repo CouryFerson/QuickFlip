@@ -14,244 +14,15 @@ class MarketIntelligenceService: ObservableObject {
     @Published var isLoadingTrends = false
     @Published var lastUpdated: Date?
 
-    private let cacheKey = "dailyMarketTrends"
-    private let cacheExpiryHours = 24 // Refresh every 24 hours
-
-    func loadDailyTrends() async {
-        // Check cache first
-        if let cachedTrends = loadFromCache() {
-            await MainActor.run {
-                self.dailyTrends = cachedTrends
-                self.lastUpdated = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date
-            }
-            return
-        }
-
-        await MainActor.run {
-            self.isLoadingTrends = true
-        }
-
+    func loadDailyTrends(supabaseService: SupabaseService) async {
         do {
-            let trends = try await fetchMarketTrendsFromAI()
+            let trends = try await supabaseService.fetchCachedMarketTrends()
             await MainActor.run {
-                self.dailyTrends = trends
-                self.lastUpdated = Date()
-                self.isLoadingTrends = false
+                dailyTrends = trends
             }
-            saveToCache(trends)
         } catch {
-            print("QuickFlip: Failed to load market trends: \(error)")
-            await MainActor.run {
-                self.isLoadingTrends = false
-            }
+            print("QuickFlip: Failed to fetch cached market trends: \(error)")
         }
-    }
-
-    private func fetchMarketTrendsFromAI() async throws -> MarketTrends {
-        let currentDate = DateFormatter().string(from: Date())
-        let currentMonth = Calendar.current.component(.month, from: Date())
-        let currentDay = Calendar.current.component(.weekday, from: Date())
-
-        let prompt = """
-        You are a resale market expert. Analyze current market trends for \(currentDate).
-        
-        Consider:
-        - Seasonal patterns (current month: \(currentMonth))
-        - Day of week effects (today is weekday \(currentDay))
-        - Recent economic conditions
-        - Popular culture trends
-        - Holiday proximity
-        
-        Respond in this EXACT format:
-        
-        HOT_CATEGORIES:
-        1. [Category Name] - [+X%] - [Brief reason]
-        2. [Category Name] - [+X%] - [Brief reason] 
-        3. [Category Name] - [+X%] - [Brief reason]
-        
-        COOLING_CATEGORIES:
-        1. [Category Name] - [-X%] - [Brief reason]
-        2. [Category Name] - [-X%] - [Brief reason]
-        
-        BEST_LISTING_TIME: [Time of day/day of week recommendation]
-        
-        MARKET_SENTIMENT: [BULLISH/NEUTRAL/BEARISH]
-        
-        TOP_INSIGHT: [One actionable insight for resellers today]
-        
-        SEASONAL_OPPORTUNITY: [What to focus on this time of year]
-        """
-
-        let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                [
-                    "role": "user",
-                    "content": prompt
-                ]
-            ],
-            "max_tokens": 400,
-            "temperature": 0.4
-        ]
-
-        guard let url = URL(string: OpenAIConfig.apiURL) else {
-            throw MarketIntelligenceError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(OpenAIConfig.apiKey)", forHTTPHeaderField: "Authorization")
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, _) = try await URLSession.shared.data(for: request)
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw MarketIntelligenceError.parsingError
-        }
-
-        return parseMarketTrends(from: content)
-    }
-
-    private func parseMarketTrends(from content: String) -> MarketTrends {
-        let lines = content.components(separatedBy: .newlines)
-        var hotCategories: [TrendingCategory] = []
-        var coolingCategories: [TrendingCategory] = []
-        var bestListingTime = "Weekend evenings"
-        var marketSentiment: MarketSentiment = .neutral
-        var topInsight = "Focus on seasonal items for maximum profit"
-        var seasonalOpportunity = "Back-to-school items are gaining momentum"
-
-        var currentSection = ""
-
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if trimmed.hasPrefix("HOT_CATEGORIES:") {
-                currentSection = "hot"
-            } else if trimmed.hasPrefix("COOLING_CATEGORIES:") {
-                currentSection = "cooling"
-            } else if trimmed.hasPrefix("BEST_LISTING_TIME:") {
-                bestListingTime = String(trimmed.dropFirst(19)).trimmingCharacters(in: .whitespacesAndNewlines)
-            } else if trimmed.hasPrefix("MARKET_SENTIMENT:") {
-                let sentiment = String(trimmed.dropFirst(18)).trimmingCharacters(in: .whitespacesAndNewlines)
-                marketSentiment = MarketSentiment.from(sentiment)
-            } else if trimmed.hasPrefix("TOP_INSIGHT:") {
-                topInsight = String(trimmed.dropFirst(13)).trimmingCharacters(in: .whitespacesAndNewlines)
-            } else if trimmed.hasPrefix("SEASONAL_OPPORTUNITY:") {
-                seasonalOpportunity = String(trimmed.dropFirst(22)).trimmingCharacters(in: .whitespacesAndNewlines)
-            } else if trimmed.hasPrefix("1.") || trimmed.hasPrefix("2.") || trimmed.hasPrefix("3.") {
-                if let category = parseTrendingCategory(from: trimmed) {
-                    if currentSection == "hot" {
-                        hotCategories.append(category)
-                    } else if currentSection == "cooling" {
-                        coolingCategories.append(category)
-                    }
-                }
-            }
-        }
-
-        return MarketTrends(
-            hotCategories: hotCategories,
-            coolingCategories: coolingCategories,
-            bestListingTime: bestListingTime,
-            marketSentiment: marketSentiment,
-            topInsight: topInsight,
-            seasonalOpportunity: seasonalOpportunity,
-            timestamp: Date()
-        )
-    }
-
-    private func parseTrendingCategory(from line: String) -> TrendingCategory? {
-        // Parse "1. Electronics - +15% - Back to school demand"
-        let parts = line.components(separatedBy: " - ")
-        guard parts.count >= 3 else { return nil }
-
-        let nameWithNumber = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = String(nameWithNumber.dropFirst(3)) // Remove "1. "
-        let changeStr = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-        let reason = parts[2].trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Extract percentage
-        let percentageChange = extractPercentage(from: changeStr)
-
-        return TrendingCategory(
-            name: name,
-            percentageChange: percentageChange,
-            reason: reason,
-            isPositive: percentageChange > 0
-        )
-    }
-
-    private func extractPercentage(from text: String) -> Double {
-        let pattern = #"[+-]?(\d+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-              let range = Range(match.range(at: 1), in: text) else {
-            return 0
-        }
-
-        let numberStr = String(text[range])
-        let number = Double(numberStr) ?? 0
-        return text.hasPrefix("-") ? -number : number
-    }
-
-    private func saveToCache(_ trends: MarketTrends) {
-        do {
-            let cacheData = CachedMarketTrends(trends: trends, timestamp: Date())
-            let data = try JSONEncoder().encode(cacheData)
-            UserDefaults.standard.set(data, forKey: cacheKey)
-
-            // Also save the timestamp separately for easier access
-            UserDefaults.standard.set(Date(), forKey: "\(cacheKey)_timestamp")
-
-            print("QuickFlip: Cached market trends with timestamp")
-        } catch {
-            print("QuickFlip: Failed to cache trends: \(error)")
-        }
-    }
-
-    private func loadFromCache() -> MarketTrends? {
-        // Check if we have both data and timestamp
-        guard let data = UserDefaults.standard.data(forKey: cacheKey),
-              let timestamp = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date else {
-            print("QuickFlip: No cached data or timestamp found")
-            return nil
-        }
-
-        // Check if cache is still valid (within 1 hour)
-        let hoursSinceCache = Date().timeIntervalSince(timestamp) / 3600
-        if hoursSinceCache > Double(cacheExpiryHours) {
-            print("QuickFlip: Cache expired (\(String(format: "%.1f", hoursSinceCache)) hours old)")
-            return nil
-        }
-
-        do {
-            let cachedData = try JSONDecoder().decode(CachedMarketTrends.self, from: data)
-            print("QuickFlip: Using cached trends (\(String(format: "%.1f", hoursSinceCache)) hours old)")
-            return cachedData.trends
-        } catch {
-            print("QuickFlip: Failed to decode cached trends: \(error)")
-            return nil
-        }
-    }
-
-    func clearCache() {
-        UserDefaults.standard.removeObject(forKey: cacheKey)
-        UserDefaults.standard.removeObject(forKey: "\(cacheKey)_timestamp")
-        print("QuickFlip: Market trends cache cleared")
-    }
-
-    func getCacheAge() -> TimeInterval? {
-        guard let timestamp = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date else {
-            return nil
-        }
-        return Date().timeIntervalSince(timestamp)
     }
 }
 
@@ -438,6 +209,16 @@ struct MarketTrends: Codable {
     let topInsight: String
     let seasonalOpportunity: String
     let timestamp: Date
+
+    enum CodingKeys: String, CodingKey {
+        case hotCategories = "hot_categories"
+        case coolingCategories = "cooling_categories"
+        case bestListingTime = "best_listing_time"
+        case marketSentiment = "market_sentiment"
+        case topInsight = "top_insight"
+        case seasonalOpportunity = "seasonal_opportunity"
+        case timestamp
+    }
 }
 
 struct TrendingCategory: Codable {
