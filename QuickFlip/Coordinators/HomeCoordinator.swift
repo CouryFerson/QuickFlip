@@ -12,11 +12,14 @@ import SwiftUI
 /// This is used for analytics
 enum HomeFlow: Hashable {
     case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool, () -> Void)
+    case viewDeals
 
     var id: Int {
         switch self {
         case .marketInsights:
             return 0
+        case .viewDeals:
+            return 1
         }
     }
 
@@ -41,6 +44,8 @@ public struct HomeCoordinatorView: View {
                 appRouter.navigateToCapture()
             } viewAllScansAction: {
                 appRouter.navigateToHistory()
+            } viewDealsActions: {
+                router.push(.viewDeals)
             }
             .navigationDestination(for: HomeFlow.self) { path in
                 viewForPath(path)
@@ -55,6 +60,11 @@ public struct HomeCoordinatorView: View {
         switch path {
         case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal, let block):
             FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal, onRefresh: block)
+        case .viewDeals:
+            MarketplaceDealsWebView(
+                marketplaceURL: URL(string: "https://www.ebay.com/deals")!,
+                marketplaceName: "eBay"
+            )
         }
     }
 }

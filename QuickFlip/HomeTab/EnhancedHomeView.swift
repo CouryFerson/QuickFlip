@@ -9,6 +9,7 @@ struct EnhancedHomeView: View {
     let marketAnalysisAction: (MarketTrends?, PersonalInsights?, Bool, Bool, @escaping () -> Void) -> Void
     let scanItemAction: () -> Void
     let viewAllScansAction: () -> Void
+    let viewDealsActions: () -> Void
 
     @EnvironmentObject var itemStorage: ItemStorageService
     @StateObject private var marketIntelligence = MarketIntelligenceService()
@@ -480,6 +481,16 @@ struct EnhancedHomeView: View {
                     isRecommended: itemStorage.scannedItems.count > 3
                 ) {
                     // Navigate to optimization view
+                }
+
+                SmartQuickActionCard(
+                    title: "Find deals",
+                    subtitle: "See todays deals for inspiration",
+                    icon: "dollarsign.arrow.circlepath",
+                    color: .green,
+                    isRecommended: itemStorage.scannedItems.count > 3
+                ) {
+                    viewDealsActions()
                 }
             }
         }
