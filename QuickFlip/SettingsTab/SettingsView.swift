@@ -330,14 +330,6 @@ private extension SettingsView {
 
 // MARK: - Placeholder Views (You can implement these later)
 
-struct PrivacySettingsView: View {
-    var body: some View {
-        Text("Privacy & Security Settings")
-            .navigationTitle("Privacy & Security")
-            .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 struct StorageUsageView: View {
     var body: some View {
         VStack(spacing: 20) {
