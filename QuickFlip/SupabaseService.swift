@@ -49,6 +49,18 @@ class SupabaseService: ObservableObject {
         return response
     }
 
+    func updateUserDisplayName(_ displayName: String) async throws {
+        guard let userId = currentUserUUID else {
+            throw SupabaseServiceError.unauthorized
+        }
+
+        try await client
+            .from("user_profiles")
+            .update(["display_name": displayName.trimmingCharacters(in: .whitespaces)])
+            .eq("id", value: userId)
+            .execute()
+    }
+
     func updateTokenCount(_ newCount: Int) async throws {
         guard let userId = currentUserProfileId else {
             throw SupabaseServiceError.unauthorized

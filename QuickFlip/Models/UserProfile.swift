@@ -4,15 +4,18 @@ import Foundation
 struct UserProfile: Codable {
     let id: String
     let tokens: Int
+    let displayName: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case tokens
+        case displayName = "display_name"
     }
 
-    init(id: String, tokens: Int) {
+    init(id: String, tokens: Int, displayName: String?) {
         self.id = id
         self.tokens = tokens
+        self.displayName = displayName
     }
 }
 

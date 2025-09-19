@@ -155,7 +155,8 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                tokens: newCount
+                tokens: newCount,
+                displayName: profile.displayName
             )
         }
 
@@ -170,7 +171,8 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                tokens: newCount
+                tokens: newCount,
+                displayName: profile.displayName
             )
         }
 
@@ -201,6 +203,10 @@ class AuthManager: ObservableObject {
         return tier.features.contains(feature)
     }
 
+    func updateUserDisplayName(_ name: String) async throws {
+        try await supabaseService.updateUserDisplayName(name)
+    }
+
     func upgradeToTier(_ tierName: String) async throws {
         let (subscription, newTokenCount) = try await supabaseService.upgradeSubscription(to: tierName)
 
@@ -209,7 +215,8 @@ class AuthManager: ObservableObject {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                tokens: newTokenCount
+                tokens: newTokenCount,
+                displayName: profile.displayName
             )
         }
 
@@ -232,11 +239,15 @@ class AuthManager: ObservableObject {
     // MARK: - Computed Properties
 
     var userEmail: String? {
-        currentUser?.email
+        return currentUser?.email
     }
 
     var userId: String? {
-        currentUser?.id.uuidString
+        return currentUser?.id.uuidString
+    }
+
+    var userName: String {
+        return userProfile?.displayName ?? "Unknown"
     }
 
     var isDataLoaded: Bool {
@@ -289,7 +300,8 @@ extension AuthManager: @preconcurrency TokenManaging {
         if let profile = userProfile {
             userProfile = UserProfile(
                 id: profile.id,
-                tokens: newCount
+                tokens: newCount,
+                displayName: profile.displayName
             )
         }
 

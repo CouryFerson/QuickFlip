@@ -332,14 +332,6 @@ private extension SettingsView {
 
 // MARK: - Placeholder Views (You can implement these later)
 
-struct ProfileSettingsView: View {
-    var body: some View {
-        Text("Profile Settings")
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 struct PrivacySettingsView: View {
     var body: some View {
         Text("Privacy & Security Settings")
