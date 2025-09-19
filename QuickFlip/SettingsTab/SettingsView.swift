@@ -238,8 +238,6 @@ private extension SettingsView {
             } label: {
                 Label("About QuickFlip", systemImage: "info.circle")
             }
-
-            actionRow(flow: .termsOfService, text: "Terms of Service", systemImage: "doc.plaintext")
         }
     }
 
@@ -378,26 +376,10 @@ struct FeeCalculatorSettingsView: View {
     }
 }
 
-struct HelpCenterView: View {
-    var body: some View {
-        Text("Help Center")
-            .navigationTitle("Help Center")
-            .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 struct PrivacyPolicyView: View {
     var body: some View {
         Text("Privacy Policy")
             .navigationTitle("Privacy Policy")
-            .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct TermsOfServiceView: View {
-    var body: some View {
-        Text("Terms of Service")
-            .navigationTitle("Terms of Service")
             .navigationBarTitleDisplayMode(.inline)
     }
 }

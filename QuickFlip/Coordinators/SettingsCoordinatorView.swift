@@ -17,7 +17,6 @@ enum SettingsFlow: Hashable {
     case aiModel
     case marketplacePreferances
     case helpCenter
-    case termsOfService
 
     var id: Int {
         switch self {
@@ -37,8 +36,6 @@ enum SettingsFlow: Hashable {
             return 6
         case .helpCenter:
             return 7
-        case .termsOfService:
-            return 8
         }
     }
 
@@ -84,8 +81,6 @@ public struct SettingsCoordinatorView: View {
             MarketplacePreferencesView()
         case .helpCenter:
             HelpCenterView()
-        case .termsOfService:
-            TermsOfServiceView()
         }
     }
 }
@@ -103,7 +98,6 @@ struct SettingsActions {
                         .backUPSettings: { router.push(.backUPSettings) },
                         .aiModel: { router.push(.aiModel) },
                         .marketplacePreferances: { router.push(.marketplacePreferances) },
-                        .helpCenter: { router.push(.helpCenter) },
-                        .termsOfService: { router.push(.termsOfService )}]
+                        .helpCenter: { router.push(.helpCenter) }]
     }
 }

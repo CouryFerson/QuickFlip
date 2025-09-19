@@ -187,7 +187,6 @@ private extension PrivacySettingsView {
     var legalSection: some View {
         Section("Legal") {
             privacyPolicyRow
-            termsOfServiceRow
         }
     }
 
@@ -198,25 +197,6 @@ private extension PrivacySettingsView {
         } label: {
             HStack {
                 Label("Privacy Policy", systemImage: "doc.text")
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                Image(systemName: "arrow.up.right")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-
-    @ViewBuilder
-    var termsOfServiceRow: some View {
-        Button {
-            openTermsOfService()
-        } label: {
-            HStack {
-                Label("Terms of Service", systemImage: "doc.plaintext")
                     .foregroundColor(.primary)
 
                 Spacer()
@@ -278,13 +258,6 @@ private extension PrivacySettingsView {
     func openPrivacyPolicy() {
         // TODO: Replace with your actual privacy policy URL
         if let url = URL(string: "https://quickflip.app/privacy") {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    func openTermsOfService() {
-        // TODO: Replace with your actual terms of service URL
-        if let url = URL(string: "https://quickflip.app/terms") {
             UIApplication.shared.open(url)
         }
     }
