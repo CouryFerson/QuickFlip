@@ -246,8 +246,8 @@ class AuthManager: ObservableObject {
         return currentUser?.id.uuidString
     }
 
-    var userName: String {
-        return userProfile?.displayName ?? "Unknown"
+    var userName: String? {
+        return userProfile?.displayName
     }
 
     var isDataLoaded: Bool {

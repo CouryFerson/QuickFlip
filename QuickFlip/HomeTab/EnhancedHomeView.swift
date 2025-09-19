@@ -13,11 +13,11 @@ struct EnhancedHomeView: View {
 
     @EnvironmentObject var supabaseService: SupabaseService
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var authManager: AuthManager
 
     @StateObject private var marketIntelligence = MarketIntelligenceService()
     @StateObject private var personalAnalytics = PersonalAnalyticsService()
 
-    @State private var userName = UserDefaults.standard.string(forKey: "userName") ?? "Flipper"
     @State private var showingPersonalDetails = false
 
     var body: some View {
@@ -80,13 +80,15 @@ struct EnhancedHomeView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Welcome back,")
+                    Text(authManager.userName?.isEmpty == false ? "Welcome back," : "Welcome back")
                         .font(.title2)
                         .foregroundColor(.gray)
 
-                    Text(userName)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                    if let userName = authManager.userName, !userName.isEmpty {
+                        Text(userName)
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                    }
                 }
 
                 Spacer()

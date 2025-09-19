@@ -295,13 +295,11 @@ private extension SettingsView {
     }
 
     var userDisplayName: String {
-        // You can get this from your auth manager or user profile
-        return "John Flipper"
+        return authManager.userName ?? "Not set"
     }
 
     var userEmail: String {
-        // You can get this from your auth manager
-        return "john.flipper@example.com"
+        return authManager.userEmail ?? "Not set"
     }
 
     func membershipLabel(for tierName: String) -> String {

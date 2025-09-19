@@ -192,7 +192,7 @@ private extension ProfileSettingsView {
     }
 
     func loadUserProfile() {
-        displayName = authManager.userName
+        displayName = authManager.userName ?? "Not set"
     }
 
     func saveDisplayName() {
