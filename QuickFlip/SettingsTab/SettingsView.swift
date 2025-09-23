@@ -7,10 +7,11 @@ struct SettingsView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @EnvironmentObject var authManager: AuthManager
 
-    @State private var notificationsEnabled = true
-    @State private var autoSaveEnabled = true
-    @State private var selectedCurrency = "USD"
-    @State private var selectedTheme = "System"
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @AppStorage("autoSaveEnabled") private var autoSaveEnabled = true
+    @AppStorage("selectedCurrency") private var selectedCurrency = "USD"
+    @AppStorage("selectedTheme") private var selectedTheme = "System"
+
     @State private var showingDeleteAlert = false
     @State private var showingExportSheet = false
     @State private var showingAbout = false
