@@ -326,26 +326,6 @@ private extension SettingsView {
     }
 }
 
-// MARK: - Placeholder Views (You can implement these later)
-
-struct StorageUsageView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Storage Usage: 2.3 MB")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Your scanned items and analysis data")
-                .foregroundColor(.gray)
-
-            Spacer()
-        }
-        .padding()
-        .navigationTitle("Storage Usage")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 struct AIModelSettingsView: View {
     var body: some View {
         List {
