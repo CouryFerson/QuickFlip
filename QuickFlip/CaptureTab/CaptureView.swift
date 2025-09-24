@@ -254,13 +254,13 @@ struct CaptureOptionCard: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isRecommended ? color : Color.clear, lineWidth: 2)
-                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
             )
 //            .overlay(alignment: .top) {
 //                if isRecommended {

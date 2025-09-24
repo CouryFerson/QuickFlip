@@ -106,7 +106,7 @@ struct EnhancedHomeView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.gray.opacity(0.1))
+                .background(Color(.systemGray6))
                 .cornerRadius(8)
             }
 
@@ -680,8 +680,8 @@ struct RealStatsCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 4, x: 0, y: 2)
         )
     }
 }
@@ -795,8 +795,8 @@ struct SmartQuickActionCard: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -846,8 +846,8 @@ struct EnhancedRecentItemCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -875,7 +875,7 @@ struct PersonalInsightsDetailView: View {
                             }
                         }
                         .padding()
-                        .background(Color.gray.opacity(0.1))
+                        .background(Color(.systemGray6))
                         .cornerRadius(12)
 
                         // Recommendations
@@ -940,8 +940,8 @@ struct TrendingInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -977,8 +977,8 @@ struct PersonalInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1017,8 +1017,8 @@ struct MarketSentimentCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1054,8 +1054,8 @@ struct SeasonalInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1091,8 +1091,8 @@ struct TimingInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1121,8 +1121,8 @@ struct LoadingInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1158,10 +1158,10 @@ struct NoDataInsightCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.05))
+                .fill(Color(.systemGray6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        .stroke(Color(.systemGray6), lineWidth: 1)
                 )
         )
     }
@@ -1330,7 +1330,7 @@ struct FullMarketInsightsView: View {
                     .cornerRadius(8)
             }
         }
-        .background(Color.white)
+        .background(Color(.systemBackground))
     }
 
     private var noMarketDataSection: some View {
@@ -1389,7 +1389,7 @@ struct FullMarketInsightsView: View {
                 DetailInsightRow(title: "Avg Daily Value", value: "$\(String(format: "%.2f", insights.averageDailyValue))")
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(Color(.systemGray6))
             .cornerRadius(12)
 
             // Recommendations
@@ -1407,7 +1407,7 @@ struct FullMarketInsightsView: View {
         .padding()
         .background(Color.white)
         .cornerRadius(16)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .shadow(color: Color(.systemGray4), radius: 4, x: 0, y: 2)
     }
 
     private var noPersonalDataSection: some View {
@@ -1426,7 +1426,7 @@ struct FullMarketInsightsView: View {
                 .multilineTextAlignment(.center)
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
+        .background(Color(.systemGray6))
         .cornerRadius(16)
     }
 }
@@ -1459,8 +1459,8 @@ struct ItemsScannedCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1494,8 +1494,8 @@ struct SuccessRateCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1528,8 +1528,8 @@ struct BestCategoryCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1561,8 +1561,8 @@ struct RecommendationPreviewCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1591,8 +1591,8 @@ struct LoadingPerformanceCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
         )
     }
 }
@@ -1628,10 +1628,10 @@ struct NoDataPerformanceCard: View {
         .frame(width: 140, height: 120, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.05))
+                .fill(Color(.systemGray6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        .stroke(Color(.systemGray6), lineWidth: 1)
                 )
         )
     }
@@ -1724,7 +1724,7 @@ struct PersonalPerformanceView: View {
                 DetailMetricRow(title: "Optimal Timing", value: insights.marketTiming, icon: "clock.fill")
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(Color(.systemGray6))
             .cornerRadius(12)
         }
     }
@@ -1854,7 +1854,7 @@ struct MetricCard: View {
         .padding()
         .background(Color.white)
         .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -1941,7 +1941,7 @@ struct ActionableRecommendationCard: View {
         .padding()
         .background(Color.white)
         .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
     }
 }
 
@@ -1952,7 +1952,7 @@ struct RecentActivityRow: View {
         HStack {
             // Item image placeholder
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.gray.opacity(0.3))
+                .fill(Color(.systemGray6))
                 .frame(width: 40, height: 40)
                 .overlay(
                     Image(systemName: "photo")
@@ -2051,7 +2051,7 @@ struct DetailedTrendingRow: View {
                 .cornerRadius(6)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
     }
