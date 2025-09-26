@@ -5,9 +5,9 @@ struct eBayUploadView: View {
     let capturedImage: UIImage
     @Environment(\.presentationMode) var presentationMode
 
-    // eBay Integration
-    @StateObject private var eBayAuth = eBayAuthService()
-    @StateObject private var eBayListing = eBayListingService(authService: eBayAuthService())
+    // eBay Integration - Local instances
+    @StateObject private var ebayAuthService: eBayAuthService
+    @StateObject private var eBayListing: eBayListingService
     @State private var showingeBayAuth = false
     @State private var eBayListingResponse: eBayListingResponse?
     @State private var showingSuccessAlert = false
@@ -15,7 +15,6 @@ struct eBayUploadView: View {
     @State private var showAuthCodeInput = false
     @State private var authCode = ""
     @State private var isExchangingToken = false
-    @State private var showSignInConfirmation = false
 
     // eBay Brand Colors
     private let eBayBlue = Color(red: 0.0, green: 0.4, blue: 0.8)
@@ -24,8 +23,13 @@ struct eBayUploadView: View {
     private let eBayGray = Color(red: 0.95, green: 0.95, blue: 0.97)
 
     init(listing: EbayListing, capturedImage: UIImage) {
+        let ebayAuthService = eBayAuthService()
         self._listing = State(initialValue: listing)
         self.capturedImage = capturedImage
+
+        // Create listing service that gets passed the auth service
+        self._eBayListing = StateObject(wrappedValue: eBayListingService(authService: ebayAuthService))
+        self._ebayAuthService = StateObject(wrappedValue: ebayAuthService)
     }
 
     var body: some View {
@@ -41,7 +45,7 @@ struct eBayUploadView: View {
                 itemPreviewCard
 
                 // Listing Details Form
-                if eBayAuth.isAuthenticated {
+                if ebayAuthService.isAuthenticated {
                     listingDetailsForm
 
                     // Upload Button
@@ -57,6 +61,23 @@ struct eBayUploadView: View {
         .navigationBarItems(trailing: eBayLogoView)
         .sheet(isPresented: $showingeBayAuth) {
             eBayAuthenticationSheet
+        }
+        .sheet(isPresented: $showAuthCodeInput) {
+            AuthCodeInputSheet(
+                isPresented: $showAuthCodeInput,
+                authCode: $authCode,
+                isProcessing: $isExchangingToken
+            ) { code in
+                Task {
+                    isExchangingToken = true
+                    await ebayAuthService.exchangeCodeForToken(code: code)
+                    await MainActor.run {
+                        isExchangingToken = false
+                        authCode = ""
+                        showAuthCodeInput = false
+                    }
+                }
+            }
         }
         .alert("Listed Successfully! 🎉", isPresented: $showingSuccessAlert) {
             Button("View on eBay") {
@@ -80,41 +101,103 @@ struct eBayUploadView: View {
         } message: {
             Text(listingError ?? "")
         }
-        .alert("Enter Authorization Code", isPresented: $showAuthCodeInput) {
-            TextField("Paste code from eBay", text: $authCode)
-                .textInputAutocapitalization(.never)
-            Button("Complete Sign In") {
-                Task {
-                    isExchangingToken = true
-                    await eBayAuth.exchangeCodeForToken(code: authCode)
-                    isExchangingToken = false
+    }
+}
+
+// MARK: - Custom Auth Code Input Sheet
+struct AuthCodeInputSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var authCode: String
+    @Binding var isProcessing: Bool
+    let onComplete: (String) -> Void
+
+    private let eBayBlue = Color(red: 0.0, green: 0.4, blue: 0.8)
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 32) {
+                Spacer()
+
+                // Icon
+                Image(systemName: "key.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(eBayBlue)
+
+                // Title and Instructions
+                VStack(spacing: 16) {
+                    Text("Enter Authorization Code")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    VStack(spacing: 12) {
+                        Text("After signing in to eBay, you'll see an 'Authorization Complete' page.")
+                        Text("Copy the code from that page and paste it below:")
+                    }
+                    .font(.body)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                }
+
+                // Input Section
+                VStack(spacing: 20) {
+                    TextField("Paste authorization code here", text: $authCode)
+                        .textFieldStyle(CodeInputTextFieldStyle())
+                        .font(.system(.body, design: .monospaced))
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled(true)
+                        .padding(.horizontal)
+
+                    Button(action: {
+                        if !authCode.isEmpty {
+                            onComplete(authCode)
+                        }
+                    }) {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            }
+                            Text(isProcessing ? "Connecting..." : "Complete Setup")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(authCode.isEmpty || isProcessing ? Color.gray : eBayBlue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .font(.headline)
+                    }
+                    .disabled(authCode.isEmpty || isProcessing)
+                    .padding(.horizontal)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("eBay Authorization")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button("Cancel") {
+                    isPresented = false
                     authCode = ""
                 }
-            }
-            .disabled(authCode.isEmpty || isExchangingToken)
-            Button("Cancel") {
-                authCode = ""
-            }
-        } message: {
-            Text("After signing in to eBay, copy the authorization code from the success page and paste it here.")
+            )
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            if !eBayAuth.isAuthenticated {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showSignInConfirmation = true
-                }
-            }
-        }
-        .alert("eBay Sign In", isPresented: $showSignInConfirmation) {
-            Button("I signed in successfully") {
-                eBayAuth.markAsAuthenticated()
-            }
-            Button("Try again") {
-                eBayAuth.startAuthentication()
-            }
-        } message: {
-            Text("Did you successfully sign in to eBay?")
-        }
+    }
+}
+
+// MARK: - Custom Text Field Style for Code Input
+struct CodeInputTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding(16)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(red: 0.0, green: 0.4, blue: 0.8).opacity(0.3), lineWidth: 2)
+            )
     }
 }
 
@@ -161,40 +244,82 @@ private extension eBayUploadView {
 
     var authenticationStatusView: some View {
         HStack(spacing: 12) {
-            Image(systemName: eBayAuth.isAuthenticated ? "checkmark.circle.fill" : "person.circle")
-                .font(.title2)
-                .foregroundColor(eBayAuth.isAuthenticated ? .green : eBayBlue)
+            authStatusIcon
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(eBayAuth.isAuthenticated ? "Connected to eBay" : "Sign in to eBay")
+                Text(authStatusTitle)
                     .font(.headline)
                     .foregroundColor(.primary)
 
-                Text(eBayAuth.isAuthenticated ? "Ready to list your item" : "Connect your account to start selling")
+                Text(authStatusSubtitle)
                     .font(.caption)
                     .foregroundColor(.gray)
             }
 
             Spacer()
 
-            if !eBayAuth.isAuthenticated {
-                Button("Sign In") {
-                    showingeBayAuth = true
-                }
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(eBayBlue)
-                .cornerRadius(20)
-            }
+            authActionButton
         }
         .padding()
         .background(Color.white)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    var authStatusIcon: some View {
+        if isExchangingToken {
+            ProgressView()
+                .scaleEffect(0.8)
+                .tint(eBayBlue)
+        } else {
+            Image(systemName: ebayAuthService.isAuthenticated ? "checkmark.circle.fill" : "person.circle")
+                .font(.title2)
+                .foregroundColor(ebayAuthService.isAuthenticated ? .green : eBayBlue)
+        }
+    }
+
+    var authStatusTitle: String {
+        if isExchangingToken {
+            return "Connecting to eBay..."
+        } else if ebayAuthService.isAuthenticated {
+            return "Connected to eBay"
+        } else {
+            return "Sign in to eBay"
+        }
+    }
+
+    var authStatusSubtitle: String {
+        if isExchangingToken {
+            return "Please wait..."
+        } else if ebayAuthService.isAuthenticated {
+            return "Ready to list your item"
+        } else {
+            return "Connect your account to start selling"
+        }
+    }
+
+    @ViewBuilder
+    var authActionButton: some View {
+        if !ebayAuthService.isAuthenticated && !isExchangingToken {
+            Button("Sign In") {
+                showingeBayAuth = true
+            }
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(eBayBlue)
+            .cornerRadius(20)
+        } else if ebayAuthService.isAuthenticated {
+            Button("Sign Out") {
+                ebayAuthService.signOut()
+            }
+            .font(.caption)
+            .foregroundColor(eBayBlue)
+        }
     }
 
     var itemPreviewCard: some View {
@@ -423,9 +548,12 @@ private extension eBayUploadView {
 
                 VStack(spacing: 12) {
                     Button("Continue with eBay") {
-                        eBayAuth.startAuthentication()
-                        // Don't dismiss the sheet - user will come back to app
-                        // and we'll show auth code input
+                        ebayAuthService.startAuthentication()
+                        showingeBayAuth = false
+                        // Show auth code input after a delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            showAuthCodeInput = true
+                        }
                     }
                     .font(.headline)
                     .foregroundColor(.white)
@@ -434,7 +562,7 @@ private extension eBayUploadView {
                     .background(eBayBlue)
                     .cornerRadius(12)
 
-                    Text("Secure authentication via eBay")
+                    Text("You'll return here after signing in")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -454,7 +582,7 @@ private extension eBayUploadView {
     }
 }
 
-// MARK: - Custom eBay Styles
+// MARK: - Custom eBay Styles (keeping your existing ones)
 struct eBayTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
@@ -527,7 +655,7 @@ struct eBayFormSection<Content: View>: View {
 // MARK: - Helper Functions
 private extension eBayUploadView {
     var canCreateListing: Bool {
-        return eBayAuth.isAuthenticated &&
+        return ebayAuthService.isAuthenticated &&
                !listing.title.isEmpty &&
                listing.buyItNowPrice > 0 &&
                !eBayListing.isUploading

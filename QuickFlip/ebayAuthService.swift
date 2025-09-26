@@ -1,18 +1,6 @@
 import Foundation
+import SwiftUI
 import UIKit
-
-// MARK: - eBay Configuration
-struct eBayConfig {
-    static let clientID = "CouryFer-QuickFli-SBX-bbc0e4d93-f7df68a1"
-    static let clientSecret = "SBX-bc0e4d937996-723d-4fe4-86b6-d7bb"
-    static let devID = "db79ecc5-88e5-4d24-8e1b-44fcf38d3990"
-    static let redirectURI = "Coury_Ferson-CouryFer-QuickF-kbvwx" // Keep what eBay expects
-
-    // Sandbox URLs
-    static let authURL = "https://auth.sandbox.ebay.com/oauth2/authorize"
-    static let tokenURL = "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
-    static let baseAPIURL = "https://api.sandbox.ebay.com"
-}
 
 // MARK: - eBay Authentication Service
 class eBayAuthService: ObservableObject {
@@ -45,7 +33,7 @@ class eBayAuthService: ObservableObject {
 
     func startAuthentication() {
         // Use your known working eBay URL
-        let urlString = "https://auth.sandbox.ebay.com/oauth2/authorize?client_id=CouryFer-QuickFli-SBX-bbc0e4d93-f7df68a1&response_type=code&redirect_uri=Coury_Ferson-CouryFer-QuickF-kbvwx&scope=https://api.ebay.com/oauth/api_scope/sell.inventory"
+        let urlString = "https://auth.sandbox.ebay.com/oauth2/authorize?client_id=\(eBayConfig.clientID)&response_type=code&redirect_uri=\(eBayConfig.redirectURI)&scope=https://api.ebay.com/oauth/api_scope/sell.inventory"
 
         if let url = URL(string: urlString) {
             UIApplication.shared.open(url)
@@ -169,7 +157,7 @@ class eBayListingService: ObservableObject {
     @Published var isUploading = false
     @Published var uploadProgress: Double = 0.0
     @Published var lastError: String?
-
+    private let debugMode = true
     private let authService: eBayAuthService
 
     init(authService: eBayAuthService) {
@@ -177,93 +165,76 @@ class eBayListingService: ObservableObject {
     }
 
     func createListing(_ listing: EbayListing) async throws -> eBayListingResponse {
-        // For V1 sandbox - create a dummy token or skip token validation
-        let accessToken = "sandbox_bypass_token"
+        // Get token from the passed auth service
+        guard authService.isAuthenticated,
+              let accessToken = authService.accessToken else {
+            throw eBayError.notAuthenticated
+        }
+
+        // Check token validity if your auth service has this method
+        // if !authService.isTokenValid() {
+        //     throw eBayError.tokenExpired
+        // }
 
         await MainActor.run {
             isUploading = true
             uploadProgress = 0.1
+            lastError = nil
         }
 
-        // Skip image upload for now, test with empty array
-        let imageURLs: [String] = []
-
-        await MainActor.run {
-            uploadProgress = 0.5
+        if debugMode {
+            print("=== Token Debug ===")
+            print("Is authenticated: \(authService.isAuthenticated)")
+            print("Access token: \(accessToken.prefix(20))...")
+            print("Full token: \(accessToken)")
+            print("==================")
         }
 
-        // Test listing creation
-        let listingResponse = try await createeBayListing(listing, imageURLs: imageURLs, accessToken: accessToken)
-
-        await MainActor.run {
-            uploadProgress = 1.0
-            isUploading = false
-        }
-
-        return listingResponse
-    }
-
-    private func uploadImages(_ images: [UIImage], accessToken: String) async throws -> [String] {
-        var imageURLs: [String] = []
-
-        for (index, image) in images.enumerated() {
-            let imageURL = try await uploadSingleImage(image, accessToken: accessToken)
-            imageURLs.append(imageURL)
+        do {
+            // Create inventory item
+            let sku = "quickflip-\(UUID().uuidString.prefix(8))"
+            try await createInventoryItem(listing: listing, sku: sku, accessToken: accessToken)
 
             await MainActor.run {
-                uploadProgress = 0.1 + (Double(index + 1) / Double(images.count)) * 0.4
+                uploadProgress = 1.0
+                isUploading = false
             }
-        }
 
-        return imageURLs
+            return eBayListingResponse(
+                listingID: sku,
+                listingURL: "https://www.sandbox.ebay.com/itm/\(sku)",
+                status: "Active"
+            )
+
+        } catch {
+            await MainActor.run {
+                uploadProgress = 0.0
+                isUploading = false
+            }
+            throw error
+        }
     }
 
-    private func uploadSingleImage(_ image: UIImage, accessToken: String) async throws -> String {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            throw eBayError.imageProcessingFailed
-        }
-
-        let url = URL(string: "\(eBayConfig.baseAPIURL)/sell/inventory/v1/bulk_upload_file")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-        request.httpBody = imageData
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let fileId = json["fileId"] as? String else {
-            throw eBayError.imageUploadFailed
-        }
-
-        return fileId
-    }
-
-    private func createeBayListing(_ listing: EbayListing, imageURLs: [String], accessToken: String) async throws -> eBayListingResponse {
-        let sku = "quickflip-\(UUID().uuidString.prefix(8))"
-
-        // IMPORTANT: URL includes the SKU in the path
+    private func createInventoryItem(listing: EbayListing, sku: String, accessToken: String) async throws {
         let url = URL(string: "\(eBayConfig.baseAPIURL)/sell/inventory/v1/inventory_item/\(sku)")!
         var request = URLRequest(url: url)
-        request.httpMethod = "PUT" // Changed from POST to PUT
+        request.httpMethod = "PUT"
+
+        // CRITICAL: Make sure Bearer token format is correct
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("en-US", forHTTPHeaderField: "Content-Language")
 
-        // Corrected request body with required fields
-        let listingData: [String: Any] = [
+        let inventoryData: [String: Any] = [
             "product": [
                 "title": listing.title,
                 "description": listing.description,
                 "aspects": [
-                    "Brand": ["Apple"],
-                    "Model": ["Siri Remote"],
-                    "Type": ["Remote Control"]
+                    "Brand": ["Generic"],
+                    "Type": [listing.category]
                 ]
             ],
-            "condition": "USED_EXCELLENT",
+            "condition": mapConditionToeBay(listing.condition),
             "packageWeightAndSize": [
                 "dimensions": [
                     "height": 2,
@@ -284,37 +255,43 @@ class eBayListingService: ObservableObject {
             ]
         ]
 
-        print("=== eBay API Debug (CORRECTED) ===")
-        print("URL: \(url)")
-        print("Method: \(request.httpMethod ?? "nil")")
+        request.httpBody = try JSONSerialization.data(withJSONObject: inventoryData)
 
-        if let jsonData = try? JSONSerialization.data(withJSONObject: listingData, options: .prettyPrinted),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            print("Request Body:")
-            print(jsonString)
+        if debugMode {
+            print("=== Final API Request Debug ===")
+            print("URL: \(url)")
+            print("Method: \(request.httpMethod ?? "")")
+            print("Authorization Header: \(request.value(forHTTPHeaderField: "Authorization") ?? "Missing!")")
+            print("================================")
         }
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: listingData)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        print("=== eBay API Response ===")
-        if let httpResponse = response as? HTTPURLResponse {
-            print("Status Code: \(httpResponse.statusCode)")
+        if debugMode {
+            print("=== eBay API Response ===")
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Status Code: \(httpResponse.statusCode)")
+            }
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Response Body: \(responseString)")
+            }
+            print("========================")
         }
 
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("Response Body:")
-            print(responseString)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw eBayError.networkError
         }
-        print("========================")
 
-        // Return mock success for now
-        return eBayListingResponse(
-            listingID: sku,
-            listingURL: "https://www.sandbox.ebay.com/itm/\(sku)",
-            status: "Active"
-        )
+
+        if httpResponse.statusCode == 204 {
+            // Success - eBay returns 204 with empty body for successful creation
+            return
+        }
+
+        if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 && httpResponse.statusCode != 204 {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw eBayError.listingCreationFailed
+        }
     }
 
     private func mapConditionToeBay(_ condition: String) -> String {
