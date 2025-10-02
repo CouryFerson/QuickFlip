@@ -6,34 +6,22 @@ import UIKit
 class eBayAuthService: ObservableObject {
     @Published var isAuthenticated = false
     @Published var accessToken: String?
+    @Published var currentEnvironment: String = eBayConfig.environmentName
 
     private let userDefaults = UserDefaults.standard
     private let accessTokenKey = "eBayAccessToken"
     private let tokenExpiryKey = "eBayTokenExpiry"
     private let authKey = "eBayAuthenticated"
+    private let environmentKey = "eBayEnvironment"
 
     init() {
-        isAuthenticated = userDefaults.bool(forKey: authKey)
-
-//        loadStoredToken()
-    }
-
-    func markAsAuthenticated() {
-        isAuthenticated = true
-        // Use a placeholder token for now
-        accessToken = "sandbox_authenticated_user"
-        userDefaults.set(true, forKey: authKey)
-    }
-
-    func signOut() {
-        isAuthenticated = false
-        accessToken = nil
-        userDefaults.removeObject(forKey: authKey)
+        loadStoredToken()
+        currentEnvironment = eBayConfig.environmentName
     }
 
     func startAuthentication() {
-        // Use your known working eBay URL
-        let urlString = "https://auth.sandbox.ebay.com/oauth2/authorize?client_id=\(eBayConfig.clientID)&response_type=code&redirect_uri=\(eBayConfig.redirectURI)&scope=https://api.ebay.com/oauth/api_scope/sell.inventory"
+        // Build OAuth URL with proper scopes
+        let urlString = "\(eBayConfig.authURL)?client_id=\(eBayConfig.clientID)&response_type=code&redirect_uri=\(eBayConfig.redirectURI)&scope=\(eBayConfig.requiredScopes)"
 
         if let url = URL(string: urlString) {
             UIApplication.shared.open(url)
@@ -41,10 +29,6 @@ class eBayAuthService: ObservableObject {
     }
 
     func exchangeCodeForToken(code: String) async {
-        await MainActor.run {
-            // Show loading state while exchanging
-        }
-
         await exchangeCodeForTokenInternal(code: code)
     }
 
@@ -84,59 +68,41 @@ class eBayAuthService: ObservableObject {
         }
     }
 
-    private func exchangeCodeForToken(code: String) {
-        let tokenURL = URL(string: eBayConfig.tokenURL)!
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-        // Create authorization header
-        let credentials = "\(eBayConfig.clientID):\(eBayConfig.clientSecret)"
-        let base64Credentials = Data(credentials.utf8).base64EncodedString()
-        request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
-
-        let bodyParameters = [
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": eBayConfig.redirectURI
-        ]
-
-        let bodyString = bodyParameters
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" }
-            .joined(separator: "&")
-
-        request.httpBody = bodyString.data(using: .utf8)
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                self?.handleTokenResponse(data: data, response: response, error: error)
-            }
-        }.resume()
-    }
-
     private func handleTokenResponse(data: Data?, response: URLResponse?, error: Error?) {
         guard let data = data,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let accessToken = json["access_token"] as? String,
               let expiresIn = json["expires_in"] as? Int else {
             print("eBay: Failed to get access token")
+            if let data = data, let errorString = String(data: data, encoding: .utf8) {
+                print("eBay: Error response: \(errorString)")
+            }
             return
         }
 
         self.accessToken = accessToken
         self.isAuthenticated = true
 
-        // Store token and expiry
+        // Store token, expiry, and environment
+        let expiryDate = Date().addingTimeInterval(TimeInterval(expiresIn))
         userDefaults.set(accessToken, forKey: accessTokenKey)
-        userDefaults.set(Date().addingTimeInterval(TimeInterval(expiresIn)), forKey: tokenExpiryKey)
+        userDefaults.set(expiryDate, forKey: tokenExpiryKey)
+        userDefaults.set(true, forKey: authKey)
+        userDefaults.set(eBayConfig.environmentName, forKey: environmentKey)
 
-        print("eBay: Successfully authenticated!")
+        print("eBay: Successfully authenticated in \(eBayConfig.environmentName) environment!")
     }
 
     private func loadStoredToken() {
-        guard let token = userDefaults.string(forKey: accessTokenKey),
+        // Check if stored token matches current environment
+        let storedEnvironment = userDefaults.string(forKey: environmentKey)
+
+        guard storedEnvironment == eBayConfig.environmentName,
+              let token = userDefaults.string(forKey: accessTokenKey),
               let expiry = userDefaults.object(forKey: tokenExpiryKey) as? Date,
               expiry > Date() else {
+            // Clear auth if environment changed or token expired
+            signOut()
             return
         }
 
@@ -144,12 +110,21 @@ class eBayAuthService: ObservableObject {
         isAuthenticated = true
     }
 
-//    func signOut() {
-//        accessToken = nil
-//        isAuthenticated = false
-//        userDefaults.removeObject(forKey: accessTokenKey)
-//        userDefaults.removeObject(forKey: tokenExpiryKey)
-//    }
+    func isTokenValid() -> Bool {
+        guard let expiry = userDefaults.object(forKey: tokenExpiryKey) as? Date else {
+            return false
+        }
+        return expiry > Date()
+    }
+
+    func signOut() {
+        accessToken = nil
+        isAuthenticated = false
+        userDefaults.removeObject(forKey: accessTokenKey)
+        userDefaults.removeObject(forKey: tokenExpiryKey)
+        userDefaults.removeObject(forKey: authKey)
+        userDefaults.removeObject(forKey: environmentKey)
+    }
 }
 
 // MARK: - eBay Listing Service
@@ -157,6 +132,7 @@ class eBayListingService: ObservableObject {
     @Published var isUploading = false
     @Published var uploadProgress: Double = 0.0
     @Published var lastError: String?
+
     private let debugMode = true
     private let authService: eBayAuthService
 
@@ -165,16 +141,15 @@ class eBayListingService: ObservableObject {
     }
 
     func createListing(_ listing: EbayListing) async throws -> eBayListingResponse {
-        // Get token from the passed auth service
         guard authService.isAuthenticated,
               let accessToken = authService.accessToken else {
             throw eBayError.notAuthenticated
         }
 
-        // Check token validity if your auth service has this method
-        // if !authService.isTokenValid() {
-        //     throw eBayError.tokenExpired
-        // }
+        // Verify token is still valid
+        if !authService.isTokenValid() {
+            throw eBayError.tokenExpired
+        }
 
         await MainActor.run {
             isUploading = true
@@ -183,11 +158,12 @@ class eBayListingService: ObservableObject {
         }
 
         if debugMode {
-            print("=== Token Debug ===")
+            print("=== eBay API Debug ===")
+            print("Environment: \(eBayConfig.environmentName)")
+            print("Is Production: \(eBayConfig.isProduction)")
             print("Is authenticated: \(authService.isAuthenticated)")
             print("Access token: \(accessToken.prefix(20))...")
-            print("Full token: \(accessToken)")
-            print("==================")
+            print("======================")
         }
 
         do {
@@ -196,13 +172,25 @@ class eBayListingService: ObservableObject {
             try await createInventoryItem(listing: listing, sku: sku, accessToken: accessToken)
 
             await MainActor.run {
+                uploadProgress = 0.5
+            }
+
+            // Create offer for the inventory item
+            try await createOffer(listing: listing, sku: sku, accessToken: accessToken)
+
+            await MainActor.run {
                 uploadProgress = 1.0
                 isUploading = false
             }
 
+            // Generate proper listing URL based on environment
+            let listingURL = eBayConfig.isProduction
+                ? "https://www.ebay.com/itm/\(sku)"
+                : "https://www.sandbox.ebay.com/itm/\(sku)"
+
             return eBayListingResponse(
                 listingID: sku,
-                listingURL: "https://www.sandbox.ebay.com/itm/\(sku)",
+                listingURL: listingURL,
                 status: "Active"
             )
 
@@ -219,8 +207,6 @@ class eBayListingService: ObservableObject {
         let url = URL(string: "\(eBayConfig.baseAPIURL)/sell/inventory/v1/inventory_item/\(sku)")!
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
-
-        // CRITICAL: Make sure Bearer token format is correct
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("en-US", forHTTPHeaderField: "Content-Language")
@@ -258,38 +244,92 @@ class eBayListingService: ObservableObject {
         request.httpBody = try JSONSerialization.data(withJSONObject: inventoryData)
 
         if debugMode {
-            print("=== Final API Request Debug ===")
+            print("=== Creating Inventory Item ===")
             print("URL: \(url)")
-            print("Method: \(request.httpMethod ?? "")")
-            print("Authorization Header: \(request.value(forHTTPHeaderField: "Authorization") ?? "Missing!")")
+            print("SKU: \(sku)")
             print("================================")
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         if debugMode {
-            print("=== eBay API Response ===")
             if let httpResponse = response as? HTTPURLResponse {
-                print("Status Code: \(httpResponse.statusCode)")
+                print("Inventory Item Status: \(httpResponse.statusCode)")
             }
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Response Body: \(responseString)")
+            if let responseString = String(data: data, encoding: .utf8), !responseString.isEmpty {
+                print("Response: \(responseString)")
             }
-            print("========================")
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw eBayError.networkError
         }
 
+        // eBay returns 204 No Content on success
+        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 || httpResponse.statusCode == 204 else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("eBay Error: \(errorMessage)")
+            throw eBayError.listingCreationFailed
+        }
+    }
 
-        if httpResponse.statusCode == 204 {
-            // Success - eBay returns 204 with empty body for successful creation
-            return
+    private func createOffer(listing: EbayListing, sku: String, accessToken: String) async throws {
+        let url = URL(string: "\(eBayConfig.baseAPIURL)/sell/inventory/v1/offer")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("en-US", forHTTPHeaderField: "Content-Language")
+
+        // Use appropriate marketplace ID
+        let marketplaceId = eBayConfig.isProduction ? "EBAY_US" : "EBAY_US"
+
+        let offerData: [String: Any] = [
+            "sku": sku,
+            "marketplaceId": marketplaceId,
+            "format": "FIXED_PRICE",
+            "listingDescription": listing.description,
+            "availableQuantity": 1,
+            "categoryId": "20081", // Generic category - you may want to make this dynamic
+            "listingPolicies": [
+                "paymentPolicyId": "PAYMENT_POLICY_ID", // You'll need to create these in eBay
+                "returnPolicyId": "RETURN_POLICY_ID",
+                "fulfillmentPolicyId": "FULFILLMENT_POLICY_ID"
+            ],
+            "pricingSummary": [
+                "price": [
+                    "value": String(format: "%.2f", listing.buyItNowPrice),
+                    "currency": "USD"
+                ]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: offerData)
+
+        if debugMode {
+            print("=== Creating Offer ===")
+            print("URL: \(url)")
+            print("======================")
         }
 
-        if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 && httpResponse.statusCode != 204 {
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if debugMode {
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Offer Status: \(httpResponse.statusCode)")
+            }
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Response: \(responseString)")
+            }
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw eBayError.networkError
+        }
+
+        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("eBay Offer Error: \(errorMessage)")
             throw eBayError.listingCreationFailed
         }
     }
@@ -321,6 +361,7 @@ struct eBayListingResponse {
 
 enum eBayError: Error, LocalizedError {
     case notAuthenticated
+    case tokenExpired
     case imageProcessingFailed
     case imageUploadFailed
     case listingCreationFailed
@@ -331,6 +372,8 @@ enum eBayError: Error, LocalizedError {
         switch self {
         case .notAuthenticated:
             return "Please sign in to eBay first"
+        case .tokenExpired:
+            return "Your eBay session has expired. Please sign in again"
         case .imageProcessingFailed:
             return "Failed to process image"
         case .imageUploadFailed:

@@ -83,18 +83,28 @@ extension EbayListing {
         self.photos = [image]
     }
 
-    // Helper methods for price extraction
-    private static func extractStartingPrice(from value: String) -> Double {
-        let numbers = value.replacingOccurrences(of: "$", with: "")
-            .components(separatedBy: CharacterSet(charactersIn: "-–"))
-        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
-    }
-
     private static func extractBuyItNowPrice(from value: String) -> Double {
-        let numbers = value.replacingOccurrences(of: "$", with: "")
+        // Remove everything after (and including) any parentheses
+        let cleanValue = value.components(separatedBy: "(").first ?? value
+
+        // Extract just the numbers and dollar signs
+        let numbers = cleanValue.replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ",", with: "") // Remove commas from numbers like 2,500
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
+
         let highPrice = numbers.last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "50"
         return Double(highPrice) ?? 50.0
+    }
+
+    private static func extractStartingPrice(from value: String) -> Double {
+        // Remove everything after (and including) any parentheses
+        let cleanValue = value.components(separatedBy: "(").first ?? value
+
+        let numbers = cleanValue.replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ",", with: "") // Remove commas
+            .components(separatedBy: CharacterSet(charactersIn: "-–"))
+
+        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
     }
 }
 
