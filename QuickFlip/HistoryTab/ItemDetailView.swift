@@ -217,12 +217,18 @@ private extension ItemDetailView {
 
     private var deleteButton: some View {
         Button(action: { showingDeleteAlert = true }) {
-            Image(systemName: "trash")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.red)
-                .padding(12)
-                .background(Color.red.opacity(0.1))
-                .clipShape(Circle())
+            HStack(spacing: 8) {
+                Image(systemName: "trash")
+                    .font(.system(size: 16, weight: .medium))
+                Text("Delete")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.red)
+            .clipShape(Capsule())
         }
     }
 
