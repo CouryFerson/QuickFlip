@@ -465,27 +465,27 @@ struct EnhancedHomeView: View {
                     scanItemAction()
                 }
 
-                SmartQuickActionCard(
-                    title: "Check Price Updates",
-                    subtitle: "See if your items' values changed",
-                    icon: "arrow.clockwise.circle.fill",
-                    color: .orange,
-                    isRecommended: hasItemsToUpdate()
-                ) {
-                    Task {
-                        await checkPriceUpdates()
-                    }
-                }
-
-                SmartQuickActionCard(
-                    title: "Optimize Listings",
-                    subtitle: "AI suggestions for better profits",
-                    icon: "wand.and.stars",
-                    color: .purple,
-                    isRecommended: itemStorage.scannedItems.count > 3
-                ) {
-                    // Navigate to optimization view
-                }
+//                SmartQuickActionCard(
+//                    title: "Check Price Updates",
+//                    subtitle: "See if your items' values changed",
+//                    icon: "arrow.clockwise.circle.fill",
+//                    color: .orange,
+//                    isRecommended: hasItemsToUpdate()
+//                ) {
+//                    Task {
+//                        await checkPriceUpdates()
+//                    }
+//                }
+//
+//                SmartQuickActionCard(
+//                    title: "Optimize Listings",
+//                    subtitle: "AI suggestions for better profits",
+//                    icon: "wand.and.stars",
+//                    color: .purple,
+//                    isRecommended: itemStorage.scannedItems.count > 3
+//                ) {
+//                    // Navigate to optimization view
+//                }
 
                 SmartQuickActionCard(
                     title: "Find deals",

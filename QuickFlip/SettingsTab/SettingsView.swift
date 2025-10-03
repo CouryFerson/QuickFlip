@@ -161,36 +161,25 @@ private extension SettingsView {
 
     @ViewBuilder
     var preferencesSection: some View {
-        Section("Preferences") {
-            HStack {
-                Label("Currency", systemImage: "dollarsign.circle")
-                Spacer()
-                Picker("", selection: $selectedCurrency) {
-                    ForEach(currencies, id: \.self) { currency in
-                        Text(currency).tag(currency)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-            }
-
-            HStack {
-                Label("Theme", systemImage: "paintbrush")
-                Spacer()
-                Picker("Theme", selection: $selectedTheme) {
-                    ForEach(themes, id: \.self) { theme in
-                        Text(theme).tag(theme)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-            }
+        Section("Preferences") {//
+//            HStack {
+//                Label("Theme", systemImage: "paintbrush")
+//                Spacer()
+//                Picker("Theme", selection: $selectedTheme) {
+//                    ForEach(themes, id: \.self) { theme in
+//                        Text(theme).tag(theme)
+//                    }
+//                }
+//                .pickerStyle(MenuPickerStyle())
+//            }
 
             Toggle(isOn: $notificationsEnabled) {
                 Label("Push Notifications", systemImage: "bell")
             }
 
-            Toggle(isOn: $autoSaveEnabled) {
-                Label("Auto-save Scans", systemImage: "square.and.arrow.down")
-            }
+//            Toggle(isOn: $autoSaveEnabled) {
+//                Label("Auto-save Scans", systemImage: "square.and.arrow.down")
+//            }
         }
     }
 
@@ -204,7 +193,7 @@ private extension SettingsView {
             }
 
             actionRow(flow: .storageUsage, text: "Storage Usage", systemImage: "internaldrive")
-            actionRow(flow: .backUPSettings, text: "Backup Settings", systemImage: "icloud")
+//            actionRow(flow: .backUPSettings, text: "Backup Settings", systemImage: "icloud")
 
             Button {
                 showingDeleteAlert = true
@@ -219,7 +208,7 @@ private extension SettingsView {
     var analysisSettingsSection: some View {
         Section("Analysis Settings") {
             actionRow(flow: .aiModel, text: "AI Model", systemImage: "brain.head.profile")
-            actionRow(flow: .marketplacePreferances, text: "Marketplace Preferences", systemImage: "storefront")
+//            actionRow(flow: .marketplacePreferances, text: "Marketplace Preferences", systemImage: "storefront")
         }
     }
 
