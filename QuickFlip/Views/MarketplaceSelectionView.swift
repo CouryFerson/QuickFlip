@@ -52,7 +52,7 @@ private extension MarketplaceSelectionView {
             if let priceAnalysis = priceAnalysisResult {
                 priceAnalysisContent(analysis: priceAnalysis)
             } else {
-                priceAnalysisButton
+                findBestMarketplaceButton
             }
 
             if let priceAnalysis = priceAnalysisResult {
@@ -128,26 +128,10 @@ private extension MarketplaceSelectionView {
         }
     }
 
-    @ViewBuilder
-    var priceAnalysisButton: some View {
+    private var findBestMarketplaceButton: some View {
         Button(action: findBestMarketplace) {
             HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 44, height: 44)
-
-                    if isAnalyzingPrices {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "magnifyingglass")
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                    }
-                }
+                iconView
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(isAnalyzingPrices ? "Analyzing Prices..." : "Find Best Marketplace")
@@ -158,6 +142,10 @@ private extension MarketplaceSelectionView {
                     Text(isAnalyzingPrices ? "Searching all platforms" : "We'll find where this sells best")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+
+                    if !isAnalyzingPrices {
+                        tokenIndicator
+                    }
                 }
 
                 Spacer()
@@ -169,18 +157,54 @@ private extension MarketplaceSelectionView {
                         .foregroundColor(.gray.opacity(0.6))
                 }
             }
-            .padding(.vertical, 16)
+            .padding(.top, 16)
             .contentShape(Rectangle())
         }
         .disabled(isAnalyzingPrices || !canAnalyzePrices())
         .opacity((isAnalyzingPrices || !canAnalyzePrices()) ? 0.6 : 1.0)
+    }
 
-        if !canAnalyzePrices() {
-            Text("💡 Price analysis works best with specific brand items")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
+    private var iconView: some View {
+        ZStack {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 44, height: 44)
+
+            if isAnalyzingPrices {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(0.8)
+            } else {
+                Image(systemName: "magnifyingglass")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+            }
+        }
+    }
+
+    private var tokenIndicator: some View {
+        Text("1 token")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule()
+                    .fill(Color.gray.opacity(0.15))
+            )
+            .padding(.top, 2)
+    }
+
+    private var helperText: some View {
+        Group {
+            if !canAnalyzePrices() {
+                Text("💡 Price analysis works best with specific brand items")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
+            }
         }
     }
 

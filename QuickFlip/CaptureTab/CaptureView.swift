@@ -47,6 +47,7 @@ struct CaptureView: View {
                         subtitle: "Analyze one item at a time",
                         icon: "camera.fill",
                         color: .blue,
+                        tokenCount: 1,
                         isRecommended: false
                     ) {
                         if authManager.hasTokens() {
@@ -62,6 +63,7 @@ struct CaptureView: View {
                         subtitle: "Scan multiple items at once",
                         icon: "square.grid.3x3.fill",
                         color: .purple,
+                        tokenCount: 2,
                         isRecommended: true,
                         isPremium: !subscriptionManager.canAccessFeature("bulk_scanning")
                     ) {
@@ -82,6 +84,7 @@ struct CaptureView: View {
                         subtitle: "Quick lookup for products",
                         icon: "barcode.viewfinder",
                         color: .orange,
+                        tokenCount: 1,
                         isPremium: !subscriptionManager.canAccessFeature("barcode_scanning")
                     ) {
                         if subscriptionManager.canAccessFeature("barcode_scanning") {
@@ -101,6 +104,7 @@ struct CaptureView: View {
                         subtitle: "Choose from photo library",
                         icon: "photo.fill",
                         color: .green,
+                        tokenCount: 1,
                         isComingSoon: true
                     ) {
                         showingImagePicker = true
@@ -172,6 +176,7 @@ struct CaptureOptionCard: View {
     let subtitle: String
     let icon: String
     let color: Color
+    let tokenCount: Int
     var isRecommended: Bool = false
     var isComingSoon: Bool = false
     var isPremium: Bool = false
@@ -244,6 +249,8 @@ struct CaptureOptionCard: View {
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundColor(.gray)
+
+                    tokenIndicator
                 }
 
                 // Arrow
@@ -279,6 +286,19 @@ struct CaptureOptionCard: View {
         .buttonStyle(PlainButtonStyle())
         .opacity(isComingSoon ? 0.6 : 1.0)
         .disabled(isComingSoon)
+    }
+
+    private var tokenIndicator: some View {
+        Text(tokenCount == 1 ? "1 token" : "\(tokenCount) tokens")
+            .font(.caption2)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule()
+                    .fill(Color.gray.opacity(0.15))
+            )
+            .padding(.top, 2)
     }
 }
 
