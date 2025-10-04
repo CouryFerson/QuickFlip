@@ -547,13 +547,13 @@ private extension SubscriptionView {
 
     @ViewBuilder
     var subscriptionStatusBadge: some View {
-        let isActive = subscriptionManager.hasActiveSubscription
+//        let isActive = subscriptionManager.hasActiveSubscription
 
-        Text(isActive ? "Active" : "Inactive")
+        Text("Active")
             .font(.caption)
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
-            .background(isActive ? Color.green : Color.gray)
+            .background(Color.green)
             .foregroundColor(.white)
             .cornerRadius(8)
     }
