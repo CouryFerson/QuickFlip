@@ -12,12 +12,12 @@ struct ItemDetailView: View {
     let marketplaceAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
-    @StateObject private var priceHistoryService = eBayPriceHistoryService()
+    @StateObject private var marketPriceService = eBayMarketPriceService()
     @State private var showingActionSheet = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
     @State private var imageScale: CGFloat = 1.0
-    @State private var priceHistory: PriceHistory?
+    @State private var marketData: MarketPriceData?
 
     var body: some View {
         GeometryReader { geometry in
@@ -163,7 +163,7 @@ struct ItemDetailView: View {
                     }
                 }
                 .task {
-                    priceHistory = try? await priceHistoryService.fetchPriceHistory(for: item.itemName, category: item.category)
+                    marketData = try? await marketPriceService.fetchMarketPrices(for: item.itemName, category: item.category)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -251,16 +251,16 @@ private extension ItemDetailView {
 
     @ViewBuilder
     private var chartView: some View {
-        if priceHistoryService.isLoading {
-            PriceHistoryLoadingView()
-        } else if let error = priceHistoryService.lastError {
-            PriceHistoryErrorView(errorMessage: error) {
+        if marketPriceService.isLoading {
+            MarketPriceLoadingView()
+        } else if let error = marketPriceService.lastError {
+            MarketPriceErrorView(errorMessage: error) {
                 Task {
-                    priceHistory = try? await priceHistoryService.fetchPriceHistory(for: item.itemName, category: item.category)
+                    marketData = try? await marketPriceService.fetchMarketPrices(for: item.itemName, category: item.category)
                 }
             }
-        } else if let priceHistory = priceHistory {
-            PriceHistoryChartView(priceHistory: priceHistory)
+        } else if let marketData = marketData {
+            MarketPriceChartView(marketData: marketData)
         }
     }
 }

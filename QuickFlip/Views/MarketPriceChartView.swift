@@ -1,24 +1,18 @@
-//
-//  PriceHistoryChartView.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 10/2/25.
-//
-
 import SwiftUI
 import Charts
 
-// MARK: - Price History Chart View
-struct PriceHistoryChartView: View {
-    let priceHistory: PriceHistory
+// MARK: - Market Price Chart View
+struct MarketPriceChartView: View {
+    let marketData: MarketPriceData
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             headerSection
 
-            if priceHistory.hasData {
+            if marketData.hasData {
                 chartSection
                 statisticsSection
+                insightsSection
             } else {
                 noDataView
             }
@@ -31,20 +25,22 @@ struct PriceHistoryChartView: View {
 }
 
 // MARK: - Private View Components
-private extension PriceHistoryChartView {
+private extension MarketPriceChartView {
 
     @ViewBuilder
     var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("90-Day Price History")
+                Text("Current eBay Market Prices")
                     .font(.headline)
                     .foregroundColor(.primary)
 
-                if priceHistory.hasData {
+                if marketData.hasData {
                     HStack(spacing: 8) {
-                        trendIndicator
-                        Text(priceHistory.trendDescription)
+                        Image(systemName: "chart.bar.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("\(marketData.totalListings) active listings")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -53,25 +49,16 @@ private extension PriceHistoryChartView {
 
             Spacer()
 
-            if priceHistory.hasData {
+            if marketData.hasData {
                 averagePriceLabel
             }
         }
     }
 
     @ViewBuilder
-    var trendIndicator: some View {
-        Image(systemName: priceHistory.isPriceIncreasing ? "arrow.up.right" :
-              priceHistory.isPriceDecreasing ? "arrow.down.right" : "arrow.right")
-            .font(.caption)
-            .foregroundColor(priceHistory.isPriceIncreasing ? .green :
-                           priceHistory.isPriceDecreasing ? .red : .orange)
-    }
-
-    @ViewBuilder
     var averagePriceLabel: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            Text(priceHistory.formattedAveragePrice)
+            Text(marketData.formattedAveragePrice)
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
@@ -84,55 +71,47 @@ private extension PriceHistoryChartView {
 
     @ViewBuilder
     var chartSection: some View {
-        Chart {
-            ForEach(priceHistory.dataPoints) { dataPoint in
-                // Price range area
-                AreaMark(
-                    x: .value("Date", dataPoint.date),
-                    yStart: .value("Min", dataPoint.minPrice),
-                    yEnd: .value("Max", dataPoint.maxPrice)
-                )
-                .foregroundStyle(Color.blue.opacity(0.1))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Price Distribution")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
 
-                // Average price line
-                LineMark(
-                    x: .value("Date", dataPoint.date),
-                    y: .value("Price", dataPoint.averagePrice)
-                )
-                .foregroundStyle(Color.blue)
-                .lineStyle(StrokeStyle(lineWidth: 2))
-
-                // Data point
-                PointMark(
-                    x: .value("Date", dataPoint.date),
-                    y: .value("Price", dataPoint.averagePrice)
-                )
-                .foregroundStyle(Color.blue)
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { value in
-                if let date = value.as(Date.self) {
-                    AxisValueLabel {
-                        Text(date.formatted(.dateTime.month(.abbreviated).day()))
-                            .font(.caption)
-                    }
-                    AxisGridLine()
+            Chart {
+                ForEach(marketData.priceRanges) { range in
+                    BarMark(
+                        x: .value("Price Range", range.rangeLabel),
+                        y: .value("Listings", range.listingCount)
+                    )
+                    .foregroundStyle(Color.blue.gradient)
+                    .cornerRadius(4)
                 }
             }
-        }
-        .chartYAxis {
-            AxisMarks(position: .leading) { value in
-                if let price = value.as(Double.self) {
-                    AxisValueLabel {
-                        Text("$\(Int(price))")
-                            .font(.caption)
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    if let count = value.as(Int.self) {
+                        AxisValueLabel {
+                            Text("\(count)")
+                                .font(.caption)
+                        }
+                        AxisGridLine()
                     }
-                    AxisGridLine()
                 }
             }
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let label = value.as(String.self) {
+                            Text(label)
+                                .font(.system(size: 9))
+                        }
+                    }
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                }
+            }
+            .frame(height: 200)
+            .padding(.bottom, 8)
         }
-        .frame(height: 200)
     }
 
     @ViewBuilder
@@ -141,15 +120,36 @@ private extension PriceHistoryChartView {
             Divider()
 
             HStack(spacing: 16) {
-                statisticItem(title: "Range", value: priceHistory.priceRange)
+                statisticItem(title: "Range", value: marketData.priceRange)
                 Spacer()
-                statisticItem(title: "Sales", value: "\(priceHistory.totalSales)")
+                statisticItem(title: "Median", value: marketData.formattedMedianPrice)
                 Spacer()
-                statisticItem(
-                    title: "Change",
-                    value: priceHistory.formattedPriceChange,
-                    valueColor: priceHistory.isPriceIncreasing ? .green :
-                               priceHistory.isPriceDecreasing ? .red : .primary
+                statisticItem(title: "Listings", value: "\(marketData.totalListings)")
+            }
+        }
+    }
+
+    @ViewBuilder
+    var insightsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+
+            Text("Market Insights")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 12) {
+                insightBadge(
+                    icon: "chart.line.uptrend.xyaxis",
+                    text: marketData.marketSaturation,
+                    color: marketData.totalListings > 30 ? .orange : .green
+                )
+
+                insightBadge(
+                    icon: "tag.fill",
+                    text: "List at \(marketData.suggestedPricing)",
+                    color: .blue
                 )
             }
         }
@@ -170,17 +170,32 @@ private extension PriceHistoryChartView {
     }
 
     @ViewBuilder
+    func insightBadge(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+            Text(text)
+                .font(.caption)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1))
+        .foregroundColor(color)
+        .cornerRadius(8)
+    }
+
+    @ViewBuilder
     var noDataView: some View {
         VStack(spacing: 12) {
-            Image(systemName: "chart.line.downtrend.xyaxis")
+            Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
 
-            Text("No recent sales data")
+            Text("No active listings found")
                 .font(.headline)
                 .foregroundColor(.primary)
 
-            Text("Not enough completed sales in the last 90 days to show trends")
+            Text("There aren't enough similar items listed right now to show market data")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -192,13 +207,13 @@ private extension PriceHistoryChartView {
 }
 
 // MARK: - Loading State View
-struct PriceHistoryLoadingView: View {
+struct MarketPriceLoadingView: View {
     var body: some View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
 
-            Text("Loading price history...")
+            Text("Loading market data...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -211,7 +226,7 @@ struct PriceHistoryLoadingView: View {
 }
 
 // MARK: - Error State View
-struct PriceHistoryErrorView: View {
+struct MarketPriceErrorView: View {
     let errorMessage: String
     let retryAction: () -> Void
 
@@ -221,7 +236,7 @@ struct PriceHistoryErrorView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.orange)
 
-            Text("Unable to load price history")
+            Text("Unable to load market data")
                 .font(.headline)
                 .foregroundColor(.primary)
 
@@ -251,22 +266,22 @@ struct PriceHistoryErrorView: View {
 
 // MARK: - Preview
 #Preview("With Data") {
-    PriceHistoryChartView(priceHistory: .mock)
+    MarketPriceChartView(marketData: .mock)
         .padding()
 }
 
 #Preview("No Data") {
-    PriceHistoryChartView(priceHistory: .mockNoData)
+    MarketPriceChartView(marketData: .mockNoData)
         .padding()
 }
 
 #Preview("Loading") {
-    PriceHistoryLoadingView()
+    MarketPriceLoadingView()
         .padding()
 }
 
 #Preview("Error") {
-    PriceHistoryErrorView(errorMessage: "Network connection failed") {
+    MarketPriceErrorView(errorMessage: "Network connection failed") {
         print("Retry tapped")
     }
     .padding()
