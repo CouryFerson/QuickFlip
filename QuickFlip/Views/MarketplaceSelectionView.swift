@@ -10,6 +10,7 @@ struct MarketplaceSelectionView: View {
     @State private var isAnalyzingPrices = false
     @State private var priceAnalysisResult: MarketplacePriceAnalysis?
     @State private var showingTokenAlert = false
+    @State private var showPricingDisclaimer = false
 
     var body: some View {
         ScrollView {
@@ -23,6 +24,9 @@ struct MarketplaceSelectionView: View {
             Button("Done", role: .cancel) { }
         } message: {
             Text(subscriptionManager.addTokensMessage)
+        }
+        .sheet(isPresented: $showPricingDisclaimer) {
+            PricingDisclaimerView()
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Choose Marketplace")
@@ -134,10 +138,21 @@ private extension MarketplaceSelectionView {
                 iconView
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(isAnalyzingPrices ? "Analyzing Prices..." : "Find Best Marketplace")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                    HStack(spacing: 6) {
+                        Text(isAnalyzingPrices ? "Analyzing Prices..." : "Find Best Marketplace")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+
+                        if !isAnalyzingPrices {
+                            Button(action: { showPricingDisclaimer = true }) {
+                                Image(systemName: "info.circle")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
 
                     Text(isAnalyzingPrices ? "Searching all platforms" : "We'll find where this sells best")
                         .font(.subheadline)
