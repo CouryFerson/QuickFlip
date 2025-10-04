@@ -1,15 +1,9 @@
-//
-//  UserStats.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 8/17/25.
-//
-
 import SwiftUI
 
 struct UserStats: Codable {
     let totalItemsScanned: Int
     let totalPotentialSavings: Double
+    let totalPotentialProfit: Double
     let favoriteMarketplace: String
     let averageProfit: Double
     let lastUpdated: Date
@@ -18,6 +12,7 @@ struct UserStats: Codable {
     enum CodingKeys: String, CodingKey {
         case totalItemsScanned = "total_items_scanned"
         case totalPotentialSavings = "total_potential_savings"
+        case totalPotentialProfit = "total_potential_profit"
         case favoriteMarketplace = "favorite_marketplace"
         case averageProfit = "average_profit"
         case lastUpdated = "last_updated"
@@ -30,12 +25,14 @@ struct UserStats: Codable {
         // Calculate total potential savings (difference between best and worst marketplace)
         var totalSavings = 0.0
         var totalProfit = 0.0
+        var bestProfitsSum = 0.0
         var marketplaceCounts: [String: Int] = [:]
 
         for item in items {
             let prices = Array(item.priceAnalysis.averagePrices.values)
             if let maxPrice = prices.max(), let minPrice = prices.min() {
                 totalSavings += (maxPrice - minPrice)
+                bestProfitsSum += maxPrice
             }
 
             // Count marketplace recommendations
@@ -49,6 +46,7 @@ struct UserStats: Codable {
         }
 
         self.totalPotentialSavings = totalSavings
+        self.totalPotentialProfit = bestProfitsSum  // NEW
         self.favoriteMarketplace = marketplaceCounts.max(by: { $0.value < $1.value })?.key ?? "eBay"
         self.averageProfit = items.isEmpty ? 0 : totalProfit / Double(items.count)
     }
@@ -59,12 +57,14 @@ extension UserStats {
     init(
         totalItemsScanned: Int,
         totalPotentialSavings: Double,
+        totalPotentialProfit: Double,  // NEW parameter
         favoriteMarketplace: String,
         averageProfit: Double,
         lastUpdated: Date
     ) {
         self.totalItemsScanned = totalItemsScanned
         self.totalPotentialSavings = totalPotentialSavings
+        self.totalPotentialProfit = totalPotentialProfit  // NEW
         self.favoriteMarketplace = favoriteMarketplace
         self.averageProfit = averageProfit
         self.lastUpdated = lastUpdated

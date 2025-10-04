@@ -160,8 +160,8 @@ struct HistoryView: View {
                 )
 
                 EnhancedStatCard(
-                    title: "Potential Savings",
-                    value: itemStorage.totalSavings,
+                    title: "Potential Profit",
+                    value: itemStorage.totalProfit,
                     subtitle: "Smart choices",
                     icon: "dollarsign.circle.fill",
                     color: .green

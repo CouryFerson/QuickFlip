@@ -221,6 +221,10 @@ extension ItemStorageService {
         return String(format: "$%.0f", userStats.totalPotentialSavings)
     }
 
+    var totalProfit: String {
+        return String(format: "$%.0f", userStats.totalPotentialProfit)
+    }
+
     var topMarketplace: String {
         return userStats.favoriteMarketplace
     }

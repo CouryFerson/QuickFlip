@@ -131,7 +131,7 @@ struct EnhancedHomeView: View {
 
                 RealStatsCard(
                     title: "Potential Profit",
-                    value: "$\(String(format: "%.0f", calculateTotalPotentialProfit()))",
+                    value: itemStorage.totalProfit,
                     subtitle: "Smart choices",
                     icon: "dollarsign.circle.fill",
                     color: .green,
@@ -608,16 +608,6 @@ struct EnhancedHomeView: View {
             return .down
         } else {
             return .neutral
-        }
-    }
-
-    private func calculateTotalPotentialProfit() -> Double {
-        return itemStorage.scannedItems.reduce(0) { total, item in
-            if let profitBreakdowns = item.profitBreakdowns,
-               let bestProfit = profitBreakdowns.max(by: { $0.netProfit < $1.netProfit }) {
-                return total + bestProfit.netProfit
-            }
-            return total
         }
     }
 
