@@ -138,12 +138,18 @@ class eBayMarketPriceService: ObservableObject {
 
             let condition = item.condition ?? "Unknown"
             let shippingCost = item.shippingOptions?.first?.shippingCost?.value.flatMap { Double($0) } ?? 0
+            let buyingOptions = item.buyingOptions ?? []
+            let topRated = item.topRatedBuyingExperience ?? false
+            let feedbackScore = item.seller?.feedbackScore
 
             return BrowseListing(
                 title: title,
                 price: price,
                 condition: condition,
-                shippingCost: shippingCost
+                shippingCost: shippingCost,
+                buyingOptions: buyingOptions,
+                topRatedBuyingExperience: topRated,
+                sellerFeedbackScore: feedbackScore
             )
         }
     }
@@ -169,7 +175,17 @@ class eBayMarketPriceService: ObservableObject {
                 minPrice: 0,
                 maxPrice: 0,
                 totalListings: 0,
-                medianPrice: 0
+                medianPrice: 0,
+                marketInsights: MarketInsights(
+                    freeShippingPercentage: 0,
+                    bestOfferPercentage: 0,
+                    auctionPercentage: 0,
+                    topRatedPercentage: 0,
+                    conditionPricing: [:],
+                    topRatedPremium: 0,
+                    averageSellerRating: 0
+                ),
+                sellingStrategy: nil
             )
         }
 
@@ -184,6 +200,17 @@ class eBayMarketPriceService: ObservableObject {
         // Create price range buckets for visualization
         let priceRanges = createPriceRanges(from: allPrices, min: minPrice, max: maxPrice)
 
+        // Calculate market insights
+        let insights = calculateMarketInsights(from: listings)
+
+        // Generate selling strategy
+        let strategy = generateSellingStrategy(
+            averagePrice: averagePrice,
+            medianPrice: medianPrice,
+            insights: insights,
+            totalListings: listings.count
+        )
+
         return MarketPriceData(
             itemName: itemName,
             priceRanges: priceRanges,
@@ -191,7 +218,102 @@ class eBayMarketPriceService: ObservableObject {
             minPrice: minPrice,
             maxPrice: maxPrice,
             totalListings: listings.count,
-            medianPrice: medianPrice
+            medianPrice: medianPrice,
+            marketInsights: insights,
+            sellingStrategy: strategy
+        )
+    }
+
+    private func calculateMarketInsights(from listings: [BrowseListing]) -> MarketInsights {
+        let total = Double(listings.count)
+
+        // Free shipping analysis
+        let freeShippingCount = listings.filter { $0.shippingCost == 0 }.count
+        let freeShippingPercentage = (Double(freeShippingCount) / total) * 100
+
+        // Best Offer analysis
+        let bestOfferCount = listings.filter { $0.buyingOptions.contains("BEST_OFFER") }.count
+        let bestOfferPercentage = (Double(bestOfferCount) / total) * 100
+
+        // Auction analysis
+        let auctionCount = listings.filter { $0.buyingOptions.contains("AUCTION") }.count
+        let auctionPercentage = (Double(auctionCount) / total) * 100
+
+        // Top-Rated analysis
+        let topRatedCount = listings.filter { $0.topRatedBuyingExperience }.count
+        let topRatedPercentage = (Double(topRatedCount) / total) * 100
+
+        // Condition-based pricing
+        var conditionPricing: [String: Double] = [:]
+        let conditions = Set(listings.map { $0.condition })
+        for condition in conditions {
+            let conditionListings = listings.filter { $0.condition == condition }
+            let avgPrice = conditionListings.map { $0.price }.reduce(0, +) / Double(conditionListings.count)
+            conditionPricing[condition] = avgPrice
+        }
+
+        // Top-Rated premium calculation
+        let topRatedListings = listings.filter { $0.topRatedBuyingExperience }
+        let regularListings = listings.filter { !$0.topRatedBuyingExperience }
+        let topRatedAvg = topRatedListings.isEmpty ? 0 : topRatedListings.map { $0.price }.reduce(0, +) / Double(topRatedListings.count)
+        let regularAvg = regularListings.isEmpty ? 0 : regularListings.map { $0.price }.reduce(0, +) / Double(regularListings.count)
+        let topRatedPremium = regularAvg > 0 ? ((topRatedAvg - regularAvg) / regularAvg) * 100 : 0
+
+        // Average seller rating
+        let ratingsWithScores = listings.compactMap { $0.sellerFeedbackScore }
+        let averageSellerRating = ratingsWithScores.isEmpty ? 0 : Double(ratingsWithScores.reduce(0, +)) / Double(ratingsWithScores.count)
+
+        return MarketInsights(
+            freeShippingPercentage: freeShippingPercentage,
+            bestOfferPercentage: bestOfferPercentage,
+            auctionPercentage: auctionPercentage,
+            topRatedPercentage: topRatedPercentage,
+            conditionPricing: conditionPricing,
+            topRatedPremium: topRatedPremium,
+            averageSellerRating: averageSellerRating
+        )
+    }
+
+    private func generateSellingStrategy(
+        averagePrice: Double,
+        medianPrice: Double,
+        insights: MarketInsights,
+        totalListings: Int
+    ) -> SellingStrategy {
+        var tips: [String] = []
+
+        // Pricing recommendation
+        let suggestedPrice = medianPrice * 1.05 // 5% above median for negotiation room
+
+        // Best Offer recommendation
+        let enableBestOffer = insights.bestOfferPercentage > 50
+        if enableBestOffer {
+            tips.append("Enable 'Best Offer' - \(Int(insights.bestOfferPercentage))% of sellers accept offers")
+        }
+
+        // Free shipping recommendation
+        let offerFreeShipping = insights.freeShippingPercentage > 50
+        if offerFreeShipping {
+            tips.append("Offer free shipping - \(Int(insights.freeShippingPercentage))% of competitors do")
+        }
+
+        // Competition level tip
+        if totalListings > 50 {
+            tips.append("High competition - price competitively and offer fast shipping")
+        } else if totalListings < 10 {
+            tips.append("Low competition - you can price higher")
+        }
+
+        // Top-Rated premium tip
+        if insights.topRatedPremium > 5 {
+            tips.append("Top-Rated sellers charge \(Int(insights.topRatedPremium))% more on average")
+        }
+
+        return SellingStrategy(
+            suggestedPrice: suggestedPrice,
+            enableBestOffer: enableBestOffer,
+            offerFreeShipping: offerFreeShipping,
+            tips: tips
         )
     }
 
@@ -294,6 +416,15 @@ private struct BrowseItemSummary: Codable {
     let price: BrowsePrice?
     let condition: String?
     let shippingOptions: [BrowseShippingOption]?
+    let buyingOptions: [String]?
+    let topRatedBuyingExperience: Bool?
+    let seller: BrowseSeller?
+}
+
+private struct BrowseSeller: Codable {
+    let username: String?
+    let feedbackScore: Int?
+    let feedbackPercentage: String?
 }
 
 private struct BrowsePrice: Codable {
@@ -311,6 +442,9 @@ private struct BrowseListing {
     let price: Double
     let condition: String
     let shippingCost: Double
+    let buyingOptions: [String]
+    let topRatedBuyingExperience: Bool
+    let sellerFeedbackScore: Int?
 }
 
 private struct AppTokenResponse: Codable {

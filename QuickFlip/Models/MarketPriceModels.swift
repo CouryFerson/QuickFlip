@@ -10,6 +10,8 @@ struct MarketPriceData {
     let maxPrice: Double
     let totalListings: Int
     let medianPrice: Double
+    let marketInsights: MarketInsights
+    let sellingStrategy: SellingStrategy?
 
     var formattedAveragePrice: String {
         return String(format: "$%.2f", averagePrice)
@@ -44,12 +46,6 @@ struct MarketPriceData {
             return "High competition"
         }
     }
-
-    var suggestedPricing: String {
-        // Suggest pricing based on median
-        let competitivePrice = medianPrice * 0.95 // 5% below median
-        return String(format: "$%.2f", competitivePrice)
-    }
 }
 
 struct PriceRange: Identifiable {
@@ -65,9 +61,71 @@ struct PriceRange: Identifiable {
     var formattedRange: String {
         return String(format: "$%.0f - $%.0f", minPrice, maxPrice)
     }
+
+    var midpoint: Double {
+        return (minPrice + maxPrice) / 2
+    }
+}
+
+// MARK: - Market Insights
+
+struct MarketInsights {
+    let freeShippingPercentage: Double
+    let bestOfferPercentage: Double
+    let auctionPercentage: Double
+    let topRatedPercentage: Double
+    let conditionPricing: [String: Double]
+    let topRatedPremium: Double
+    let averageSellerRating: Double
+
+    var formattedFreeShipping: String {
+        return String(format: "%.0f%%", freeShippingPercentage)
+    }
+
+    var formattedBestOffer: String {
+        return String(format: "%.0f%%", bestOfferPercentage)
+    }
+
+    var formattedAuction: String {
+        return String(format: "%.0f%%", auctionPercentage)
+    }
+
+    var formattedTopRated: String {
+        return String(format: "%.0f%%", topRatedPercentage)
+    }
+
+    var formattedTopRatedPremium: String {
+        return String(format: "+%.0f%%", topRatedPremium)
+    }
+
+    var hasSignificantFreeShipping: Bool {
+        return freeShippingPercentage > 50
+    }
+
+    var hasSignificantBestOffer: Bool {
+        return bestOfferPercentage > 50
+    }
+
+    var hasTopRatedPremium: Bool {
+        return topRatedPremium > 5
+    }
+}
+
+// MARK: - Selling Strategy
+
+struct SellingStrategy {
+    let suggestedPrice: Double
+    let enableBestOffer: Bool
+    let offerFreeShipping: Bool
+    let tips: [String]
+
+    var formattedSuggestedPrice: String {
+        return String(format: "$%.2f", suggestedPrice)
+    }
 }
 
 // MARK: - Mock Data for Previews
+
 extension MarketPriceData {
     static var mock: MarketPriceData {
         let ranges = [
@@ -79,6 +137,32 @@ extension MarketPriceData {
             PriceRange(minPrice: 80, maxPrice: 90, listingCount: 2)
         ]
 
+        let insights = MarketInsights(
+            freeShippingPercentage: 65,
+            bestOfferPercentage: 78,
+            auctionPercentage: 15,
+            topRatedPercentage: 45,
+            conditionPricing: [
+                "New": 58.99,
+                "Like New": 52.00,
+                "Good": 45.50,
+                "Used": 38.00
+            ],
+            topRatedPremium: 12.5,
+            averageSellerRating: 847
+        )
+
+        let strategy = SellingStrategy(
+            suggestedPrice: 54.60,
+            enableBestOffer: true,
+            offerFreeShipping: true,
+            tips: [
+                "Enable 'Best Offer' - 78% of sellers accept offers",
+                "Offer free shipping - 65% of competitors do",
+                "Top-Rated sellers charge 12% more on average"
+            ]
+        )
+
         return MarketPriceData(
             itemName: "Apple TV Siri Remote",
             priceRanges: ranges,
@@ -86,11 +170,23 @@ extension MarketPriceData {
             minPrice: 32.50,
             maxPrice: 89.99,
             totalListings: 49,
-            medianPrice: 52.00
+            medianPrice: 52.00,
+            marketInsights: insights,
+            sellingStrategy: strategy
         )
     }
 
     static var mockNoData: MarketPriceData {
+        let emptyInsights = MarketInsights(
+            freeShippingPercentage: 0,
+            bestOfferPercentage: 0,
+            auctionPercentage: 0,
+            topRatedPercentage: 0,
+            conditionPricing: [:],
+            topRatedPremium: 0,
+            averageSellerRating: 0
+        )
+
         return MarketPriceData(
             itemName: "Rare Item",
             priceRanges: [],
@@ -98,7 +194,9 @@ extension MarketPriceData {
             minPrice: 0,
             maxPrice: 0,
             totalListings: 0,
-            medianPrice: 0
+            medianPrice: 0,
+            marketInsights: emptyInsights,
+            sellingStrategy: nil
         )
     }
 }

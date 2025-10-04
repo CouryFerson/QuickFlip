@@ -12,15 +12,17 @@ struct MarketPriceChartView: View {
             if marketData.hasData {
                 chartSection
                 statisticsSection
-                insightsSection
+                marketInsightsSection
+
+                if let strategy = marketData.sellingStrategy {
+                    sellingStrategySection(strategy: strategy)
+                }
             } else {
                 noDataView
             }
         }
         .padding()
         .background(Color(.systemBackground))
-//        .cornerRadius(12)
-//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -124,14 +126,14 @@ private extension MarketPriceChartView {
                 Spacer()
                 statisticItem(title: "Median", value: marketData.formattedMedianPrice)
                 Spacer()
-                statisticItem(title: "Listings", value: "\(marketData.totalListings)")
+                statisticItem(title: "Competition", value: marketData.marketSaturation, valueColor: marketData.totalListings > 30 ? .orange : .green)
             }
         }
     }
 
     @ViewBuilder
-    var insightsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    var marketInsightsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Divider()
 
             Text("Market Insights")
@@ -139,19 +141,105 @@ private extension MarketPriceChartView {
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
 
-            HStack(spacing: 12) {
-                insightBadge(
-                    icon: "chart.line.uptrend.xyaxis",
-                    text: marketData.marketSaturation,
-                    color: marketData.totalListings > 30 ? .orange : .green
-                )
+            VStack(spacing: 8) {
+                if marketData.marketInsights.freeShippingPercentage > 0 {
+                    insightRow(
+                        icon: "shippingbox.fill",
+                        label: "Offer Free Shipping",
+                        value: marketData.marketInsights.formattedFreeShipping,
+                        color: .blue
+                    )
+                }
 
-                insightBadge(
-                    icon: "tag.fill",
-                    text: "List at \(marketData.suggestedPricing)",
-                    color: .blue
-                )
+                if marketData.marketInsights.bestOfferPercentage > 0 {
+                    insightRow(
+                        icon: "hand.raised.fill",
+                        label: "Accept Best Offer",
+                        value: marketData.marketInsights.formattedBestOffer,
+                        color: .green
+                    )
+                }
+
+                if marketData.marketInsights.topRatedPercentage > 0 {
+                    insightRow(
+                        icon: "star.fill",
+                        label: "Top-Rated Sellers",
+                        value: marketData.marketInsights.formattedTopRated,
+                        color: .orange
+                    )
+                }
+
+                if marketData.marketInsights.hasTopRatedPremium {
+                    insightRow(
+                        icon: "arrow.up.circle.fill",
+                        label: "Top-Rated Premium",
+                        value: marketData.marketInsights.formattedTopRatedPremium,
+                        color: .purple
+                    )
+                }
             }
+        }
+    }
+
+    @ViewBuilder
+    func sellingStrategySection(strategy: SellingStrategy) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+
+            HStack(spacing: 6) {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(.yellow)
+                Text("Your Selling Strategy")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+            }
+
+            // Suggested price card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Suggested List Price")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(strategy.formattedSuggestedPrice)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 8) {
+                        if strategy.enableBestOffer {
+                            strategyBadge(icon: "hand.raised.fill", text: "Enable Offers", color: .blue)
+                        }
+                        if strategy.offerFreeShipping {
+                            strategyBadge(icon: "shippingbox.fill", text: "Free Ship", color: .green)
+                        }
+                    }
+                }
+
+                // Tips
+                if !strategy.tips.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(strategy.tips.enumerated()), id: \.offset) { index, tip in
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("•")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                Text(tip)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color.green.opacity(0.05))
+            .cornerRadius(10)
         }
     }
 
@@ -170,18 +258,40 @@ private extension MarketPriceChartView {
     }
 
     @ViewBuilder
-    func insightBadge(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 6) {
+    func insightRow(icon: String, label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.caption)
-            Text(text)
-                .font(.caption)
+                .foregroundColor(color)
+                .frame(width: 20)
+                .font(.body)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(color.opacity(0.1))
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    func strategyBadge(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+            Text(text)
+                .font(.caption2)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.15))
         .foregroundColor(color)
-        .cornerRadius(8)
+        .cornerRadius(6)
     }
 
     @ViewBuilder
@@ -220,8 +330,6 @@ struct MarketPriceLoadingView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
         .background(Color(.systemBackground))
-//        .cornerRadius(12)
-//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -259,15 +367,15 @@ struct MarketPriceErrorView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background(Color(.systemBackground))
-//        .cornerRadius(12)
-//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
 // MARK: - Preview
 #Preview("With Data") {
-    MarketPriceChartView(marketData: .mock)
-        .padding()
+    ScrollView {
+        MarketPriceChartView(marketData: .mock)
+            .padding()
+    }
 }
 
 #Preview("No Data") {
