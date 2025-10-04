@@ -58,18 +58,23 @@ private extension PrivacySettingsView {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(cameraPermissionStatusText)
-                    .foregroundColor(cameraPermissionColor)
-                    .font(.subheadline)
+            permissionStatusView
+        }
+    }
 
-                if cameraPermissionStatus == .denied {
-                    Button("Open Settings") {
-                        openAppSettings()
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
+    @ViewBuilder
+    var permissionStatusView: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(cameraPermissionStatusText)
+                .foregroundColor(cameraPermissionColor)
+                .font(.subheadline)
+
+            if cameraPermissionStatus == .denied {
+                Button("Open Settings") {
+                    openAppSettings()
                 }
+                .font(.caption)
+                .foregroundColor(.blue)
             }
         }
     }
@@ -84,35 +89,52 @@ private extension PrivacySettingsView {
     @ViewBuilder
     var dataCollectionInfo: some View {
         VStack(alignment: .leading, spacing: 12) {
-            dataInfoRow(
-                icon: "camera.viewfinder",
-                title: "Scanned Items",
-                description: "Photos and details of items you scan for analysis"
-            )
-
-            dataInfoRow(
-                icon: "chart.bar.doc.horizontal",
-                title: "Analysis Results",
-                description: "AI-generated price analysis and marketplace insights"
-            )
-
-            dataInfoRow(
-                icon: "gearshape",
-                title: "User Preferences",
-                description: "Your app settings, display name, and subscription info"
-            )
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Data Storage")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text("Your data is securely stored using Supabase and is only accessible by you. We do not share your personal data with third parties.")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
+            scannedItemsInfo
+            analysisResultsInfo
+            userPreferencesInfo
+            dataStorageInfo
         }
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    var scannedItemsInfo: some View {
+        dataInfoRow(
+            icon: "camera.viewfinder",
+            title: "Scanned Items",
+            description: "Photos and details of items you scan for analysis"
+        )
+    }
+
+    @ViewBuilder
+    var analysisResultsInfo: some View {
+        dataInfoRow(
+            icon: "chart.bar.doc.horizontal",
+            title: "Analysis Results",
+            description: "AI-generated price analysis and marketplace insights"
+        )
+    }
+
+    @ViewBuilder
+    var userPreferencesInfo: some View {
+        dataInfoRow(
+            icon: "gearshape",
+            title: "User Preferences",
+            description: "Your app settings, display name, and subscription info"
+        )
+    }
+
+    @ViewBuilder
+    var dataStorageInfo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Data Storage")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            Text("Your data is securely stored using Supabase and is only accessible by you. We do not share your personal data with third parties.")
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
     }
 
     @ViewBuilder
@@ -186,8 +208,28 @@ private extension PrivacySettingsView {
     @ViewBuilder
     var legalSection: some View {
         Section("Legal") {
+            termsOfUseRow
             privacyPolicyRow
         }
+    }
+
+    @ViewBuilder
+    var termsOfUseRow: some View {
+        Button {
+            openTermsOfUse()
+        } label: {
+            HStack {
+                Label("Terms of Use", systemImage: "doc.text")
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     @ViewBuilder
@@ -255,9 +297,14 @@ private extension PrivacySettingsView {
         }
     }
 
+    func openTermsOfUse() {
+        if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+            UIApplication.shared.open(url)
+        }
+    }
+
     func openPrivacyPolicy() {
-        // TODO: Replace with your actual privacy policy URL
-        if let url = URL(string: "https://quickflip.app/privacy") {
+        if let url = URL(string: "https://quikflip.netlify.app/privacy-policy") {
             UIApplication.shared.open(url)
         }
     }

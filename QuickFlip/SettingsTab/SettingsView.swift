@@ -460,6 +460,7 @@ struct SubscriptionView: View {
                     featuresSection
                     upgradeSection
                     manageSubscriptionSection
+                    legalDisclaimerSection
                 }
 
                 Spacer(minLength: 50)
@@ -565,41 +566,49 @@ private extension SubscriptionView {
                 Text("Usage")
                     .font(.headline)
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Tokens Remaining")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-
-                        Text("\(userProfile.tokens)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(tokenColor(for: userProfile.tokens, max: currentTier.tokensPerPeriod))
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Monthly Limit")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-
-                        Text("\(currentTier.tokensPerPeriod)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                    }
-                }
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(12)
-
-                // Progress bar
-                ProgressView(value: Double(userProfile.tokens), total: Double(currentTier.tokensPerPeriod))
-                    .progressViewStyle(LinearProgressViewStyle(tint: tokenColor(for: userProfile.tokens, max: currentTier.tokensPerPeriod)))
-                    .scaleEffect(x: 1, y: 2, anchor: .center)
+                tokenUsageCard(userProfile: userProfile, currentTier: currentTier)
+                tokenProgressBar(tokens: userProfile.tokens, maxTokens: currentTier.tokensPerPeriod)
             }
             .padding(.horizontal)
         }
+    }
+
+    @ViewBuilder
+    func tokenUsageCard(userProfile: UserProfile, currentTier: SubscriptionTier) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Tokens Remaining")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+
+                Text("\(userProfile.tokens)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(tokenColor(for: userProfile.tokens, max: currentTier.tokensPerPeriod))
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(currentTier.tierName.lowercased() == "free" ? "Bonus Tokens" : "Monthly Limit")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+
+                Text("\(currentTier.tokensPerPeriod)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    func tokenProgressBar(tokens: Int, maxTokens: Int) -> some View {
+        ProgressView(value: Double(tokens), total: Double(maxTokens))
+            .progressViewStyle(LinearProgressViewStyle(tint: tokenColor(for: tokens, max: maxTokens)))
+            .scaleEffect(x: 1, y: 2, anchor: .center)
     }
 
     @ViewBuilder
@@ -610,29 +619,39 @@ private extension SubscriptionView {
                 .padding(.horizontal)
 
             if !subscriptionManager.consumables.isEmpty {
-                LazyVStack(spacing: 12) {
-                    ForEach(subscriptionManager.consumables, id: \.id) { product in
-                        TokenPackageCard(
-                            product: product,
-                            isPurchasing: subscriptionManager.isPurchasing
-                        ) {
-                            await purchaseTokens(product)
-                        }
-                    }
-                }
-                .padding(.horizontal)
+                tokenPackagesList
             } else {
-                Button("Buy More Tokens") {
-                    showingTokenPurchase = true
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-                .padding(.horizontal)
+                buyMoreTokensButton
             }
         }
+    }
+
+    @ViewBuilder
+    var tokenPackagesList: some View {
+        LazyVStack(spacing: 12) {
+            ForEach(subscriptionManager.consumables, id: \.id) { product in
+                TokenPackageCard(
+                    product: product,
+                    isPurchasing: subscriptionManager.isPurchasing
+                ) {
+                    await purchaseTokens(product)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    var buyMoreTokensButton: some View {
+        Button("Buy More Tokens") {
+            showingTokenPurchase = true
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.blue)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+        .padding(.horizontal)
     }
 
     @ViewBuilder
@@ -643,18 +662,23 @@ private extension SubscriptionView {
                     .font(.headline)
                     .padding(.horizontal)
 
-                VStack(spacing: 12) {
-                    ForEach(currentTier.features, id: \.self) { feature in
-                        FeatureRow(
-                            icon: iconForFeature(feature),
-                            title: titleForFeature(feature),
-                            description: descriptionForFeature(feature)
-                        )
-                    }
-                }
-                .padding(.horizontal)
+                featuresList(for: currentTier)
             }
         }
+    }
+
+    @ViewBuilder
+    func featuresList(for tier: SubscriptionTier) -> some View {
+        VStack(spacing: 12) {
+            ForEach(tier.features, id: \.self) { feature in
+                FeatureRow(
+                    icon: iconForFeature(feature),
+                    title: titleForFeature(feature, tierName: tier.tierName),
+                    description: descriptionForFeature(feature, tierName: tier.tierName)
+                )
+            }
+        }
+        .padding(.horizontal)
     }
 
     @ViewBuilder
@@ -665,45 +689,106 @@ private extension SubscriptionView {
                     .font(.headline)
                     .padding(.horizontal)
 
-                LazyVStack(spacing: 12) {
-                    ForEach(subscriptionManager.subscriptions, id: \.id) { product in
-                        if subscriptionManager.shouldShowUpgrade(for: product) {
-                            SubscriptionUpgradeCard(
-                                product: product,
-                                isPurchasing: subscriptionManager.isPurchasing
-                            ) {
-                                await purchaseSubscription(product)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal)
+                upgradeOptionsList
             }
         }
     }
 
     @ViewBuilder
-    var manageSubscriptionSection: some View {
-        VStack(spacing: 12) {
-            Button("Manage Subscription") {
-                openAppStoreSubscriptions()
+    var upgradeOptionsList: some View {
+        LazyVStack(spacing: 12) {
+            ForEach(subscriptionManager.subscriptions, id: \.id) { product in
+                if subscriptionManager.shouldShowUpgrade(for: product),
+                   let tier = getTierForProduct(product) {
+                    SubscriptionUpgradeCard(
+                        product: product,
+                        tier: tier,
+                        isPurchasing: subscriptionManager.isPurchasing
+                    ) {
+                        await purchaseSubscription(product)
+                    }
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-
-            Button("Restore Purchases") {
-                Task { await restorePurchases() }
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.green)
-            .foregroundColor(.white)
-            .cornerRadius(12)
         }
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    var manageSubscriptionSection: some View {
+        VStack(spacing: 12) {
+            manageSubscriptionButton
+            restorePurchasesButton
+        }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    var manageSubscriptionButton: some View {
+        Button("Manage Subscription") {
+            openAppStoreSubscriptions()
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.blue)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    var restorePurchasesButton: some View {
+        Button("Restore Purchases") {
+            Task { await restorePurchases() }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.green)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    var legalDisclaimerSection: some View {
+        VStack(spacing: 12) {
+            subscriptionInfoText
+            legalLinksText
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    var subscriptionInfoText: some View {
+        Text("Subscriptions auto-renew monthly unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Unused tokens carry over to the next billing period. You can manage or cancel your subscription in your App Store account settings.")
+            .font(.caption)
+            .foregroundColor(.gray)
+            .multilineTextAlignment(.center)
+    }
+
+    @ViewBuilder
+    var legalLinksText: some View {
+        VStack(spacing: 4) {
+            Text("By subscribing, you agree to our")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            HStack(spacing: 4) {
+                Button("Terms of Use") {
+                    openTermsOfUse()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+
+                Text("and")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+
+                Button("Privacy Policy") {
+                    openPrivacyPolicy()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+        }
     }
 
     @ViewBuilder
@@ -721,16 +806,21 @@ private extension SubscriptionView {
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
 
-            Button("Retry") {
-                Task { await subscriptionManager.refreshSubscriptionData() }
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 8)
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(8)
+            retryButton
         }
         .padding()
+    }
+
+    @ViewBuilder
+    var retryButton: some View {
+        Button("Retry") {
+            Task { await subscriptionManager.refreshSubscriptionData() }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 8)
+        .background(Color.blue)
+        .foregroundColor(.white)
+        .cornerRadius(8)
     }
 }
 
@@ -741,7 +831,6 @@ private extension SubscriptionView {
         do {
             try await subscriptionManager.purchaseSubscription(product)
         } catch {
-            // Error is already handled by SubscriptionManager
             print("Subscription purchase failed: \(error)")
         }
     }
@@ -750,7 +839,6 @@ private extension SubscriptionView {
         do {
             try await subscriptionManager.purchaseTokens(product)
         } catch {
-            // Error is already handled by SubscriptionManager
             print("Token purchase failed: \(error)")
         }
     }
@@ -759,13 +847,24 @@ private extension SubscriptionView {
         do {
             try await subscriptionManager.restorePurchases()
         } catch {
-            // Error is already handled by SubscriptionManager
             print("Restore purchases failed: \(error)")
         }
     }
 
     func openAppStoreSubscriptions() {
         if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    func openTermsOfUse() {
+        if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    func openPrivacyPolicy() {
+        if let url = URL(string: "https://quikflip.netlify.app/privacy-policy") {
             UIApplication.shared.open(url)
         }
     }
@@ -794,11 +893,19 @@ private extension SubscriptionView {
         case "priority_support": return "envelope.badge"
         case "item_history": return "clock"
         case "price_analysis": return "dollarsign.circle"
+        case let str where str.contains("monthly tokens"): return "bitcoinsign.circle"
         default: return "checkmark.circle"
         }
     }
 
-    func titleForFeature(_ feature: String) -> String {
+    func titleForFeature(_ feature: String, tierName: String) -> String {
+        if feature.contains("monthly tokens") {
+            if tierName.lowercased() == "free" {
+                return "10 Bonus Tokens"
+            }
+            return feature.replacingOccurrences(of: " monthly tokens", with: " Monthly Tokens")
+        }
+
         switch feature {
         case "ai_requests": return "AI Requests"
         case "basic_scanning": return "Basic Scanning"
@@ -815,7 +922,14 @@ private extension SubscriptionView {
         }
     }
 
-    func descriptionForFeature(_ feature: String) -> String {
+    func descriptionForFeature(_ feature: String, tierName: String) -> String {
+        if feature.contains("monthly tokens") {
+            if tierName.lowercased() == "free" {
+                return "One-time welcome bonus"
+            }
+            return "Renews every month, unused tokens carry over"
+        }
+
         switch feature {
         case "ai_requests": return "Powered by advanced AI models"
         case "basic_scanning": return "Scan individual items"
@@ -831,7 +945,21 @@ private extension SubscriptionView {
         default: return "Available in this tier"
         }
     }
+
+    func getTierForProduct(_ product: Product) -> SubscriptionTier? {
+        let tierNameMap: [String: String] = [
+            "com.fersonix.quikflip.starter_sub_monthly": "starter",
+            "com.fersonix.quikflip.pro_sub_monthly": "pro"
+        ]
+
+        guard let tierName = tierNameMap[product.id] else { return nil }
+
+        return subscriptionManager.availableTiers.first {
+            $0.tierName.lowercased() == tierName.lowercased()
+        }
+    }
 }
+
 
 // MARK: - Supporting Views
 struct FeatureRow: View {
@@ -927,19 +1055,11 @@ struct TokenPackageCard: View {
 
 struct SubscriptionUpgradeCard: View {
     let product: Product
+    let tier: SubscriptionTier
     let isPurchasing: Bool
     let onUpgrade: () async -> Void
 
-    private var tierName: String {
-        switch product.id {
-        case "com.fersonix.quikflip.starter_sub_monthly":
-            return "Starter"
-        case "com.fersonix.quikflip.pro_sub_monthly":
-            return "Pro"
-        default:
-            return "Unknown"
-        }
-    }
+    @State private var isExpanded = false
 
     private var tierColor: Color {
         switch product.id {
@@ -954,45 +1074,192 @@ struct SubscriptionUpgradeCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tierName)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-
-                    Text(product.displayPrice + "/month")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-
-                Spacer()
-
-                Image(systemName: tierName == "Pro" ? "crown.fill" : "star.fill")
-                    .font(.title2)
-                    .foregroundColor(tierColor)
-            }
-
-            Button(action: {
-                Task { await onUpgrade() }
-            }) {
-                HStack {
-                    if isPurchasing {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .foregroundColor(.white)
-                    }
-                    Text(isPurchasing ? "Upgrading..." : "Upgrade to \(tierName)")
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(isPurchasing ? Color.gray : tierColor)
-            .foregroundColor(.white)
-            .cornerRadius(8)
-            .disabled(isPurchasing)
+            headerSection
+            featuresSection
+            upgradeButton
         }
         .padding()
         .background(tierColor.opacity(0.1))
         .cornerRadius(12)
+    }
+}
+
+// MARK: - View Components
+private extension SubscriptionUpgradeCard {
+
+    @ViewBuilder
+    var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tier.tierName.capitalized)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+
+                subscriptionPriceText
+            }
+
+            Spacer()
+
+            tierIcon
+        }
+    }
+
+    @ViewBuilder
+    var subscriptionPriceText: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(product.displayPrice + "/month")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+
+            Text("Auto-renews monthly")
+                .font(.caption)
+                .foregroundColor(.gray.opacity(0.8))
+        }
+    }
+
+    @ViewBuilder
+    var tierIcon: some View {
+        Image(systemName: tier.tierName.lowercased() == "pro" ? "crown.fill" : "star.fill")
+            .font(.title2)
+            .foregroundColor(tierColor)
+    }
+
+    @ViewBuilder
+    var featuresSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Includes:")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .fontWeight(.medium)
+
+            featuresList
+
+            if tier.features.count > 4 {
+                expandCollapseButton
+            }
+        }
+    }
+
+    @ViewBuilder
+    var featuresList: some View {
+        let featuresToShow = isExpanded ? tier.features : Array(keyFeatures.prefix(4))
+
+        ForEach(featuresToShow, id: \.self) { feature in
+            featureRow(for: feature)
+        }
+    }
+
+    @ViewBuilder
+    var expandCollapseButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(isExpanded ? "Show less" : "Show all features (\(tier.features.count))")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(tierColor)
+
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2)
+                    .foregroundColor(tierColor)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    func featureRow(for feature: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundColor(tierColor)
+
+            Text(formatFeatureText(feature))
+                .font(.caption)
+                .foregroundColor(.primary)
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    var upgradeButton: some View {
+        Button(action: {
+            Task { await onUpgrade() }
+        }) {
+            HStack {
+                if isPurchasing {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .foregroundColor(.white)
+                }
+                Text(isPurchasing ? "Upgrading..." : "Upgrade to \(tier.tierName.capitalized)")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(isPurchasing ? Color.gray : tierColor)
+        .foregroundColor(.white)
+        .cornerRadius(8)
+        .disabled(isPurchasing)
+    }
+}
+
+// MARK: - Helper Methods
+private extension SubscriptionUpgradeCard {
+
+    var keyFeatures: [String] {
+        // Prioritize important features to show first
+        var features: [String] = []
+
+        // Add token feature first if it exists
+        if let tokenFeature = tier.features.first(where: { $0.contains("tokens") }) {
+            features.append(tokenFeature)
+        }
+
+        // Add other important features (excluding basic ones that all tiers have)
+        let importantFeatures = tier.features.filter { feature in
+            !feature.contains("tokens") &&
+            !feature.contains("ai_requests") &&
+            !feature.contains("basic_scanning") &&
+            !feature.contains("marketplace_uploads") &&
+            !feature.contains("daily_market_insights")
+        }
+
+        features.append(contentsOf: importantFeatures)
+
+        // If we don't have enough unique features, add the basic ones back
+        if features.count < 4 {
+            let remainingFeatures = tier.features.filter { !features.contains($0) }
+            features.append(contentsOf: remainingFeatures)
+        }
+
+        return features
+    }
+
+    func formatFeatureText(_ feature: String) -> String {
+        // Handle token features specially
+        if feature.contains("monthly tokens") {
+            return feature.replacingOccurrences(of: " monthly tokens", with: " tokens/month")
+        }
+
+        // Format other features
+        switch feature {
+        case "ai_requests": return "AI-powered analysis"
+        case "basic_scanning": return "Basic scanning"
+        case "bulk_scanning": return "Bulk scanning"
+        case "barcode_scanning": return "Barcode scanning"
+        case "marketplace_uploads": return "Marketplace uploads"
+        case "daily_market_insights": return "Daily market insights"
+        case "price_analysis": return "Price analysis"
+        case "priority_support": return "Priority support"
+        case "item_history": return "Item history"
+        case "advanced_insights": return "Advanced analytics"
+        case "daily_price_history": return "Price history tracking"
+        default: return feature.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 }
