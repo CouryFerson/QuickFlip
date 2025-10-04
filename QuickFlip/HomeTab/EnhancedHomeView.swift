@@ -33,9 +33,10 @@ struct EnhancedHomeView: View {
                 marketInsightsSectionView
 
                 // Personal AI Insights
-                if !itemStorage.scannedItems.isEmpty {
-                    personalInsightsView
-                }
+                // TODO: Uncomment when we figure out how to handle this
+//                if !itemStorage.scannedItems.isEmpty {
+//                    personalInsightsView
+//                }
 
                 // Smart Quick Actions
                 smartQuickActionsView
