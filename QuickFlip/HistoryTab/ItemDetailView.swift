@@ -118,19 +118,11 @@ struct ItemDetailView: View {
                                         .foregroundColor(.primary)
                                     Spacer()
                                 }
-
-                                HStack(spacing: 12) {
-                                    // Status Button
-
-                                    statusButton
-                                    Spacer()
-                                    deleteButton
-                                }
+                                deleteButton
+                                marketplaceButton
                             }
                             .padding(.horizontal, 24)
                             .padding(.top, 8)
-
-                            marketplaceButton
                         }
                         .background(Color(UIColor.systemBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -201,6 +193,7 @@ private extension ItemDetailView {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
+            .padding(.horizontal, 24)
             .background(
                 LinearGradient(
                     colors: [Color.blue, Color.blue.opacity(0.8)],
@@ -211,9 +204,7 @@ private extension ItemDetailView {
             .clipShape(Capsule())
             .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 32)
-        .padding(.bottom, 34)
+        .padding(.bottom, 30)
     }
 
     private var deleteButton: some View {
@@ -225,27 +216,11 @@ private extension ItemDetailView {
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
+            .frame(maxWidth: .infinity)
             .foregroundColor(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
             .background(.red)
-            .clipShape(Capsule())
-        }
-    }
-
-    private var statusButton: some View {
-        Button(action: { showingActionSheet = true }) {
-            HStack(spacing: 8) {
-                Image(systemName: getStatusIcon())
-                    .font(.system(size: 16, weight: .medium))
-                Text(getStatusText())
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(getStatusColor())
             .clipShape(Capsule())
         }
     }

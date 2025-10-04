@@ -277,6 +277,7 @@ struct EnhancedHomeView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.vertical, 3)
             }
         }
     }
