@@ -108,6 +108,7 @@ struct ItemDetailView: View {
                             }
 
                             chartView
+                                .padding(.horizontal, 8)
 
                             // Quick Actions Section
                             VStack(spacing: 16) {
@@ -127,7 +128,7 @@ struct ItemDetailView: View {
                                 }
                             }
                             .padding(.horizontal, 24)
-                            .padding(.top, 32)
+                            .padding(.top, 8)
 
                             marketplaceButton
                         }

@@ -19,8 +19,8 @@ struct MarketPriceChartView: View {
         }
         .padding()
         .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+//        .cornerRadius(12)
+//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -220,8 +220,8 @@ struct MarketPriceLoadingView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
         .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+//        .cornerRadius(12)
+//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -259,8 +259,8 @@ struct MarketPriceErrorView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+//        .cornerRadius(12)
+//        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
