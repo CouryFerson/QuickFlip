@@ -23,13 +23,13 @@ struct eBayUploadView: View {
     private let eBayYellow = Color(red: 1.0, green: 0.8, blue: 0.0)
     private let eBayGray = Color(red: 0.95, green: 0.95, blue: 0.97)
 
-    init(listing: EbayListing, capturedImage: UIImage) {
-        let ebayAuthService = eBayAuthService()
+    init(listing: EbayListing, capturedImage: UIImage, supabaseService: SupabaseService) {
+        let ebayAuthService = eBayAuthService(supabaseService: supabaseService)
         self._listing = State(initialValue: listing)
         self.capturedImage = capturedImage
 
         // Create Trading API listing service (works for all users, no Business Policies needed)
-        self._eBayListing = StateObject(wrappedValue: eBayTradingListingService(authService: ebayAuthService))
+        self._eBayListing = StateObject(wrappedValue: eBayTradingListingService(authService: ebayAuthService, supabaseService: supabaseService))
         self._ebayAuthService = StateObject(wrappedValue: ebayAuthService)
     }
 

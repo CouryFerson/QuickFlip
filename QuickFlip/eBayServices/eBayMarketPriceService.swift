@@ -1,3 +1,5 @@
+
+import Combine
 import SwiftUI
 
 // MARK: - eBay Browse API Market Price Service
@@ -6,14 +8,15 @@ class eBayMarketPriceService: ObservableObject {
     @Published var lastError: String?
 
     private let debugMode = true
-
-    // OAuth token caching
-    private var appAccessToken: String?
-    private var tokenExpiration: Date?
+    private let supabaseService: SupabaseService
 
     // Results caching
     private var cache: [String: (data: MarketPriceData, timestamp: Date)] = [:]
     private let cacheExpiration: TimeInterval = 3600 // 1 hour
+
+    init(supabaseService: SupabaseService) {
+        self.supabaseService = supabaseService
+    }
 
     func fetchMarketPrices(for itemName: String, category: String) async throws -> MarketPriceData {
         // Check cache first
@@ -60,63 +63,21 @@ class eBayMarketPriceService: ObservableObject {
     }
 
     private func searchActiveListings(itemName: String) async throws -> [BrowseListing] {
-        // Get OAuth token
-        let accessToken = try await getAppAccessToken()
-
-        // Browse API endpoint
-        let baseURL = eBayConfig.isProduction
-            ? "https://api.ebay.com/buy/browse/v1/item_summary/search"
-            : "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search"
-
         // Simplify search query
         let searchKeywords = simplifySearchQuery(itemName)
 
-        // Build query parameters
-        var components = URLComponents(string: baseURL)!
-        components.queryItems = [
-            URLQueryItem(name: "q", value: searchKeywords),
-            URLQueryItem(name: "limit", value: "50")
-        ]
-
-        guard let url = components.url else {
-            throw eBayError.invalidResponse
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("EBAY_US", forHTTPHeaderField: "X-EBAY-C-MARKETPLACE-ID")
-
         if debugMode {
-            print("=== Browse API Request ===")
+            print("=== Calling Edge Function ===")
             print("Search Keywords: \(searchKeywords)")
-            print("URL: \(url.absoluteString)")
-            print("==========================")
+            print("==============================")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw eBayError.networkError
-        }
-
-        if debugMode {
-            print("Status: \(httpResponse.statusCode)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Response preview: \(responseString.prefix(500))")
-            }
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ Error Response: \(responseString)")
-            }
-            throw eBayError.networkError
-        }
-
-        // Parse JSON response
-        let decoder = JSONDecoder()
-        let browseResponse = try decoder.decode(BrowseSearchResponse.self, from: data)
+        // Call Edge Function instead of eBay directly
+        let browseResponse = try await supabaseService.searcheBayListings(
+            searchKeywords: searchKeywords,
+            limit: 50,
+            isProduction: eBayConfig.isProduction
+        )
 
         guard let listings = browseResponse.itemSummaries else {
             if debugMode {
@@ -227,23 +188,18 @@ class eBayMarketPriceService: ObservableObject {
     private func calculateMarketInsights(from listings: [BrowseListing]) -> MarketInsights {
         let total = Double(listings.count)
 
-        // Free shipping analysis
         let freeShippingCount = listings.filter { $0.shippingCost == 0 }.count
         let freeShippingPercentage = (Double(freeShippingCount) / total) * 100
 
-        // Best Offer analysis
         let bestOfferCount = listings.filter { $0.buyingOptions.contains("BEST_OFFER") }.count
         let bestOfferPercentage = (Double(bestOfferCount) / total) * 100
 
-        // Auction analysis
         let auctionCount = listings.filter { $0.buyingOptions.contains("AUCTION") }.count
         let auctionPercentage = (Double(auctionCount) / total) * 100
 
-        // Top-Rated analysis
         let topRatedCount = listings.filter { $0.topRatedBuyingExperience }.count
         let topRatedPercentage = (Double(topRatedCount) / total) * 100
 
-        // Condition-based pricing
         var conditionPricing: [String: Double] = [:]
         let conditions = Set(listings.map { $0.condition })
         for condition in conditions {
@@ -252,14 +208,12 @@ class eBayMarketPriceService: ObservableObject {
             conditionPricing[condition] = avgPrice
         }
 
-        // Top-Rated premium calculation
         let topRatedListings = listings.filter { $0.topRatedBuyingExperience }
         let regularListings = listings.filter { !$0.topRatedBuyingExperience }
         let topRatedAvg = topRatedListings.isEmpty ? 0 : topRatedListings.map { $0.price }.reduce(0, +) / Double(topRatedListings.count)
         let regularAvg = regularListings.isEmpty ? 0 : regularListings.map { $0.price }.reduce(0, +) / Double(regularListings.count)
         let topRatedPremium = regularAvg > 0 ? ((topRatedAvg - regularAvg) / regularAvg) * 100 : 0
 
-        // Average seller rating
         let ratingsWithScores = listings.compactMap { $0.sellerFeedbackScore }
         let averageSellerRating = ratingsWithScores.isEmpty ? 0 : Double(ratingsWithScores.reduce(0, +)) / Double(ratingsWithScores.count)
 
@@ -282,29 +236,24 @@ class eBayMarketPriceService: ObservableObject {
     ) -> SellingStrategy {
         var tips: [String] = []
 
-        // Pricing recommendation
-        let suggestedPrice = medianPrice * 1.05 // 5% above median for negotiation room
+        let suggestedPrice = medianPrice * 1.05
 
-        // Best Offer recommendation
         let enableBestOffer = insights.bestOfferPercentage > 50
         if enableBestOffer {
             tips.append("Enable 'Best Offer' - \(Int(insights.bestOfferPercentage))% of sellers accept offers")
         }
 
-        // Free shipping recommendation
         let offerFreeShipping = insights.freeShippingPercentage > 50
         if offerFreeShipping {
             tips.append("Offer free shipping - \(Int(insights.freeShippingPercentage))% of competitors do")
         }
 
-        // Competition level tip
         if totalListings > 50 {
             tips.append("High competition - price competitively and offer fast shipping")
         } else if totalListings < 10 {
             tips.append("Low competition - you can price higher")
         }
 
-        // Top-Rated premium tip
         if insights.topRatedPremium > 5 {
             tips.append("Top-Rated sellers charge \(Int(insights.topRatedPremium))% more on average")
         }
@@ -339,79 +288,14 @@ class eBayMarketPriceService: ObservableObject {
 
         return ranges
     }
-
-    // MARK: - OAuth Client Credentials Flow
-    private func getAppAccessToken() async throws -> String {
-        // Check if we have a valid cached token
-        if let token = appAccessToken,
-           let expiration = tokenExpiration,
-           Date() < expiration {
-            if debugMode {
-                print("✅ Using cached app access token")
-            }
-            return token
-        }
-
-        // Get new token
-        if debugMode {
-            print("🔑 Fetching new app access token...")
-        }
-
-        let tokenURL = eBayConfig.isProduction
-            ? URL(string: "https://api.ebay.com/identity/v1/oauth2/token")!
-            : URL(string: "https://api.sandbox.ebay.com/identity/v1/oauth2/token")!
-
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-        // Base64 encode clientID:clientSecret for Basic Auth
-        let credentials = "\(eBayConfig.clientID):\(eBayConfig.clientSecret)"
-        let base64Credentials = Data(credentials.utf8).base64EncodedString()
-        request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
-
-        // Request token with marketplace scope
-        let scope = "https://api.ebay.com/oauth/api_scope"
-        let body = "grant_type=client_credentials&scope=\(scope)"
-        request.httpBody = body.data(using: .utf8)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw eBayError.networkError
-        }
-
-        if debugMode {
-            print("Token API Status: \(httpResponse.statusCode)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Token Response: \(responseString)")
-            }
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw eBayError.notAuthenticated
-        }
-
-        let tokenResponse = try JSONDecoder().decode(AppTokenResponse.self, from: data)
-
-        // Cache the token (expires in seconds, usually 7200 = 2 hours)
-        appAccessToken = tokenResponse.access_token
-        tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expires_in - 300)) // Refresh 5 min early
-
-        if debugMode {
-            print("✅ App access token obtained, expires in \(tokenResponse.expires_in) seconds")
-        }
-
-        return tokenResponse.access_token
-    }
 }
 
 // MARK: - Browse API Response Models
-private struct BrowseSearchResponse: Codable {
+struct BrowseSearchResponse: Codable {
     let itemSummaries: [BrowseItemSummary]?
 }
 
-private struct BrowseItemSummary: Codable {
+struct BrowseItemSummary: Codable {
     let title: String?
     let price: BrowsePrice?
     let condition: String?
@@ -421,23 +305,22 @@ private struct BrowseItemSummary: Codable {
     let seller: BrowseSeller?
 }
 
-private struct BrowseSeller: Codable {
+struct BrowseSeller: Codable {
     let username: String?
     let feedbackScore: Int?
     let feedbackPercentage: String?
 }
 
-private struct BrowsePrice: Codable {
+struct BrowsePrice: Codable {
     let value: String?
     let currency: String?
 }
 
-private struct BrowseShippingOption: Codable {
+struct BrowseShippingOption: Codable {
     let shippingCost: BrowsePrice?
 }
 
-// MARK: - Internal Models
-private struct BrowseListing {
+struct BrowseListing {
     let title: String
     let price: Double
     let condition: String
@@ -447,7 +330,7 @@ private struct BrowseListing {
     let sellerFeedbackScore: Int?
 }
 
-private struct AppTokenResponse: Codable {
+struct AppTokenResponse: Codable {
     let access_token: String
     let expires_in: Int
     let token_type: String

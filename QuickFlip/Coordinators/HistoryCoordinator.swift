@@ -32,6 +32,7 @@ enum HistoryFlow: Hashable {
 public struct HistoryCoordinator: View {
     @StateObject private var router = Router<HistoryFlow>()
     @EnvironmentObject private var appRouter: AppRouter
+    @EnvironmentObject private var supabaseService: SupabaseService
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
@@ -52,7 +53,8 @@ public struct HistoryCoordinator: View {
     private func viewForPath(_ path: HistoryFlow) -> some View {
         switch path {
         case .itemDetail(let item):
-            ItemDetailView(item: item) {
+            ItemDetailView(item: item,
+                           supabaseService: supabaseService) {
                 router.push(.marketplaceSelection(item))
             }
         case .marketplaceSelection(let scannedImage):

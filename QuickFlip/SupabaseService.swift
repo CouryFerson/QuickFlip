@@ -684,3 +684,102 @@ extension SupabaseService: EdgeFunctionCalling {
     }
 }
 
+extension SupabaseService {
+
+    // MARK: - eBay OAuth Token Exchange
+
+    func exchangeeBayOAuthCode(code: String, isProduction: Bool) async throws -> eBayTokenResponse {
+        let body: [String: Any] = [
+            "code": code,
+            "isProduction": isProduction
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: eBayTokenResponse = try await client.functions.invoke(
+            "exchange-ebay-oauth-code",
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    // MARK: - eBay Browse Token
+
+    func geteBayBrowseToken(isProduction: Bool) async throws -> eBayAppTokenResponse {
+        let body: [String: Any] = [
+            "isProduction": isProduction
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: eBayAppTokenResponse = try await client.functions.invoke(
+            "get-ebay-browse-token",
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    // MARK: - eBay Browse Search
+
+    func searcheBayListings(searchKeywords: String, limit: Int = 50, isProduction: Bool) async throws -> eBayBrowseSearchResponse {
+        let body: [String: Any] = [
+            "searchKeywords": searchKeywords,
+            "limit": limit,
+            "isProduction": isProduction
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: eBayBrowseSearchResponse = try await client.functions.invoke(
+            "ebay-browse-search",
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    // MARK: - eBay Create Listing
+
+    func createeBayListing(
+        userToken: String,
+        title: String,
+        description: String,
+        categoryID: String,
+        price: String,
+        conditionID: String,
+        itemSpecifics: String?,
+        imageURL: String?,
+        shippingCost: String,
+        isProduction: Bool
+    ) async throws -> eBayListingCreationResponse {
+        var body: [String: Any] = [
+            "userToken": userToken,
+            "title": title,
+            "description": description,
+            "categoryID": categoryID,
+            "price": price,
+            "conditionID": conditionID,
+            "shippingCost": shippingCost,
+            "isProduction": isProduction
+        ]
+
+        if let itemSpecifics = itemSpecifics {
+            body["itemSpecifics"] = itemSpecifics
+        }
+
+        if let imageURL = imageURL {
+            body["imageURL"] = imageURL
+        }
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: eBayListingCreationResponse = try await client.functions.invoke(
+            "create-ebay-listing",
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+}

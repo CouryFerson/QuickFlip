@@ -12,12 +12,18 @@ struct ItemDetailView: View {
     let marketplaceAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
-    @StateObject private var marketPriceService = eBayMarketPriceService()
+    @StateObject private var marketPriceService: eBayMarketPriceService
     @State private var showingActionSheet = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
     @State private var imageScale: CGFloat = 1.0
     @State private var marketData: MarketPriceData?
+
+    init(item: ScannedItem, supabaseService: SupabaseService, marketplaceAction: @escaping () -> Void) {
+        self.item = item
+        self.marketplaceAction = marketplaceAction
+        _marketPriceService = StateObject(wrappedValue: eBayMarketPriceService(supabaseService: supabaseService))
+    }
 
     var body: some View {
         GeometryReader { geometry in

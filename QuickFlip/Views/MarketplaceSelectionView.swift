@@ -7,6 +7,7 @@ struct MarketplaceSelectionView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
     @EnvironmentObject var imageAnalysisService: ImageAnalysisService
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var supabaseService: SupabaseService
     @State private var isAnalyzingPrices = false
     @State private var priceAnalysisResult: MarketplacePriceAnalysis?
     @State private var showingTokenAlert = false
@@ -371,7 +372,7 @@ private extension MarketplaceSelectionView {
     func destinationView(for marketplace: Marketplace) -> some View {
         switch marketplace {
         case .ebay:
-            eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+            eBayUploadView(listing: EbayListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage, supabaseService: supabaseService)
         case .facebook:
             FacebookMarketplaceView(listing: FacebookListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
         case .amazon:

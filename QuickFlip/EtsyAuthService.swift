@@ -8,18 +8,6 @@
 import Foundation
 import UIKit
 
-// MARK: - Etsy Configuration
-struct EtsyConfig {
-    static let clientID = "YOUR_ETSY_API_KEY" // Get from Etsy Developer account
-    static let clientSecret = "YOUR_ETSY_SHARED_SECRET"
-    static let redirectURI = "quickflip://etsy/auth" // Or leave blank for manual
-
-    // Etsy API URLs
-    static let authURL = "https://www.etsy.com/oauth/connect"
-    static let tokenURL = "https://openapi.etsy.com/v3/public/oauth/token"
-    static let baseAPIURL = "https://openapi.etsy.com/v3/application"
-}
-
 // MARK: - Etsy Authentication Service
 class EtsyAuthService: ObservableObject {
     @Published var isAuthenticated = false

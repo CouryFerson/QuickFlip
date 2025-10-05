@@ -3,6 +3,18 @@ import SwiftUI
 import UIKit
 
 // MARK: - eBay Authentication Service
+//
+//  eBayAuthService.swift
+//  QuickFlip
+//
+//  Updated to use Supabase Edge Functions
+//
+
+import Foundation
+import SwiftUI
+import UIKit
+
+// MARK: - eBay Authentication Service
 class eBayAuthService: ObservableObject {
     @Published var isAuthenticated = false
     @Published var accessToken: String?
@@ -14,7 +26,10 @@ class eBayAuthService: ObservableObject {
     private let authKey = "eBayAuthenticated"
     private let environmentKey = "eBayEnvironment"
 
-    init() {
+    private let supabaseService: SupabaseService
+
+    init(supabaseService: SupabaseService) {
+        self.supabaseService = supabaseService
         loadStoredToken()
         currentEnvironment = eBayConfig.environmentName
     }
@@ -29,68 +44,32 @@ class eBayAuthService: ObservableObject {
     }
 
     func exchangeCodeForToken(code: String) async {
-        await exchangeCodeForTokenInternal(code: code)
-    }
-
-    private func exchangeCodeForTokenInternal(code: String) async {
-        let tokenURL = URL(string: eBayConfig.tokenURL)!
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-        // Create authorization header
-        let credentials = "\(eBayConfig.clientID):\(eBayConfig.clientSecret)"
-        let base64Credentials = Data(credentials.utf8).base64EncodedString()
-        request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
-
-        let bodyParameters = [
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": eBayConfig.redirectURI
-        ]
-
-        let bodyString = bodyParameters
-            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" }
-            .joined(separator: "&")
-
-        request.httpBody = bodyString.data(using: .utf8)
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            // Call Edge Function to exchange code for token
+            let tokenResponse = try await supabaseService.exchangeeBayOAuthCode(
+                code: code,
+                isProduction: eBayConfig.isProduction
+            )
 
             await MainActor.run {
-                self.handleTokenResponse(data: data, response: response, error: nil)
+                self.accessToken = tokenResponse.access_token
+                self.isAuthenticated = true
+
+                // Store token and expiry
+                let expiryDate = Date().addingTimeInterval(TimeInterval(tokenResponse.expires_in))
+                userDefaults.set(tokenResponse.access_token, forKey: accessTokenKey)
+                userDefaults.set(expiryDate, forKey: tokenExpiryKey)
+                userDefaults.set(true, forKey: authKey)
+                userDefaults.set(eBayConfig.environmentName, forKey: environmentKey)
+
+                print("eBay: Successfully authenticated in \(eBayConfig.environmentName) environment!")
             }
+
         } catch {
             await MainActor.run {
                 print("eBay: Token exchange error: \(error)")
             }
         }
-    }
-
-    private func handleTokenResponse(data: Data?, response: URLResponse?, error: Error?) {
-        guard let data = data,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let accessToken = json["access_token"] as? String,
-              let expiresIn = json["expires_in"] as? Int else {
-            print("eBay: Failed to get access token")
-            if let data = data, let errorString = String(data: data, encoding: .utf8) {
-                print("eBay: Error response: \(errorString)")
-            }
-            return
-        }
-
-        self.accessToken = accessToken
-        self.isAuthenticated = true
-
-        // Store token, expiry, and environment
-        let expiryDate = Date().addingTimeInterval(TimeInterval(expiresIn))
-        userDefaults.set(accessToken, forKey: accessTokenKey)
-        userDefaults.set(expiryDate, forKey: tokenExpiryKey)
-        userDefaults.set(true, forKey: authKey)
-        userDefaults.set(eBayConfig.environmentName, forKey: environmentKey)
-
-        print("eBay: Successfully authenticated in \(eBayConfig.environmentName) environment!")
     }
 
     private func loadStoredToken() {
@@ -367,6 +346,7 @@ enum eBayError: Error, LocalizedError {
     case listingCreationFailed
     case networkError
     case invalidResponse
+    case invalidURL
 
     var errorDescription: String? {
         switch self {
@@ -384,6 +364,8 @@ enum eBayError: Error, LocalizedError {
             return "Network connection error"
         case .invalidResponse:
             return "Invalid response from eBay"
+        case .invalidURL:
+            return "Invalid URL"
         }
     }
 }
