@@ -392,8 +392,13 @@ struct EnhancedHistoryItemCard: View {
                         .lineLimit(2)
 
                     HStack(spacing: 8) {
-                        CategoryBadge(category: item.category.shortForm)
-                        ConditionBadge(condition: item.condition.shortForm)
+                        if !item.category.shortForm.isEmpty {
+                            CategoryBadge(category: item.category.shortForm)
+                        }
+
+                        if !item.condition.shortForm.isEmpty {
+                            ConditionBadge(condition: item.condition.shortForm)
+                        }
                     }
                 }
 

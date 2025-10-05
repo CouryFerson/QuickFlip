@@ -81,10 +81,15 @@ struct ItemDetailView: View {
                                             .multilineTextAlignment(.leading)
 
                                         HStack(spacing: 12) {
-                                            if let categoryName = item.categoryName {
+                                            if let categoryName = item.categoryName,
+                                                   !categoryName.isEmpty {
                                                 CategoryBadge(category: categoryName)
                                             }
-                                            ConditionBadge(condition: item.condition)
+
+                                            if !item.condition.isEmpty {
+                                                ConditionBadge(condition: item.condition)
+                                            }
+
                                             Spacer()
                                         }
                                     }
@@ -113,8 +118,10 @@ struct ItemDetailView: View {
                                 .padding(.top, 24)
                             }
 
-                            chartView
-                                .padding(.horizontal, 8)
+                            if item.itemName != "Unknown Item" {
+                                chartView
+                                    .padding(.horizontal, 8)
+                            }
 
                             // Quick Actions Section
                             VStack(spacing: 16) {

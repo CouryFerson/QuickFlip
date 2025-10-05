@@ -422,7 +422,7 @@ extension CameraController {
     private func extractPrice(from value: String) -> Double {
         let numbers = value.replacingOccurrences(of: "$", with: "")
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
-        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
+        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "0") ?? 0.0
     }
 }
 

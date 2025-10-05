@@ -92,8 +92,8 @@ extension EbayListing {
             .replacingOccurrences(of: ",", with: "") // Remove commas from numbers like 2,500
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
 
-        let highPrice = numbers.last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "50"
-        return Double(highPrice) ?? 50.0
+        let highPrice = numbers.last?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "0"
+        return Double(highPrice) ?? 0
     }
 
     private static func extractStartingPrice(from value: String) -> Double {
@@ -104,7 +104,7 @@ extension EbayListing {
             .replacingOccurrences(of: ",", with: "") // Remove commas
             .components(separatedBy: CharacterSet(charactersIn: "-–"))
 
-        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "45") ?? 45.0
+        return Double(numbers.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "0") ?? 0
     }
 }
 
