@@ -211,7 +211,7 @@ private extension MarketIntelligenceSection {
                 // Value propositions
                 VStack(spacing: 10) {
                     valuePropositionRow(icon: "sparkles", text: "AI marketplace recommendation", color: .orange)
-                    valuePropositionRow(icon: "chart.bar.fill", text: "Real-time data for 3 top markets", color: .blue)
+                    valuePropositionRow(icon: "chart.bar.fill", text: "Real-time data for eBay", color: .blue)
                     valuePropositionRow(icon: "dollarsign.circle.fill", text: "Profit calculator access", color: .green)
                 }
 

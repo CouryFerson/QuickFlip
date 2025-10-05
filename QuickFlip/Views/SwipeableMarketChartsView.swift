@@ -74,7 +74,8 @@ private extension SwipeableMarketChartsView {
 
     @ViewBuilder
     var chartCardsSection: some View {
-        TabView(selection: $selectedMarketplace) {
+        // Only show eBay for now - StockX and Etsy coming in future update
+        VStack(spacing: 0) {
             // eBay Card
             marketChartCard(
                 marketplace: .ebay,
@@ -83,29 +84,7 @@ private extension SwipeableMarketChartsView {
                 loadFailed: ebayLoadFailed,
                 onRetry: onRetryEbay
             )
-            .tag(Marketplace.ebay)
-
-            // StockX Card
-            marketChartCard(
-                marketplace: .stockx,
-                data: stockxData,
-                isLoading: isLoadingStockX,
-                loadFailed: stockxLoadFailed,
-                onRetry: onRetryStockX
-            )
-            .tag(Marketplace.stockx)
-
-            // Etsy Card
-            marketChartCard(
-                marketplace: .etsy,
-                data: etsyData,
-                isLoading: isLoadingEtsy,
-                loadFailed: etsyLoadFailed,
-                onRetry: onRetryEtsy
-            )
-            .tag(Marketplace.etsy)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(height: 300)
     }
 
@@ -236,14 +215,9 @@ private extension SwipeableMarketChartsView {
 
     @ViewBuilder
     var pageIndicator: some View {
-        HStack(spacing: 8) {
-            ForEach([Marketplace.ebay, .stockx, .etsy], id: \.self) { marketplace in
-                Circle()
-                    .fill(selectedMarketplace == marketplace ? Color.blue : Color.gray.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: selectedMarketplace)
-            }
-        }
+        // Hidden for now since we only show eBay
+        // Will return when StockX and Etsy are added
+        EmptyView()
     }
 
     @ViewBuilder
