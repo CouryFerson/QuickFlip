@@ -60,7 +60,7 @@ public struct HistoryCoordinator: View {
         case .marketplaceSelection(let scannedImage):
             if let imageUrl = scannedImage.imageUrl,
                let image = ImageCacheManager.shared.loadImageFromDisk(url: imageUrl) {
-                MarketplaceSelectionView(scannedItem: scannedImage, capturedImage: image)
+                MarketplaceSelectionView(scannedItem: scannedImage, capturedImage: image, supabaseService: supabaseService)
             } else {
                 Text("Something went wrong. Try again")
             }

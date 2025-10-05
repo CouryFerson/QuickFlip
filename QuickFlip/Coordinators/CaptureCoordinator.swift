@@ -40,6 +40,7 @@ enum CaptureFlow: Hashable {
 
 public struct CaptureCoordinatorView: View {
     @StateObject private var router = Router<CaptureFlow>()
+    @EnvironmentObject private var supabaseService: SupabaseService
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
@@ -76,7 +77,7 @@ extension CaptureCoordinatorView {
                 router.push(.marketplaceSelection(scannedItem, image))
             }
         case .marketplaceSelection(let scannedItem, let image):
-            MarketplaceSelectionView(scannedItem: scannedItem, capturedImage: image)
+            MarketplaceSelectionView(scannedItem: scannedItem, capturedImage: image, supabaseService: supabaseService)
         case .bulkAnalysis(let analysis):
             BulkAnalysisResultsView(result: analysis) { scannedItem, image in
                 router.push(.marketplaceSelection(scannedItem, image))

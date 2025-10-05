@@ -1,27 +1,40 @@
 import SwiftUI
 import Charts
 
+// MARK: - Display Mode
+enum ChartDisplayMode {
+    case compact
+    case full
+}
+
 // MARK: - Market Price Chart View
 struct MarketPriceChartView: View {
     let marketData: MarketPriceData
+    var displayMode: ChartDisplayMode = .full
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: displayMode == .compact ? 12 : 16) {
             headerSection
 
             if marketData.hasData {
                 chartSection
-                statisticsSection
-                marketInsightsSection
 
-                if let strategy = marketData.sellingStrategy {
-                    sellingStrategySection(strategy: strategy)
+                if displayMode == .full {
+                    statisticsSection
+                    marketInsightsSection
+
+                    if let strategy = marketData.sellingStrategy {
+                        sellingStrategySection(strategy: strategy)
+                    }
+                } else {
+                    compactStatisticsSection
                 }
             } else {
                 noDataView
             }
         }
-        .padding()
+        .padding(displayMode == .compact ? 12 : 16)
+        .padding(.bottom, displayMode == .compact ? 8 : 0)
         .background(Color(.systemBackground))
     }
 }
@@ -31,6 +44,15 @@ private extension MarketPriceChartView {
 
     @ViewBuilder
     var headerSection: some View {
+        if displayMode == .full {
+            fullHeaderSection
+        } else {
+            compactHeaderSection
+        }
+    }
+
+    @ViewBuilder
+    var fullHeaderSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current eBay Market Prices")
@@ -58,6 +80,45 @@ private extension MarketPriceChartView {
     }
 
     @ViewBuilder
+    var compactHeaderSection: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("eBay")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+
+                if marketData.hasData {
+                    Text("\(marketData.totalListings) listings")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if marketData.hasData {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(marketData.formattedAveragePrice)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+
+                    HStack(spacing: 4) {
+                        Text("avg price")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.blue.opacity(0.6))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     var averagePriceLabel: some View {
         VStack(alignment: .trailing, spacing: 2) {
             Text(marketData.formattedAveragePrice)
@@ -74,10 +135,12 @@ private extension MarketPriceChartView {
     @ViewBuilder
     var chartSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Price Distribution")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
+            if displayMode == .full {
+                Text("Price Distribution")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+            }
 
             Chart {
                 ForEach(marketData.priceRanges) { range in
@@ -105,15 +168,59 @@ private extension MarketPriceChartView {
                     AxisValueLabel {
                         if let label = value.as(String.self) {
                             Text(label)
-                                .font(.system(size: 9))
+                                .font(.system(size: displayMode == .compact ? 8 : 9))
                         }
                     }
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 }
             }
-            .frame(height: 200)
+            .frame(height: displayMode == .compact ? 120 : 200)
             .padding(.bottom, 8)
         }
+    }
+
+    @ViewBuilder
+    var compactStatisticsSection: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                compactStatItem(title: "Range", value: marketData.priceRange)
+
+                Divider()
+                    .frame(height: 30)
+
+                compactStatItem(
+                    title: "Competition",
+                    value: marketData.marketSaturation,
+                    valueColor: marketData.totalListings > 30 ? .orange : .green
+                )
+            }
+            .padding(.top, 4)
+
+            // Tap hint
+            HStack(spacing: 4) {
+                Image(systemName: "hand.tap.fill")
+                    .font(.caption2)
+                Text("Tap for selling strategy")
+                    .font(.caption2)
+            }
+            .foregroundColor(.blue.opacity(0.7))
+            .padding(.top, 4)
+        }
+    }
+
+    @ViewBuilder
+    func compactStatItem(title: String, value: String, valueColor: Color = .primary) -> some View {
+        VStack(spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+
+            Text(value)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(valueColor)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -195,7 +302,6 @@ private extension MarketPriceChartView {
                     .foregroundColor(.primary)
             }
 
-            // Suggested price card
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -220,7 +326,6 @@ private extension MarketPriceChartView {
                     }
                 }
 
-                // Tips
                 if !strategy.tips.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(strategy.tips.enumerated()), id: \.offset) { index, tip in
@@ -298,37 +403,41 @@ private extension MarketPriceChartView {
     var noDataView: some View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 40))
+                .font(.system(size: displayMode == .compact ? 30 : 40))
                 .foregroundColor(.secondary)
 
             Text("No active listings found")
-                .font(.headline)
+                .font(displayMode == .compact ? .subheadline : .headline)
                 .foregroundColor(.primary)
 
-            Text("There aren't enough similar items listed right now to show market data")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            if displayMode == .full {
+                Text("There aren't enough similar items listed right now to show market data")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, displayMode == .compact ? 30 : 40)
     }
 }
 
 // MARK: - Loading State View
 struct MarketPriceLoadingView: View {
+    var displayMode: ChartDisplayMode = .full
+
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: displayMode == .compact ? 12 : 16) {
             ProgressView()
-                .scaleEffect(1.2)
+                .scaleEffect(displayMode == .compact ? 1.0 : 1.2)
 
             Text("Loading market data...")
-                .font(.subheadline)
+                .font(displayMode == .compact ? .caption : .subheadline)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
+        .padding(.vertical, displayMode == .compact ? 40 : 60)
         .background(Color(.systemBackground))
     }
 }
@@ -337,60 +446,67 @@ struct MarketPriceLoadingView: View {
 struct MarketPriceErrorView: View {
     let errorMessage: String
     let retryAction: () -> Void
+    var displayMode: ChartDisplayMode = .full
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: displayMode == .compact ? 12 : 16) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
+                .font(.system(size: displayMode == .compact ? 30 : 40))
                 .foregroundColor(.orange)
 
             Text("Unable to load market data")
-                .font(.headline)
+                .font(displayMode == .compact ? .subheadline : .headline)
                 .foregroundColor(.primary)
 
-            Text(errorMessage)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            if displayMode == .full {
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
 
             Button(action: retryAction) {
                 Label("Retry", systemImage: "arrow.clockwise")
-                    .font(.subheadline)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .font(displayMode == .compact ? .caption : .subheadline)
+                    .padding(.horizontal, displayMode == .compact ? 16 : 20)
+                    .padding(.vertical, displayMode == .compact ? 8 : 10)
                     .background(Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, displayMode == .compact ? 30 : 40)
         .background(Color(.systemBackground))
     }
 }
 
 // MARK: - Preview
-#Preview("With Data") {
+#Preview("Full Mode - With Data") {
     ScrollView {
-        MarketPriceChartView(marketData: .mock)
+        MarketPriceChartView(marketData: .mock, displayMode: .full)
             .padding()
     }
 }
 
-#Preview("No Data") {
-    MarketPriceChartView(marketData: .mockNoData)
+#Preview("Compact Mode - With Data") {
+    MarketPriceChartView(marketData: .mock, displayMode: .compact)
+        .padding()
+        .background(Color(.systemGroupedBackground))
+}
+
+#Preview("Compact Mode - No Data") {
+    MarketPriceChartView(marketData: .mockNoData, displayMode: .compact)
         .padding()
 }
 
-#Preview("Loading") {
-    MarketPriceLoadingView()
+#Preview("Compact Loading") {
+    MarketPriceLoadingView(displayMode: .compact)
         .padding()
 }
 
-#Preview("Error") {
-    MarketPriceErrorView(errorMessage: "Network connection failed") {
-        print("Retry tapped")
-    }
-    .padding()
+#Preview("Compact Error") {
+    MarketPriceErrorView(errorMessage: "Network connection failed", retryAction: {}, displayMode: .compact)
+        .padding()
 }
