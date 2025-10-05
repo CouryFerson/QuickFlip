@@ -39,11 +39,6 @@ struct eBayUploadView: View {
                 // eBay Header
                 eBayHeaderView
 
-                // Environment Badge (shows if in production)
-                if eBayConfig.isProduction {
-                    productionEnvironmentBadge
-                }
-
                 // Authentication Status
                 authenticationStatusView
 
@@ -250,28 +245,6 @@ private extension eBayUploadView {
         eBayConfig.isProduction
             ? "Ready to sell on the world's marketplace?"
             : "Testing in sandbox mode"
-    }
-
-    var productionEnvironmentBadge: some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
-
-            Text("LIVE PRODUCTION MODE")
-                .font(.caption)
-                .fontWeight(.bold)
-
-            Spacer()
-
-            Text("Real listings")
-                .font(.caption2)
-                .foregroundColor(.gray)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color.orange.opacity(0.1))
-        .cornerRadius(8)
-        .padding(.horizontal)
     }
 
     var eBayLogoView: some View {
@@ -570,7 +543,7 @@ private extension eBayUploadView {
     }
 
     var listButtonTitle: String {
-        eBayConfig.isProduction ? "List on eBay (LIVE)" : "List on eBay (Test)"
+        eBayConfig.isProduction ? "List on eBay" : "List on eBay (Test)"
     }
 
     var listButtonBadge: String {
