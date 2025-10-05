@@ -2,7 +2,7 @@
 //  SingleItemRequester.swift
 //  QuickFlip
 //
-//  Created by Ferson, Coury on 8/28/25.
+//  Updated to use Supabase Edge Functions via SupabaseService
 //
 
 import UIKit
@@ -11,7 +11,7 @@ struct SingleItemRequest {
     let image: UIImage
 }
 
-struct SingleItemRequester: OpenAIRequester {
+struct SingleItemRequester: SupabaseRequester {
     typealias RequestType = SingleItemRequest
     typealias ResponseType = ItemAnalysis
 
@@ -20,6 +20,10 @@ struct SingleItemRequester: OpenAIRequester {
     let maxTokens = 500
     let temperature = 0.3
     let tokenManager: TokenManaging
+    let edgeFunctionCaller: EdgeFunctionCalling
+
+    // Edge function name
+    var functionName: String { "analyze-single-item" }
 
     func buildRequestBody(_ request: SingleItemRequest) -> [String: Any] {
         let resizedImage = request.image.resize(maxDimension: 800)
@@ -28,31 +32,11 @@ struct SingleItemRequester: OpenAIRequester {
         }
 
         let base64Image = imageData.base64EncodedString()
-        let dataURL = "data:image/jpeg;base64,\(base64Image)"
-        let prompt = """
-        You are an expert at identifying items for resale on eBay. Analyze this image and provide specific details:
-
-        ITEM: [Exact product name, brand, model if identifiable]
-        CONDITION: [New/Like New/Good/Fair/Poor based on visible condition]
-        DESCRIPTION: [2-3 sentences suitable for eBay listing]
-        VALUE: $[low]-$[high] [estimated resale value range]
-        CATEGORY: [Suggested eBay category]
-
-        Be very specific. If it's an Apple TV remote, say "Apple TV Siri Remote (4th generation)" not just "remote". If you can see wear, scratches, or damage, mention it in the condition.
-        """
 
         return [
+            "base64Image": base64Image,
             "model": model,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": [
-                        ["type": "text", "text": prompt],
-                        ["type": "image_url", "image_url": ["url": dataURL]]
-                    ]
-                ]
-            ],
-            "max_tokens": maxTokens,
+            "maxTokens": maxTokens,
             "temperature": temperature
         ]
     }
@@ -68,8 +52,6 @@ struct SingleItemRequester: OpenAIRequester {
 
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Remove markdown formatting first
             let cleanLine = trimmedLine.replacingOccurrences(of: "**", with: "")
 
             if cleanLine.hasPrefix("ITEM:") {
@@ -92,13 +74,5 @@ struct SingleItemRequester: OpenAIRequester {
             estimatedValue: estimatedValue,
             category: category
         )
-    }
-
-    private func extractValue(from line: String, prefix: String) -> String {
-        guard let colonIndex = line.firstIndex(of: ":") else { return "" }
-        let startIndex = line.index(after: colonIndex)
-        return String(line[startIndex...])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "**", with: "")
     }
 }

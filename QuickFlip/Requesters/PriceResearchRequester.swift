@@ -2,7 +2,7 @@
 //  PriceResearchRequester.swift
 //  QuickFlip
 //
-//  Created by Ferson, Coury on 8/28/25.
+//  Updated to use Supabase Edge Functions
 //
 
 import Foundation
@@ -12,7 +12,7 @@ struct PriceResearchRequest {
     let category: String
 }
 
-struct PriceResearchRequester: OpenAIRequester {
+struct PriceResearchRequester: SupabaseRequester {
     typealias RequestType = PriceResearchRequest
     typealias ResponseType = MarketplacePriceAnalysis
 
@@ -21,46 +21,21 @@ struct PriceResearchRequester: OpenAIRequester {
     let maxTokens = 300
     let temperature = 0.3
     let tokenManager: TokenManaging
+    let edgeFunctionCaller: EdgeFunctionCalling
+
+    var functionName: String { "research-prices" }
 
     func buildRequestBody(_ request: PriceResearchRequest) -> [String: Any] {
-        let prompt = """
-        I need you to research current market prices for this item: "\(request.itemName)"
-        Category: \(request.category)
-        
-        Please provide realistic price estimates for each marketplace based on your knowledge of:
-        1. Typical pricing patterns for this item type
-        2. Each marketplace's audience and pricing trends
-        3. Current market conditions
-        
-        Respond ONLY in this exact format:
-        
-        EBAY: $XX.XX
-        FACEBOOK: $XX.XX
-        AMAZON: $XX.XX
-        STOCKX: $XX.XX (or "N/A" if not suitable)
-        ETSY: $XX.XX (or "N/A" if not suitable)
-        MERCARI: $XX.XX
-        POSHMARK: $XX.XX (or "N/A" if not suitable)
-        DEPOP: $XX.XX (or "N/A" if not suitable)
-        RECOMMENDED: [marketplace name]
-        REASONING: [1-2 sentence explanation why this marketplace is best]
-        CONFIDENCE: HIGH/MEDIUM/LOW
-        
-        Base your estimates on typical resale values, not retail prices. If a marketplace isn't suitable for this item type, use "N/A".
-        """
-
         return [
+            "itemName": request.itemName,
+            "category": request.category,
             "model": model,
-            "messages": [
-                ["role": "user", "content": prompt]
-            ],
-            "max_tokens": maxTokens,
+            "maxTokens": maxTokens,
             "temperature": temperature
         ]
     }
 
     func parseResponse(_ content: String) throws -> MarketplacePriceAnalysis {
-        // Use your existing parsing logic from OpenAIPriceResearchService
         let lines = content.components(separatedBy: .newlines)
         var prices: [Marketplace: Double] = [:]
         var confidence: AnalysisConfidence = .medium

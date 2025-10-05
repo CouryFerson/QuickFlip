@@ -15,6 +15,7 @@ struct QuickFlipApp: App {
     @StateObject private var authManager: AuthManager
     @StateObject private var subscriptionManager: SubscriptionManager
     @StateObject private var analysisService: ImageAnalysisService
+    @StateObject private var versionChecker = AppVersionChecker()
 
     init() {
         let client = SupabaseClient(
@@ -29,28 +30,29 @@ struct QuickFlipApp: App {
         _authManager = StateObject(wrappedValue: authManager)
         _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
         _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(authManager: authManager, storeKitManager: StoreKitManager(), supabaseService: supabaseService))
-        _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager))
+        _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager, supabaseService: supabaseService))
         ImageCacheManager.shared.configure(with: supabaseService)
     }
 
     var body: some Scene {
         WindowGroup {
-            if authManager.isLoading {
-                // Show loading spinner while checking session
+            if versionChecker.needsForceUpdate {
+                ForceUpdateView(message: versionChecker.updateMessage)
+            } else if authManager.isLoading {
                 LoadingView()
             } else if !authManager.isAuthenticated {
-                // Show sign in only after we've confirmed no session
                 AppleSignInView(authManager: authManager, onSignInComplete: {})
             } else {
-                // User is authenticated
                 MainTabView()
                     .environmentObject(supabaseService)
                     .environmentObject(authManager)
                     .environmentObject(itemStorage)
                     .environmentObject(subscriptionManager)
                     .environmentObject(analysisService)
+                    .environmentObject(versionChecker) // Add this so views can check for optional updates
                     .task {
-                        async let fetchUserData: ()  = itemStorage.fetchScannedItems()
+                        await versionChecker.checkVersion(supabaseService: supabaseService)
+                        async let fetchUserData: () = itemStorage.fetchScannedItems()
                         async let fetchScannedItems: () = fetchScannedItems()
                         _ = await [fetchUserData, fetchScannedItems]
                     }

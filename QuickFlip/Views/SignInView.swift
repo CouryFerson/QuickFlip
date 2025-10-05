@@ -9,12 +9,6 @@ struct AppleSignInView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    // Supabase client - you'll need to add this to your app
-    private let supabase = SupabaseClient(
-        supabaseURL: URL(string: "https://caozetulkpyyuniwprtd.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhb3pldHVsa3B5eXVuaXdwcnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NjEyOTMsImV4cCI6MjA3MTIzNzI5M30.sdw4OMWXBl9-DrJX165M0Fz8NXBxSVJ6QQJb_qG11vM"
-    )
-
     var body: some View {
         VStack(spacing: 20) {
             Spacer()

@@ -49,6 +49,19 @@ class SupabaseService: ObservableObject {
         return response
     }
 
+    func getAppConfig() async throws -> AppConfig {
+        let response: AppConfig = try await client
+            .from("app_config")
+            .select()
+            .order("created_at", ascending: false)
+            .limit(1)
+            .single()
+            .execute()
+            .value
+
+        return response
+    }
+
     func updateUserDisplayName(_ displayName: String) async throws {
         guard let userId = currentUserUUID else {
             throw SupabaseServiceError.unauthorized
@@ -639,3 +652,35 @@ enum SupabaseServiceError: LocalizedError {
         }
     }
 }
+
+extension SupabaseService: EdgeFunctionCalling {
+    func invokeEdgeFunction(_ functionName: String, body: [String: Any]) async throws -> Data {
+        // Convert [String: Any] to JSON Data
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        // Define a generic JSON response that matches what OpenAI returns
+        struct OpenAIResponse: Codable {
+            let choices: [Choice]?
+            let error: String?
+
+            struct Choice: Codable {
+                let message: Message
+            }
+
+            struct Message: Codable {
+                let content: String
+            }
+        }
+
+        // Call the edge function and get typed response
+        let response: OpenAIResponse = try await client.functions.invoke(
+            functionName,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        // Convert back to Data for our protocol
+        let responseData = try JSONEncoder().encode(response)
+        return responseData
+    }
+}
+

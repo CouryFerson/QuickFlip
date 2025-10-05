@@ -1,8 +1,8 @@
 //
-//  OpenAIRequester.swift
+//  SupabaseRequester.swift
 //  QuickFlip
 //
-//  Created by Ferson, Coury on 8/28/25.
+//  Replaces OpenAIRequester - now calls Supabase Edge Functions
 //
 
 import Foundation
@@ -18,12 +18,18 @@ enum NetworkError: Error {
     case invalidURL
     case requestFailed(Error)
     case responseParsingFailed
-    case apiError(Int)
+    case apiError(Int, String?)
     case insufficientTokens(required: Int)
+    case authenticationFailed
 }
 
-// MARK: - Base OpenAI Requester Protocol
-protocol OpenAIRequester {
+// MARK: - Edge Function Caller Protocol
+protocol EdgeFunctionCalling {
+    func invokeEdgeFunction(_ functionName: String, body: [String: Any]) async throws -> Data
+}
+
+// MARK: - Base Supabase Requester Protocol
+protocol SupabaseRequester {
     associatedtype RequestType
     associatedtype ResponseType
 
@@ -32,13 +38,15 @@ protocol OpenAIRequester {
     var maxTokens: Int { get }
     var temperature: Double { get }
     var tokenManager: TokenManaging { get }
+    var edgeFunctionCaller: EdgeFunctionCalling { get }
+    var functionName: String { get }
 
     func buildRequestBody(_ request: RequestType) -> [String: Any]
     func parseResponse(_ content: String) throws -> ResponseType
 }
 
 // MARK: - Default Implementation
-extension OpenAIRequester {
+extension SupabaseRequester {
     func makeRequest(_ request: RequestType) async throws -> ResponseType {
         // Check if user has tokens before making expensive API call
         guard tokenManager.hasTokens() else {
@@ -47,32 +55,22 @@ extension OpenAIRequester {
 
         let requestBody = buildRequestBody(request)
 
-        guard let url = URL(string: OpenAIConfig.apiURL) else {
-            throw NetworkError.invalidURL
-        }
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Bearer \(OpenAIConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        urlRequest.timeoutInterval = 60.0
-
         do {
-            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            // Call Supabase Edge Function through the service
+            let response = try await edgeFunctionCaller.invokeEdgeFunction(functionName, body: requestBody)
 
-            let (data, response) = try await URLSession.shared.data(for: urlRequest)
-
-            // Validate HTTP response
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                if let errorString = String(data: data, encoding: .utf8) {
-                    print("QuickFlip: API Error Response: \(errorString)")
-                }
-                throw NetworkError.apiError(httpResponse.statusCode)
+            // Parse response
+            guard let json = try JSONSerialization.jsonObject(with: response) as? [String: Any] else {
+                throw NetworkError.responseParsingFailed
             }
 
-            // Parse OpenAI response format
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let choices = json["choices"] as? [[String: Any]],
+            // Check for error in response
+            if let error = json["error"] as? String {
+                throw NetworkError.apiError(500, error)
+            }
+
+            // Parse OpenAI response format (from Edge Function)
+            guard let choices = json["choices"] as? [[String: Any]],
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
                   let content = message["content"] as? String else {

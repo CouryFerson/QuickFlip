@@ -27,6 +27,8 @@ class MarketIntelligenceService: ObservableObject {
 }
 
 // MARK: - Personal Analytics Service
+
+// TODO: NEED TO MOVE THIS TO AN EDGE FUNCTION WHEN READY
 class PersonalAnalyticsService: ObservableObject {
     @Published var insights: PersonalInsights?
     @Published var isLoadingInsights = false
@@ -88,14 +90,15 @@ class PersonalAnalyticsService: ObservableObject {
             "temperature": 0.3
         ]
 
-        guard let url = URL(string: OpenAIConfig.apiURL) else {
+
+        guard let url = URL(string: "OpenAIConfig.apiURL") else {
             throw PersonalAnalyticsError.invalidURL
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(OpenAIConfig.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \("OpenAIConfig.apiKey")", forHTTPHeaderField: "Authorization")
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 

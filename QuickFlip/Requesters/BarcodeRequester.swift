@@ -2,7 +2,7 @@
 //  BarcodeRequester.swift
 //  QuickFlip
 //
-//  Created by Ferson, Coury on 8/28/25.
+//  Updated to use Supabase Edge Functions
 //
 
 import UIKit
@@ -11,7 +11,7 @@ struct BarcodeRequest {
     let image: UIImage
 }
 
-struct BarcodeRequester: OpenAIRequester {
+struct BarcodeRequester: SupabaseRequester {
     typealias RequestType = BarcodeRequest
     typealias ResponseType = ItemAnalysis
 
@@ -20,6 +20,9 @@ struct BarcodeRequester: OpenAIRequester {
     let maxTokens = 300
     let temperature = 0.1
     let tokenManager: TokenManaging
+    let edgeFunctionCaller: EdgeFunctionCalling
+
+    var functionName: String { "analyze-barcode" }
 
     func buildRequestBody(_ request: BarcodeRequest) -> [String: Any] {
         let resizedImage = request.image.resize(maxDimension: 800)
@@ -29,48 +32,10 @@ struct BarcodeRequester: OpenAIRequester {
 
         let base64Image = imageData.base64EncodedString()
 
-        let prompt = """
-        Analyze this product image and identify the item. Focus on:
-        
-        1. VISUAL IDENTIFICATION (Primary):
-        - Read all visible text, brand names, product names
-        - Identify the product from packaging design and labels
-        - Note product size, variant, edition information
-        
-        2. BARCODE READING (Secondary):
-        - If you can see a barcode, try to read the numbers
-        - Use barcode info to confirm product identification
-        
-        Provide JSON response:
-        {
-            "barcode_number": "barcode if visible, or 'not visible'",
-            "barcode_format": "UPC-A/EAN-13/etc or 'unknown'",
-            "item_name": "exact product name from packaging",
-            "brand": "brand name from packaging",
-            "category": "product category",
-            "description": "product description based on visible features",
-            "estimated_value": "estimated price range",
-            "product_notes": "additional details about variant/size/etc"
-        }
-        
-        Focus primarily on what you can read and see on the packaging, not just the barcode.
-        """
-
         return [
+            "base64Image": base64Image,
             "model": model,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": [
-                        ["type": "text", "text": prompt],
-                        ["type": "image_url", "image_url": [
-                            "url": "data:image/jpeg;base64,\(base64Image)",
-                            "detail": "high"
-                        ]]
-                    ]
-                ]
-            ],
-            "max_tokens": maxTokens,
+            "maxTokens": maxTokens,
             "temperature": temperature
         ]
     }

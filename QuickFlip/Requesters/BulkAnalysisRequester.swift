@@ -2,7 +2,7 @@
 //  BulkAnalysisRequester.swift
 //  QuickFlip
 //
-//  Created by Ferson, Coury on 8/28/25.
+//  Updated to use Supabase Edge Functions
 //
 
 import UIKit
@@ -11,7 +11,7 @@ struct BulkAnalysisRequest {
     let image: UIImage
 }
 
-struct BulkAnalysisRequester: OpenAIRequester {
+struct BulkAnalysisRequester: SupabaseRequester {
     typealias RequestType = BulkAnalysisRequest
     typealias ResponseType = BulkAnalysisResult
 
@@ -20,11 +20,15 @@ struct BulkAnalysisRequester: OpenAIRequester {
     let maxTokens = 1500
     let temperature = 0.3
     let tokenManager: TokenManaging
+    let edgeFunctionCaller: EdgeFunctionCalling
 
     private let originalImage: UIImage
 
-    init(tokenManager: TokenManaging, image: UIImage) {
+    var functionName: String { "analyze-bulk-items" }
+
+    init(tokenManager: TokenManaging, edgeFunctionCaller: EdgeFunctionCalling, image: UIImage) {
         self.tokenManager = tokenManager
+        self.edgeFunctionCaller = edgeFunctionCaller
         self.originalImage = image
     }
 
@@ -35,50 +39,16 @@ struct BulkAnalysisRequester: OpenAIRequester {
         }
 
         let base64Image = imageData.base64EncodedString()
-        let dataURL = "data:image/jpeg;base64,\(base64Image)"
-
-        let prompt = """
-        You are an expert at identifying multiple items for resale. Analyze this image and identify ALL sellable items you can see. For each item, provide detailed analysis.
-
-        Respond in this EXACT format:
-
-        ITEM_1:
-        NAME: [Exact product name, brand, model if identifiable]
-        CONDITION: [New/Like New/Good/Fair/Poor based on visible condition]
-        DESCRIPTION: [2-3 sentences suitable for eBay listing]
-        VALUE: $[low]-$[high] [estimated resale value range]
-        CATEGORY: [eBay category]
-        LOCATION: [describe where in image - "top left", "center", etc.]
-
-        ITEM_2:
-        [repeat format if another item found]
-
-        SUMMARY:
-        TOTAL_COUNT: [number of sellable items found]
-        TOTAL_VALUE: $[sum of low estimates]-$[sum of high estimates]
-        SCENE_DESCRIPTION: [brief description of the scene/setting]
-
-        Be thorough but concise. If you see fewer than 3 items, that's fine - just analyze what you can clearly identify.
-        """
 
         return [
+            "base64Image": base64Image,
             "model": model,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": [
-                        ["type": "text", "text": prompt],
-                        ["type": "image_url", "image_url": ["url": dataURL]]
-                    ]
-                ]
-            ],
-            "max_tokens": maxTokens,
+            "maxTokens": maxTokens,
             "temperature": temperature
         ]
     }
 
     func parseResponse(_ content: String) throws -> BulkAnalysisResult {
-        // Use your existing parsing logic from BulkAnalysisService
         let lines = content.components(separatedBy: .newlines)
         var items: [BulkAnalyzedItem] = []
         var currentItem: BulkAnalyzedItem?
