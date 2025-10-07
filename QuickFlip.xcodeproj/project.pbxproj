@@ -14,6 +14,9 @@
 		285A2FCD2E55825900F123EA /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FCC2E55825900F123EA /* Storage */; };
 		285A2FD22E55852E00F123EA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 285A2FD12E55852E00F123EA /* Supabase */; };
 		28B723AB2E5E9E4D0000A258 /* QuickFlipProducts.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 28B723AA2E5E9E4D0000A258 /* QuickFlipProducts.storekit */; };
+		28EBB4582E94B27F008AE24B /* OneSignalExtension in Frameworks */ = {isa = PBXBuildFile; productRef = 28EBB4572E94B27F008AE24B /* OneSignalExtension */; };
+		28EBB45A2E94B27F008AE24B /* OneSignalFramework in Frameworks */ = {isa = PBXBuildFile; productRef = 28EBB4592E94B27F008AE24B /* OneSignalFramework */; };
+		28EBB45C2E94B27F008AE24B /* OneSignalInAppMessages in Frameworks */ = {isa = PBXBuildFile; productRef = 28EBB45B2E94B27F008AE24B /* OneSignalInAppMessages */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,7 +79,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				28EBB45A2E94B27F008AE24B /* OneSignalFramework in Frameworks */,
+				28EBB4582E94B27F008AE24B /* OneSignalExtension in Frameworks */,
 				285A2FC92E55825900F123EA /* PostgREST in Frameworks */,
+				28EBB45C2E94B27F008AE24B /* OneSignalInAppMessages in Frameworks */,
 				285A2FC72E55825900F123EA /* Functions in Frameworks */,
 				285A2FD22E55852E00F123EA /* Supabase in Frameworks */,
 				285A2FC52E55825900F123EA /* Auth in Frameworks */,
@@ -157,6 +163,9 @@
 				285A2FCA2E55825900F123EA /* Realtime */,
 				285A2FCC2E55825900F123EA /* Storage */,
 				285A2FD12E55852E00F123EA /* Supabase */,
+				28EBB4572E94B27F008AE24B /* OneSignalExtension */,
+				28EBB4592E94B27F008AE24B /* OneSignalFramework */,
+				28EBB45B2E94B27F008AE24B /* OneSignalInAppMessages */,
 			);
 			productName = QuickFlip;
 			productReference = 28A1E8AC2E524E9500BBFCB7 /* QuickFlip.app */;
@@ -242,6 +251,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				285A2FC32E55825900F123EA /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				28EBB4562E94B27F008AE24B /* XCRemoteSwiftPackageReference "OneSignal-iOS-SDK" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 28A1E8AD2E524E9500BBFCB7 /* Products */;
@@ -484,7 +494,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = QuickFlip/QuickFlipRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"QuickFlip/Preview Content\"";
@@ -510,7 +520,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.fersonix.quikflip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Coury QuickFlip Distribution";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "QuikFlip Dev Profile";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -639,6 +649,14 @@
 				minimumVersion = 2.5.1;
 			};
 		};
+		28EBB4562E94B27F008AE24B /* XCRemoteSwiftPackageReference "OneSignal-iOS-SDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/OneSignal/OneSignal-iOS-SDK";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.2.14;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -671,6 +689,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 285A2FC32E55825900F123EA /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		28EBB4572E94B27F008AE24B /* OneSignalExtension */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 28EBB4562E94B27F008AE24B /* XCRemoteSwiftPackageReference "OneSignal-iOS-SDK" */;
+			productName = OneSignalExtension;
+		};
+		28EBB4592E94B27F008AE24B /* OneSignalFramework */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 28EBB4562E94B27F008AE24B /* XCRemoteSwiftPackageReference "OneSignal-iOS-SDK" */;
+			productName = OneSignalFramework;
+		};
+		28EBB45B2E94B27F008AE24B /* OneSignalInAppMessages */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 28EBB4562E94B27F008AE24B /* XCRemoteSwiftPackageReference "OneSignal-iOS-SDK" */;
+			productName = OneSignalInAppMessages;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

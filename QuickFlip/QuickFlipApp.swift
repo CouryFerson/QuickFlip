@@ -5,6 +5,7 @@
 //  Created by Ferson, Coury on 8/17/25.
 //
 
+import OneSignalFramework
 import SwiftUI
 import Supabase
 
@@ -66,6 +67,7 @@ private extension QuickFlipApp {
             .environmentObject(analysisService)
             .environmentObject(versionChecker) // Add this so views can check for optional updates
             .task {
+                setUpOneSignal()
                 await versionChecker.checkVersion(supabaseService: supabaseService)
                 async let fetchUserData: () = itemStorage.fetchScannedItems()
                 async let fetchScannedItems: () = fetchScannedItems()
@@ -80,5 +82,18 @@ private extension QuickFlipApp {
         } catch {
             print("failed to fetch images on startup")
         }
+    }
+
+    private func setUpOneSignal() {
+        // Uncomment for debugging
+//        OneSignal.Debug.setLogLevel(.LL_VERBOSE)
+
+        // OneSignal initialization
+        OneSignal.initialize("3d273d92-7475-4d56-bdd0-f9f45dbb96c7", withLaunchOptions: nil)
+
+        // Request notification permissions
+        OneSignal.Notifications.requestPermission({ accepted in
+            print("User accepted notifications: \(accepted)")
+        }, fallbackToSettings: true)
     }
 }
