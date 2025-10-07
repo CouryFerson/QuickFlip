@@ -16,6 +16,7 @@ struct QuickFlipApp: App {
     @StateObject private var subscriptionManager: SubscriptionManager
     @StateObject private var analysisService: ImageAnalysisService
     @StateObject private var versionChecker = AppVersionChecker()
+    @StateObject private var tutorialManager = TutorialManager()
 
     init() {
         let client = SupabaseClient(
@@ -43,25 +44,35 @@ struct QuickFlipApp: App {
             } else if !authManager.isAuthenticated {
                 AppleSignInView(authManager: authManager, onSignInComplete: {})
             } else {
-                MainTabView()
-                    .environmentObject(supabaseService)
-                    .environmentObject(authManager)
-                    .environmentObject(itemStorage)
-                    .environmentObject(subscriptionManager)
-                    .environmentObject(analysisService)
-                    .environmentObject(versionChecker) // Add this so views can check for optional updates
-                    .task {
-                        await versionChecker.checkVersion(supabaseService: supabaseService)
-                        async let fetchUserData: () = itemStorage.fetchScannedItems()
-                        async let fetchScannedItems: () = fetchScannedItems()
-                        _ = await [fetchUserData, fetchScannedItems]
+                ZStack {
+                    mainTabView
+
+                    if !tutorialManager.hasSeenTutorial {
+                        TutorialView { }
                     }
+                }
             }
         }
     }
 }
 
 private extension QuickFlipApp {
+    private var mainTabView: some View {
+        MainTabView()
+            .environmentObject(supabaseService)
+            .environmentObject(authManager)
+            .environmentObject(itemStorage)
+            .environmentObject(subscriptionManager)
+            .environmentObject(analysisService)
+            .environmentObject(versionChecker) // Add this so views can check for optional updates
+            .task {
+                await versionChecker.checkVersion(supabaseService: supabaseService)
+                async let fetchUserData: () = itemStorage.fetchScannedItems()
+                async let fetchScannedItems: () = fetchScannedItems()
+                _ = await [fetchUserData, fetchScannedItems]
+            }
+    }
+
     private func fetchScannedItems() async {
         do {
             let items = try await supabaseService.fetchUserScannedItems()
