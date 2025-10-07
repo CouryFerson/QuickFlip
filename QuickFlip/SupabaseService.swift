@@ -524,6 +524,21 @@ class SupabaseService: ObservableObject {
 
     /// Create token purchase record
     func createTokenPurchaseRecord(_ purchase: TokenPurchaseRecord) async throws {
+        // Check if this transaction already exists
+        let existing: [TokenPurchaseRecord] = try await client
+            .from("token_purchases")
+            .select()
+            .eq("apple_transaction_id", value: purchase.appleTransactionId)
+            .execute()
+            .value
+
+        // If it already exists, skip the insert
+        guard existing.isEmpty else {
+            print("⚠️ Purchase already recorded, skipping")
+            return
+        }
+
+        // Otherwise, insert new record
         try await client
             .from("token_purchases")
             .insert(purchase)
