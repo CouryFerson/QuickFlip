@@ -308,7 +308,7 @@ private extension MarketplaceSelectionView {
         case .amazon:
             AmazonPrepView(listing: AmazonListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
         case .stockx:
-            StockXPrepView(listing: StockXListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
+            StockXUploadView(scannedItem: scannedItem, capturedImage: capturedImage, supabaseService: supabaseService)
         case .etsy:
             EtsyUploadView(listing: EtsyListing(from: scannedItem, image: capturedImage), capturedImage: capturedImage)
         case .mercari:

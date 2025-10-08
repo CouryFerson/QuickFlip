@@ -798,3 +798,137 @@ extension SupabaseService {
         return response
     }
 }
+
+// MARK: - StockX Edge Function Extensions
+extension SupabaseService {
+
+    // MARK: - Authentication
+    func exchangeStockXCode(
+        code: String,
+        redirectUri: String
+    ) async throws -> StockXTokenResponse {
+        let body: [String: Any] = [
+            "code": code,
+            "redirectUri": redirectUri,
+            "grantType": "authorization_code"
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: StockXTokenResponse = try await client.functions.invoke(
+            StockXConfig.exchangeTokenFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    func refreshStockXToken(
+        refreshToken: String
+    ) async throws -> StockXTokenResponse {
+        let body: [String: Any] = [
+            "refreshToken": refreshToken,
+            "grantType": "refresh_token"
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: StockXTokenResponse = try await client.functions.invoke(
+            StockXConfig.exchangeTokenFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    // MARK: - Search Products
+    func searchStockXProducts(
+        query: String,
+        pageSize: Int = 20,
+        pageNumber: Int = 1,
+        accessToken: String
+    ) async throws -> StockXSearchResponse {
+        let body: [String: Any] = [
+            "query": query,
+            "pageSize": pageSize,
+            "pageNumber": pageNumber,
+            "accessToken": accessToken
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let response: StockXSearchResponse = try await client.functions.invoke(
+            StockXConfig.searchProductsFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+
+    // MARK: - Get Product Variants
+    func getStockXVariants(
+        productId: String,
+        accessToken: String
+    ) async throws -> [StockXVariant] {
+        let body: [String: Any] = [
+            "productId": productId,
+            "accessToken": accessToken
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let variants: [StockXVariant] = try await client.functions.invoke(
+            StockXConfig.getProductDetailsFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return variants
+    }
+
+    // MARK: - Get Market Data
+    func getStockXMarketData(
+        productId: String,
+        variantId: String,
+        currencyCode: String = "USD",
+        country: String = "US",
+        accessToken: String
+    ) async throws -> StockXMarketData {
+        let body: [String: Any] = [
+            "productId": productId,
+            "variantId": variantId,
+            "currencyCode": currencyCode,
+            "country": country,
+            "accessToken": accessToken
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        let marketData: StockXMarketData = try await client.functions.invoke(
+            StockXConfig.getMarketDataFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return marketData
+    }
+
+    // MARK: - Place Ask
+    func placeStockXAsk(
+        request: StockXCreateAskRequest,
+        accessToken: String
+    ) async throws -> StockXCreateAskResponse {
+        let encoder = JSONEncoder()
+        let requestData = try encoder.encode(request)
+        var requestDict = try JSONSerialization.jsonObject(with: requestData) as! [String: Any]
+
+        requestDict["accessToken"] = accessToken
+
+        let jsonData = try JSONSerialization.data(withJSONObject: requestDict)
+
+        let response: StockXCreateAskResponse = try await client.functions.invoke(
+            StockXConfig.placeAskFunction,
+            options: FunctionInvokeOptions(body: jsonData)
+        )
+
+        return response
+    }
+}
