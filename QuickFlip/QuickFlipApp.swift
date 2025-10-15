@@ -18,6 +18,7 @@ struct QuickFlipApp: App {
     @StateObject private var analysisService: ImageAnalysisService
     @StateObject private var versionChecker = AppVersionChecker()
     @StateObject private var tutorialManager = TutorialManager()
+    @StateObject private var pushNotificationManager: PushNotificationManager
 
     init() {
         let client = SupabaseClient(
@@ -33,6 +34,8 @@ struct QuickFlipApp: App {
         _itemStorage = StateObject(wrappedValue: ItemStorageService(supabaseService: supabaseService))
         _subscriptionManager = StateObject(wrappedValue: SubscriptionManager(authManager: authManager, storeKitManager: StoreKitManager(), supabaseService: supabaseService))
         _analysisService = StateObject(wrappedValue: ImageAnalysisService(authManager: authManager, supabaseService: supabaseService))
+        _pushNotificationManager = StateObject(wrappedValue: PushNotificationManager(authManager: authManager))
+
         ImageCacheManager.shared.configure(with: supabaseService)
     }
 
@@ -65,13 +68,16 @@ private extension QuickFlipApp {
             .environmentObject(itemStorage)
             .environmentObject(subscriptionManager)
             .environmentObject(analysisService)
-            .environmentObject(versionChecker) // Add this so views can check for optional updates
+            .environmentObject(versionChecker)
+            .environmentObject(pushNotificationManager)
             .task {
                 setUpOneSignal()
                 await versionChecker.checkVersion(supabaseService: supabaseService)
                 async let fetchUserData: () = itemStorage.fetchScannedItems()
                 async let fetchScannedItems: () = fetchScannedItems()
                 _ = await [fetchUserData, fetchScannedItems]
+
+                pushNotificationManager.syncNotificationState()
             }
     }
 
@@ -90,10 +96,5 @@ private extension QuickFlipApp {
 
         // OneSignal initialization
         OneSignal.initialize("3d273d92-7475-4d56-bdd0-f9f45dbb96c7", withLaunchOptions: nil)
-
-        // Request notification permissions
-        OneSignal.Notifications.requestPermission({ accepted in
-            print("User accepted notifications: \(accepted)")
-        }, fallbackToSettings: true)
     }
 }

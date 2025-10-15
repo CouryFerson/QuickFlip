@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject  var pushNotificationManager: PushNotificationManager
 
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("autoSaveEnabled") private var autoSaveEnabled = true
@@ -173,7 +174,8 @@ private extension SettingsView {
 //                .pickerStyle(MenuPickerStyle())
 //            }
 
-            Toggle(isOn: $notificationsEnabled) {
+
+            Toggle(isOn: $pushNotificationManager.isEnabled) {
                 Label("Push Notifications", systemImage: "bell")
             }
 
