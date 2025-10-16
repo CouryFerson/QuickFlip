@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ItemDetailView: View {
-    let item: ScannedItem
+    @State private var item: ScannedItem
     let marketplaceAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
@@ -22,9 +22,10 @@ struct ItemDetailView: View {
     // New state for camera
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
+    @State private var imageRefreshID = UUID()
 
     init(item: ScannedItem, supabaseService: SupabaseService, marketplaceAction: @escaping () -> Void) {
-        self.item = item
+        self._item = State(initialValue: item)
         self.marketplaceAction = marketplaceAction
         _marketPriceService = StateObject(wrappedValue: eBayMarketPriceService(supabaseService: supabaseService))
     }
@@ -101,22 +102,21 @@ struct ItemDetailView: View {
     }
 
     private func handleNewImage(_ image: UIImage) {
-        // Update the item with the new image
+        // Update the item with the new image using ItemStorageService
         Task {
-            // Here you would typically:
-            // 1. Upload the image to your storage
-            // 2. Update the item's imageUrl
-            // 3. Save the updated item
+            // Call the update
+            await itemStorage.updateItemImage(for: item, newImage: image)
 
-            // For now, we'll just update the local item
-            // You'll need to implement the actual upload logic based on your storage service
+            // Wait a moment for the update to complete
+//            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
 
-            // Example:
-            // if let imageUrl = await itemStorage.uploadImage(image) {
-            //     var updatedItem = item
-            //     updatedItem.imageUrl = imageUrl
-            //     itemStorage.updateItem(updatedItem)
-            // }
+            // Force refresh by updating our local item
+            if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
+                await MainActor.run {
+                    self.item = updatedItem
+                    self.imageRefreshID = UUID() // Force image view refresh
+                }
+            }
         }
 
         // Reset the captured image
@@ -164,6 +164,7 @@ private extension ItemDetailView {
         ZStack {
             if let imageURL = item.imageUrl {
                 CachedImageView.detail(width: width, imageUrl: imageURL)
+                    .id(imageRefreshID) // Force refresh when ID changes
                     .clipped()
                     .scaleEffect(imageScale)
                     .animation(.easeInOut(duration: 0.3), value: imageScale)
@@ -218,9 +219,7 @@ private extension ItemDetailView {
             headerInfo
 
             // Description Section
-            if !item.description.isEmpty {
-                descriptionSection
-            }
+            descriptionSection
 
             if item.itemName != "Unknown Item" {
                 chartView
@@ -267,21 +266,23 @@ private extension ItemDetailView {
 
     @ViewBuilder
     var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Description")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                Spacer()
-            }
+        if !item.description.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Description")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
 
-            Text(item.description)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .lineSpacing(2)
+                Text(item.description)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .lineSpacing(2)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
     }
 
     @ViewBuilder
