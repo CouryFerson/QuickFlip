@@ -271,8 +271,15 @@ private extension SubscriptionManager {
             throw SubscriptionError.tierNotFound
         }
 
-        // Use your existing method to update tokens
-        try await supabaseService.updateTokenCount(tier.tokensPerPeriod)
+        guard let currentProfile = userProfile else {
+            throw SubscriptionError.userNotFound
+        }
+
+        // Add the new tier's full monthly allocation to their current balance
+        let newTokenCount = currentProfile.tokens + tier.tokensPerPeriod
+
+        // Update with the combined total
+        try await supabaseService.updateTokenCount(newTokenCount)
     }
 
     func getCurrentUserID() throws -> String {
