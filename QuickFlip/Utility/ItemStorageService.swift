@@ -91,6 +91,37 @@ class ItemStorageService: ObservableObject {
         }
     }
 
+    func updateItemImage(for item: ScannedItem, newImage: UIImage) async {
+        do {
+            // Update the image via SupabaseService
+            try await supabaseService.updateScannedItem(item, newImage: newImage)
+
+            // Fetch the updated item to get the new image URL
+            let updatedItems = try await supabaseService.fetchUserScannedItems()
+
+            // Find and update the item in our local array
+            if let updatedItem = updatedItems.first(where: { $0.id == item.id }) {
+                if let index = scannedItems.firstIndex(where: { $0.id == item.id }) {
+                    scannedItems[index] = updatedItem
+                }
+            }
+
+            ImageCacheManager.shared.invalidateImage(for: item.imageUrl ?? "")
+
+            print("QuickFlip: Updated image for item '\(item.itemName)'")
+            clearError()
+        } catch {
+            setError("Failed to update image: \(error.localizedDescription)")
+            print("QuickFlip: Failed to update image: \(error)")
+        }
+    }
+
+    func updateItemImage(for item: ScannedItem, newImage: UIImage) {
+        Task {
+            await updateItemImage(for: item, newImage: newImage)
+        }
+    }
+
     // MARK: - Synchronous Methods (for existing SwiftUI compatibility)
 
     func saveItem(_ item: ScannedItem, image: UIImage?) {

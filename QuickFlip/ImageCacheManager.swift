@@ -112,6 +112,18 @@ class ImageCacheManager: ObservableObject {
         return UIImage(data: data)
     }
 
+    func invalidateImage(for path: String) {
+        let cacheKey = NSString(string: path)
+
+        // Remove from memory cache
+        cache.removeObject(forKey: cacheKey)
+
+        // Remove from disk cache
+        let fileName = generateFileName(from: path)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        try? fileManager.removeItem(at: fileURL)
+    }
+
     // MARK: - Private Methods
 
     private func downloadAndCacheImage(imagePath: String) async -> UIImage? {
