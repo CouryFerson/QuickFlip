@@ -3,6 +3,7 @@ import SwiftUI
 struct HistoryView: View {
     let itemSelectionAction: (ScannedItem) -> Void
     let scanFirstItemAction: () -> Void
+    let analyticsAction: () -> Void  // NEW: Analytics callback
     @EnvironmentObject var itemStorage: ItemStorageService
 
     // Search and filter
@@ -12,7 +13,6 @@ struct HistoryView: View {
     @State private var showingSortMenu = false
 
     // Sheets and alerts
-    @State private var showingAnalytics = false
     @State private var showingExportSheet = false
 
     // Bulk delete
@@ -131,12 +131,6 @@ struct HistoryView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isEditMode)
-        .sheet(isPresented: $showingAnalytics) {
-            NavigationView {
-                AnalyticsView()
-                    .environmentObject(itemStorage)
-            }
-        }
         .sheet(isPresented: $showingExportSheet) {
             ExportDataView()
                 .environmentObject(itemStorage)
@@ -164,22 +158,55 @@ struct HistoryView: View {
 private extension HistoryView {
     @ViewBuilder
     var statsHeaderSection: some View {
-        VStack(spacing: 16) {
-            // Top row
+        VStack(spacing: 12) {
+            // Single row with 3 cards
             HStack(spacing: 12) {
                 revenueStatCard
                 profitStatCard
+                activeListingsStatCard
             }
 
-            // Bottom row
-            HStack(spacing: 12) {
-                activeListingsStatCard
-                potentialValueStatCard
-            }
+            // Analytics quick action card
+            analyticsQuickActionCard
         }
         .padding()
-        .background(Color(UIColor.systemBackground))
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    @ViewBuilder
+    var analyticsQuickActionCard: some View {
+        Button(action: analyticsAction) {
+            HStack(spacing: 12) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                    .frame(width: 40)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("View Analytics")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text("See insights for your habits")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.gray.opacity(0.5))
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(UIColor.systemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     @ViewBuilder
@@ -210,31 +237,21 @@ private extension HistoryView {
         StatCard(
             title: "Active",
             value: "\(itemStorage.listedItems.count)",
-            subtitle: "Listed now",
+            subtitle: "Listed",
             icon: "tag.fill",
             color: .blue
         )
     }
 
     @ViewBuilder
-    var potentialValueStatCard: some View {
-        StatCard(
-            title: "Potential",
-            value: itemStorage.totalPotentialProfit,
-            subtitle: "If sold",
-            icon: "sparkles",
-            color: .orange
-        )
-    }
-
-    @ViewBuilder
     var searchAndFilterSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             searchBar
             filterTabs
         }
         .padding(.horizontal)
-        .padding(.vertical, 16)
+        .padding(.top, 0)
+        .padding(.bottom, 8)
         .background(Color(UIColor.systemGroupedBackground))
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
@@ -285,7 +302,7 @@ private extension HistoryView {
             }
         } label: {
             Text(filter.rawValue)
-                .font(.subheadline)
+                .font(.caption)
                 .fontWeight(selectedFilter == filter ? .semibold : .medium)
                 .foregroundColor(selectedFilter == filter ? .white : .primary)
                 .padding(.horizontal, 16)
@@ -400,13 +417,6 @@ private extension HistoryView {
                     }
                 } else {
                     HStack(spacing: 16) {
-                        // Analytics button
-                        Button {
-                            showingAnalytics = true
-                        } label: {
-                            Image(systemName: "chart.bar.fill")
-                        }
-
                         // Sort button
                         Button {
                             showingSortMenu = true
@@ -480,9 +490,11 @@ struct StatCard: View {
             }
 
             Text(value)
-                .font(.title2)
+                .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -497,9 +509,11 @@ struct StatCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 110)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(UIColor.secondarySystemBackground))
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
         )
     }
 }

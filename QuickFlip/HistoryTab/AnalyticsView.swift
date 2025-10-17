@@ -27,13 +27,6 @@ struct AnalyticsView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Analytics")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
     }
 }
 // MARK: - View Components

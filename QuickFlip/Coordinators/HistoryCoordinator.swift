@@ -10,6 +10,7 @@ import SwiftUI
 enum HistoryFlow: Hashable {
     case itemDetail(ScannedItem)
     case marketplaceSelection(ScannedItem)
+    case analytics
 
     var id: Int {
         switch self {
@@ -17,6 +18,8 @@ enum HistoryFlow: Hashable {
             return 0
         case .marketplaceSelection:
             return 1
+        case .analytics:
+            return 2
         }
     }
 
@@ -40,6 +43,8 @@ public struct HistoryCoordinator: View {
                 router.push(.itemDetail(scannedItem))
             } scanFirstItemAction: {
                 appRouter.navigateToCapture()
+            } analyticsAction: {
+                router.push(.analytics)
             }
             .navigationDestination(for: HistoryFlow.self) { path in
                 viewForPath(path)
@@ -64,6 +69,8 @@ public struct HistoryCoordinator: View {
             } else {
                 Text("Something went wrong. Try again")
             }
+        case .analytics:
+            AnalyticsView()
         }
     }
 }
