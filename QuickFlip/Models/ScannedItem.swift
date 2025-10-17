@@ -16,6 +16,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
     let userCostBasis: Double?
     let userNotes: String?
     let profitBreakdowns: [StorableProfitBreakdown]?
+    var listingStatus: ListingStatus
 
     // MARK: - Database CodingKeys (maps Swift names to database columns)
     enum CodingKeys: String, CodingKey {
@@ -31,6 +32,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         case userCostBasis = "user_cost_basis"
         case userNotes = "user_notes"
         case profitBreakdowns = "profit_breakdowns"
+        case listingStatus = "listing_status"
     }
 
     // MARK: - Standard Initializer (for creating new items)
@@ -44,7 +46,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         priceAnalysis: MarketplacePriceAnalysis,
         userCostBasis: Double? = nil,
         userNotes: String? = nil,
-        profitBreakdowns: [ProfitBreakdown]? = nil
+        profitBreakdowns: [ProfitBreakdown]? = nil,
+        listingStatus: ListingStatus? = nil
     ) {
         self.id = UUID()
         self.itemName = itemName
@@ -53,11 +56,12 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.description = description
         self.estimatedValue = estimatedValue
         self.timestamp = Date()
-        self.imageUrl = imageUrl // Store the URL directly
+        self.imageUrl = imageUrl
         self.priceAnalysis = StorableMarketplacePriceAnalysis(from: priceAnalysis)
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns?.map { StorableProfitBreakdown(from: $0) }
+        self.listingStatus = listingStatus ?? ListingStatus() // Default to readyToList
     }
 
     // MARK: - Database Initializer (for Supabase loading)
@@ -73,7 +77,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         priceAnalysis: StorableMarketplacePriceAnalysis,
         userCostBasis: Double?,
         userNotes: String?,
-        profitBreakdowns: [StorableProfitBreakdown]?
+        profitBreakdowns: [StorableProfitBreakdown]?,
+        listingStatus: ListingStatus?
     ) {
         self.id = id
         self.itemName = itemName
@@ -87,8 +92,9 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns
+        self.listingStatus = listingStatus ?? ListingStatus() 
     }
-    
+
     var formattedTimestamp: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -108,7 +114,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
 struct StorableMarketplacePriceAnalysis: Codable, Equatable {
     let recommendedMarketplace: String
     let confidence: String
-    let averagePrices: [String: Double] // [marketplace name: price]
+    let averagePrices: [String: Double]
     let reasoning: String
 
     init(from analysis: MarketplacePriceAnalysis) {
