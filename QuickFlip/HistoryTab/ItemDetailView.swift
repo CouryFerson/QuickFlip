@@ -1,10 +1,3 @@
-//
-//  ItemDetailView.swift
-//  QuickFlip
-//
-//  Created by Ferson, Coury on 8/21/25.
-//
-
 import SwiftUI
 
 struct ItemDetailView: View {
@@ -13,15 +6,21 @@ struct ItemDetailView: View {
     @EnvironmentObject var itemStorage: ItemStorageService
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var marketPriceService: eBayMarketPriceService
-    @State private var showingActionSheet = false
+
+    // Action sheets and modals
+    @State private var showingStatusActionSheet = false
+    @State private var showingMarkAsListedSheet = false
+    @State private var showingMarkAsSoldSheet = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
-    @State private var imageScale: CGFloat = 1.0
-    @State private var marketData: MarketPriceData?
 
-    // New state for camera
+    // Camera
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
+
+    // UI state
+    @State private var imageScale: CGFloat = 1.0
+    @State private var marketData: MarketPriceData?
     @State private var imageRefreshID = UUID()
 
     init(item: ScannedItem, supabaseService: SupabaseService, marketplaceAction: @escaping () -> Void) {
@@ -46,29 +45,25 @@ struct ItemDetailView: View {
             }
             .ignoresSafeArea(.container, edges: .top)
             .navigationBarHidden(true)
-            .confirmationDialog("Update Status", isPresented: $showingActionSheet, titleVisibility: .visible) {
-                Button("Mark as Listed") {
-                    // Handle mark as listed
-                }
-                Button("Mark as Sold") {
-                    // Handle mark as sold
-                }
-                Button("Cancel", role: .cancel) { }
+            .confirmationDialog("Update Status", isPresented: $showingStatusActionSheet, titleVisibility: .visible) {
+                statusActionSheetButtons
             }
             .alert("Delete Item", isPresented: $showingDeleteAlert) {
-                Button("Delete", role: .destructive) {
-                    itemStorage.deleteItem(item)
-                    presentationMode.wrappedValue.dismiss()
-                }
-                Button("Cancel", role: .cancel) { }
+                deleteAlertButtons
             } message: {
                 Text("Are you sure you want to delete this item? This action cannot be undone.")
             }
             .sheet(isPresented: $showingShareSheet) {
-                if let imageURL = item.imageUrl {
-                    CachedImageView.listItem(imageUrl: imageURL)
-                } else {
-                    ShareSheet(items: [item.itemName])
+                shareSheet
+            }
+            .sheet(isPresented: $showingMarkAsListedSheet) {
+                MarkAsListedSheet(item: item) { marketplaces in
+                    handleMarkAsListed(marketplaces: marketplaces)
+                }
+            }
+            .sheet(isPresented: $showingMarkAsSoldSheet) {
+                MarkAsSoldSheet(item: item) { price, marketplace, costBasis in
+                    handleMarkAsSold(price: price, marketplace: marketplace, costBasis: costBasis)
                 }
             }
             .fullScreenCover(isPresented: $showingCamera) {
@@ -86,40 +81,48 @@ struct ItemDetailView: View {
         }
     }
 
-    private func getStatusIcon() -> String {
-        // You can extend this based on item status
-        return "circle.fill"
+    // MARK: - Status Update Handlers
+
+    private func handleMarkAsListed(marketplaces: [Marketplace]) {
+        Task {
+            await itemStorage.markItemAsListed(item: item, on: marketplaces)
+            // Update local item state
+            if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
+                self.item = updatedItem
+            }
+        }
     }
 
-    private func getStatusText() -> String {
-        // You can extend this based on item status
-        return "Update Status"
+    private func handleMarkAsSold(price: Double, marketplace: Marketplace, costBasis: Double?) {
+        Task {
+            await itemStorage.markItemAsSold(item: item, price: price, marketplace: marketplace, costBasis: costBasis)
+            // Update local item state
+            if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
+                self.item = updatedItem
+            }
+        }
     }
 
-    private func getStatusColor() -> Color {
-        // You can extend this based on item status
-        return .green
+    private func handleMarkAsReadyToList() {
+        Task {
+            await itemStorage.markItemAsReadyToList(item: item)
+            // Update local item state
+            if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
+                self.item = updatedItem
+            }
+        }
     }
 
     private func handleNewImage(_ image: UIImage) {
-        // Update the item with the new image using ItemStorageService
         Task {
-            // Call the update
             await itemStorage.updateItemImage(for: item, newImage: image)
-
-            // Wait a moment for the update to complete
-//            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-            // Force refresh by updating our local item
             if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
                 await MainActor.run {
                     self.item = updatedItem
-                    self.imageRefreshID = UUID() // Force image view refresh
+                    self.imageRefreshID = UUID()
                 }
             }
         }
-
-        // Reset the captured image
         capturedImage = nil
     }
 }
@@ -129,34 +132,34 @@ private extension ItemDetailView {
     @ViewBuilder
     var customNavigationOverlay: some View {
         HStack {
-            // Back button
-            Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(.regularMaterial)
-                    )
-            }
-
+            backButton
             Spacer()
-
-            // Camera button
-            Button(action: { showingCamera = true }) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(.regularMaterial)
-                    )
-            }
+            cameraButton
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60) // Adjust for status bar
+        .padding(.top, 60)
+    }
+
+    @ViewBuilder
+    var backButton: some View {
+        Button(action: { presentationMode.wrappedValue.dismiss() }) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.primary)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(.regularMaterial))
+        }
+    }
+
+    @ViewBuilder
+    var cameraButton: some View {
+        Button(action: { showingCamera = true }) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.primary)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(.regularMaterial))
+        }
     }
 
     @ViewBuilder
@@ -164,15 +167,13 @@ private extension ItemDetailView {
         ZStack {
             if let imageURL = item.imageUrl {
                 CachedImageView.detail(width: width, imageUrl: imageURL)
-                    .id(imageRefreshID) // Force refresh when ID changes
+                    .id(imageRefreshID)
                     .clipped()
                     .scaleEffect(imageScale)
                     .animation(.easeInOut(duration: 0.3), value: imageScale)
             } else {
                 noImagePlaceholder
             }
-
-            // Gradient overlay for better text readability
             imageGradientOverlay
         }
         .onTapGesture {
@@ -215,18 +216,13 @@ private extension ItemDetailView {
     @ViewBuilder
     var contentSection: some View {
         VStack(spacing: 0) {
-            // Header Info
             headerInfo
-
-            // Description Section
             descriptionSection
 
             if item.itemName != "Unknown Item" {
-                chartView
-                    .padding(.horizontal, 8)
+                chartView.padding(.horizontal, 8)
             }
 
-            // Quick Actions Section
             quickActionsSection
         }
         .background(Color(UIColor.systemBackground))
@@ -245,19 +241,23 @@ private extension ItemDetailView {
                         .multilineTextAlignment(.leading)
 
                     HStack(spacing: 12) {
-                        if let categoryName = item.categoryName,
-                               !categoryName.isEmpty {
+                        if let categoryName = item.categoryName, !categoryName.isEmpty {
                             CategoryBadge(category: categoryName)
                         }
-
                         if !item.condition.isEmpty {
                             ConditionBadge(condition: item.condition)
                         }
-
+                        // Status Badge
+                        ListingStatusBadge(status: item.listingStatus.status)
                         Spacer()
                     }
                 }
                 Spacer()
+            }
+
+            // Show sold details if applicable
+            if item.listingStatus.status == .sold {
+                soldDetailsCard
             }
         }
         .padding(.horizontal, 24)
@@ -265,16 +265,59 @@ private extension ItemDetailView {
     }
 
     @ViewBuilder
+    var soldDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Sold Details")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+
+            if let soldPrice = item.listingStatus.formattedSoldPrice {
+                HStack {
+                    Text("Sale Price:")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(soldPrice)
+                        .fontWeight(.semibold)
+                }
+            }
+
+            if let marketplace = item.listingStatus.getSoldMarketplaceAsEnum() {
+                HStack {
+                    Text("Marketplace:")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(marketplace.rawValue)
+                        .fontWeight(.medium)
+                }
+            }
+
+            if let profit = item.listingStatus.formattedNetProfit {
+                HStack {
+                    Text("Net Profit:")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(profit)
+                        .fontWeight(.semibold)
+                        .foregroundColor(item.listingStatus.profitColor)
+                }
+            }
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
     var descriptionSection: some View {
         if !item.description.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Description")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-
+                Text("Description")
+                    .font(.headline)
+                    .foregroundColor(.primary)
                 Text(item.description)
                     .font(.body)
                     .foregroundColor(.secondary)
@@ -294,11 +337,38 @@ private extension ItemDetailView {
                     .foregroundColor(.primary)
                 Spacer()
             }
+            updateStatusButton
             deleteButton
             marketplaceButton
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    var updateStatusButton: some View {
+        Button(action: { showingStatusActionSheet = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: item.listingStatus.status.iconName)
+                    .font(.system(size: 18, weight: .semibold))
+                Text("Update Status")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 24)
+            .background(
+                LinearGradient(
+                    colors: [item.listingStatus.status.displayColor, item.listingStatus.status.displayColor.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: item.listingStatus.status.displayColor.opacity(0.3), radius: 10, x: 0, y: 5)
+        }
     }
 
     @ViewBuilder
@@ -361,9 +431,56 @@ private extension ItemDetailView {
             MarketPriceChartView(marketData: marketData)
         }
     }
+
+    // MARK: - Action Sheet and Alert Content
+
+    @ViewBuilder
+    var statusActionSheetButtons: some View {
+        Group {
+            if item.listingStatus.status != .listed {
+                Button("Mark as Listed") {
+                    showingMarkAsListedSheet = true
+                }
+            }
+
+            if item.listingStatus.status != .sold {
+                Button("Mark as Sold") {
+                    showingMarkAsSoldSheet = true
+                }
+            }
+
+            if item.listingStatus.status != .readyToList {
+                Button("Mark as Ready to List") {
+                    handleMarkAsReadyToList()
+                }
+            }
+
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+
+    @ViewBuilder
+    var deleteAlertButtons: some View {
+        Group {
+            Button("Delete", role: .destructive) {
+                itemStorage.deleteItem(item)
+                presentationMode.wrappedValue.dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+
+    @ViewBuilder
+    var shareSheet: some View {
+        if let imageURL = item.imageUrl {
+            CachedImageView.listItem(imageUrl: imageURL)
+        } else {
+            ShareSheet(items: [item.itemName])
+        }
+    }
 }
 
-// MARK: - Camera View
+// MARK: - Camera View (unchanged)
 struct ItemDetailCameraView: UIViewControllerRepresentable {
     @Binding var capturedImage: UIImage?
     @Environment(\.presentationMode) var presentationMode

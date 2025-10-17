@@ -252,7 +252,7 @@ extension ItemStorageService {
         return String(format: "$%.0f", userStats.totalPotentialSavings)
     }
 
-    var totalProfit: String {
+    var totalPotentialProfit: String {
         return String(format: "$%.0f", userStats.totalPotentialProfit)
     }
 
@@ -262,5 +262,113 @@ extension ItemStorageService {
 
     var hasError: Bool {
         return errorMessage != nil
+    }
+}
+
+// MARK: - Listing Status Update Methods
+// Add these methods to your ItemStorageService class
+
+extension ItemStorageService {
+
+    /// Updates the listing status for a specific item
+    func updateListingStatus(for item: ScannedItem, newStatus: ListingStatus) async {
+        guard let index = scannedItems.firstIndex(where: { $0.id == item.id }) else {
+            setError("Item not found")
+            return
+        }
+
+        let oldItem = scannedItems[index]
+        var updatedItem = oldItem
+        updatedItem.listingStatus = newStatus
+
+        // Optimistically update UI
+        scannedItems[index] = updatedItem
+
+        do {
+            try await supabaseService.updateScannedItem(updatedItem)
+            print("QuickFlip: Updated listing status for '\(updatedItem.itemName)' to \(newStatus.status.rawValue)")
+            clearError()
+        } catch {
+            // Revert optimistic update on failure
+            scannedItems[index] = oldItem
+            setError("Failed to update listing status: \(error.localizedDescription)")
+            print("QuickFlip: Failed to update listing status: \(error)")
+        }
+    }
+
+    /// Synchronous wrapper for SwiftUI compatibility
+    func updateListingStatus(for item: ScannedItem, newStatus: ListingStatus) {
+        Task {
+            await updateListingStatus(for: item, newStatus: newStatus)
+        }
+    }
+
+    /// Mark item as listed on specific marketplaces
+    func markItemAsListed(item: ScannedItem, on marketplaces: [Marketplace]) async {
+        var newStatus = item.listingStatus
+        newStatus.markAsListed(on: marketplaces)
+        await updateListingStatus(for: item, newStatus: newStatus)
+    }
+
+    /// Mark item as sold
+    func markItemAsSold(
+        item: ScannedItem,
+        price: Double,
+        marketplace: Marketplace,
+        costBasis: Double? = nil
+    ) async {
+        var newStatus = item.listingStatus
+        newStatus.markAsSold(price: price, marketplace: marketplace, costBasis: costBasis)
+        await updateListingStatus(for: item, newStatus: newStatus)
+    }
+
+    /// Mark item as ready to list (reset status)
+    func markItemAsReadyToList(item: ScannedItem) async {
+        var newStatus = item.listingStatus
+        newStatus.markAsReadyToList()
+        await updateListingStatus(for: item, newStatus: newStatus)
+    }
+
+    // MARK: - Query Methods for Listing Status
+
+    /// Get all items with a specific status
+    func getItems(withStatus status: ItemStatus) -> [ScannedItem] {
+        return scannedItems.filter { $0.listingStatus.status == status }
+    }
+
+    /// Get all listed items
+    var listedItems: [ScannedItem] {
+        return getItems(withStatus: .listed)
+    }
+
+    /// Get all sold items
+    var soldItems: [ScannedItem] {
+        return getItems(withStatus: .sold)
+    }
+
+    /// Get all items ready to list
+    var readyToListItems: [ScannedItem] {
+        return getItems(withStatus: .readyToList)
+    }
+
+    /// Calculate total revenue from sold items
+    var totalRevenue: Double {
+        return soldItems.compactMap { $0.listingStatus.soldPrice }.reduce(0, +)
+    }
+
+    /// Calculate total profit from sold items (if cost basis is provided)
+    var totalProfit: Double {
+        return soldItems.compactMap { $0.listingStatus.netProfit }.reduce(0, +)
+    }
+
+    /// Get formatted total revenue
+    var formattedTotalRevenue: String {
+        return String(format: "$%.2f", totalRevenue)
+    }
+
+    /// Get formatted total profit
+    var formattedTotalProfit: String {
+        let sign = totalProfit >= 0 ? "+" : ""
+        return "\(sign)$\(String(format: "%.2f", totalProfit))"
     }
 }

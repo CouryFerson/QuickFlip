@@ -161,7 +161,7 @@ struct HistoryView: View {
 
                 EnhancedStatCard(
                     title: "Potential Profit",
-                    value: itemStorage.totalProfit,
+                    value: itemStorage.totalPotentialProfit,
                     subtitle: "Smart choices",
                     icon: "dollarsign.circle.fill",
                     color: .green
@@ -526,13 +526,32 @@ struct ConditionBadge: View {
 
     var body: some View {
         Text(condition)
-            .font(.caption2)
+            .font(.caption)
             .fontWeight(.medium)
             .foregroundColor(conditionColor)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(conditionColor.opacity(0.1))
             .cornerRadius(4)
+    }
+}
+
+/// Displays the current listing status badge
+struct ListingStatusBadge: View {
+    let status: ItemStatus
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: status.iconName)
+            Text(status.rawValue)
+        }
+        .font(.caption)
+        .fontWeight(.medium)
+        .foregroundColor(status.displayColor)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(status.displayColor.opacity(0.15))
+        .cornerRadius(4)
     }
 }
 

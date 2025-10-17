@@ -131,7 +131,7 @@ struct EnhancedHomeView: View {
 
                 RealStatsCard(
                     title: "Potential Profit",
-                    value: itemStorage.totalProfit,
+                    value: itemStorage.totalPotentialProfit,
                     subtitle: "Smart choices",
                     icon: "dollarsign.circle.fill",
                     color: .green,

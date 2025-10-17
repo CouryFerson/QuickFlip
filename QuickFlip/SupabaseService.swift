@@ -341,7 +341,8 @@ class SupabaseService: ObservableObject {
             priceAnalysis: item.priceAnalysis,
             userCostBasis: item.userCostBasis,
             userNotes: item.userNotes,
-            profitBreakdowns: item.profitBreakdowns
+            profitBreakdowns: item.profitBreakdowns,
+            listingStatus: item.listingStatus
         )
 
         struct ScannedItemForDB: Codable {
@@ -464,7 +465,8 @@ class SupabaseService: ObservableObject {
                 priceAnalysis: item.priceAnalysis,
                 userCostBasis: item.userCostBasis,
                 userNotes: item.userNotes,
-                profitBreakdowns: item.profitBreakdowns
+                profitBreakdowns: item.profitBreakdowns,
+                listingStatus: item.listingStatus
             )
         }
 
