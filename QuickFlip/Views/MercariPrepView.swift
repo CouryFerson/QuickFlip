@@ -164,26 +164,26 @@ private extension MercariPrepView {
 
             // Quick stats
             HStack(spacing: 16) {
-                StatCard(
-                    icon: "eye.fill",
-                    title: "Views",
-                    value: "High Interest",
-                    color: mercariOrange
-                )
-
-                StatCard(
-                    icon: "heart.fill",
-                    title: "Likes",
-                    value: "Expected",
-                    color: mercariRed
-                )
-
-                StatCard(
-                    icon: "clock.fill",
-                    title: "Sell Time",
-                    value: "2-7 Days",
-                    color: mercariGreen
-                )
+//                StatCard(
+//                    icon: "eye.fill",
+//                    title: "Views",
+//                    value: "High Interest",
+//                    color: mercariOrange
+//                )
+//
+//                StatCard(
+//                    icon: "heart.fill",
+//                    title: "Likes",
+//                    value: "Expected",
+//                    color: mercariRed
+//                )
+//
+//                StatCard(
+//                    icon: "clock.fill",
+//                    title: "Sell Time",
+//                    value: "2-7 Days",
+//                    color: mercariGreen
+//                )
             }
         }
         .padding(20)
@@ -458,33 +458,6 @@ private extension MercariPrepView {
 }
 
 // MARK: - Supporting Views
-
-struct StatCard: View {
-    let icon: String
-    let title: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(color)
-
-            Text(title)
-                .font(.system(size: 10))
-                .foregroundColor(.gray)
-
-            Text(value)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.2))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(8)
-    }
-}
 
 struct MercariTipView: View {
     let icon: String

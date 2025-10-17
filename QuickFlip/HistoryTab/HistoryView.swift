@@ -1,129 +1,128 @@
-//
-//  Enhanced HistoryView with iOS Native Design + Bulk Delete
-//  QuickFlip
-//
-
 import SwiftUI
 
 struct HistoryView: View {
     let itemSelectionAction: (ScannedItem) -> Void
     let scanFirstItemAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
-    @State private var searchText = ""
-    @State private var selectedSegment = 0
-    @State private var showingExportSheet = false
-    @State private var showingDetailView = false
-    @State private var showingDetailItem: ScannedItem?
 
-    // Bulk delete states
+    // Search and filter
+    @State private var searchText = ""
+    @State private var selectedFilter: FilterOption = .all
+    @State private var sortOption: SortOption = .newestFirst
+    @State private var showingSortMenu = false
+
+    // Sheets and alerts
+    @State private var showingAnalytics = false
+    @State private var showingExportSheet = false
+
+    // Bulk delete
     @State private var isEditMode = false
     @State private var selectedItems = Set<UUID>()
     @State private var showingBulkDeleteAlert = false
 
-    // Segmented control options
-    private let segments = ["All", "Recent", "Profitable", "eBay", "StockX"]
+    enum FilterOption: String, CaseIterable {
+        case all = "All"
+        case readyToList = "Ready"
+        case listed = "Listed"
+        case sold = "Sold"
+    }
 
-    var filteredItems: [ScannedItem] {
+    enum SortOption: String, CaseIterable {
+        case newestFirst = "Newest First"
+        case oldestFirst = "Oldest First"
+        case highestValue = "Highest Value"
+        case highestProfit = "Highest Profit"
+    }
+
+    var filteredAndSortedItems: [ScannedItem] {
         let searchResults = searchText.isEmpty ? itemStorage.scannedItems : itemStorage.searchItems(query: searchText)
 
-        switch selectedSegment {
-        case 0: // All
-            return searchResults
-        case 1: // Recent
-            return Array(searchResults.prefix(10))
-        case 2: // Profitable
-            return searchResults.filter { item in
-                item.profitBreakdowns?.first?.netProfit ?? 0 > 0
+        // Filter by status
+        let filtered: [ScannedItem]
+        switch selectedFilter {
+        case .all:
+            filtered = searchResults
+        case .readyToList:
+            filtered = searchResults.filter { $0.listingStatus.status == .readyToList }
+        case .listed:
+            filtered = searchResults.filter { $0.listingStatus.status == .listed }
+        case .sold:
+            filtered = searchResults.filter { $0.listingStatus.status == .sold }
+        }
+
+        // Sort
+        return filtered.sorted { item1, item2 in
+            switch sortOption {
+            case .newestFirst:
+                return item1.timestamp > item2.timestamp
+            case .oldestFirst:
+                return item1.timestamp < item2.timestamp
+            case .highestValue:
+                let price1 = item1.priceAnalysis.averagePrices.values.max() ?? 0
+                let price2 = item2.priceAnalysis.averagePrices.values.max() ?? 0
+                return price1 > price2
+            case .highestProfit:
+                let profit1 = item1.listingStatus.netProfit ?? 0
+                let profit2 = item2.listingStatus.netProfit ?? 0
+                return profit1 > profit2
             }
-        case 3: // eBay
-            return searchResults.filter { $0.priceAnalysis.recommendedMarketplace == "eBay" }
-        case 4: // StockX
-            return searchResults.filter { $0.priceAnalysis.recommendedMarketplace == "StockX" }
-        default:
-            return searchResults
         }
     }
 
     var allItemsSelected: Bool {
-        !filteredItems.isEmpty && selectedItems.count == filteredItems.count
+        !filteredAndSortedItems.isEmpty && selectedItems.count == filteredAndSortedItems.count
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if itemStorage.isEmpty {
-                    EmptyHistoryView {
-                        scanFirstItemAction()
-                    }
-                } else {
-                    // Stats Header (keeping your design)
+        Group {
+            if itemStorage.isEmpty {
+                emptyStateView
+            } else {
+                List {
                     if !isEditMode {
-                        statsHeaderView
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-
-                    // Search and Filter Section
-                    if !isEditMode {
-                        VStack(spacing: 16) {
-                            // Search Bar
-                            searchBarView
-
-                            // Segmented Control
-                            segmentedControlView
+                        Section {
+                            VStack(spacing: 0) {
+                                statsHeaderSection
+                                searchAndFilterSection
+                            }
                         }
-                        .padding()
-                        .background(Color(.systemGroupedBackground))
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
 
-                    // Items List
-                    itemsListView
-                }
-            }
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarLeading) {
-                    if isEditMode {
-                        Button(allItemsSelected ? "Deselect All" : "Select All") {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                if allItemsSelected {
-                                    selectedItems.removeAll()
+                    Section {
+                        ForEach(filteredAndSortedItems) { item in
+                            ModernHistoryItemCard(
+                                item: item,
+                                isEditMode: isEditMode,
+                                isSelected: selectedItems.contains(item.id)
+                            )
+                            .environmentObject(itemStorage)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isEditMode {
+                                    toggleSelection(for: item)
                                 } else {
-                                    selectedItems = Set(filteredItems.map { $0.id })
+                                    itemSelectionAction(item)
                                 }
                             }
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
+                        .onDelete(perform: isEditMode ? nil : deleteItems)
                     }
                 }
-
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    if !itemStorage.isEmpty {
-                        if isEditMode {
-                            Button("Done") {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isEditMode = false
-                                    selectedItems.removeAll()
-                                }
-                            }
-                        } else {
-                            HStack {
-                                Button("Edit") {
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        isEditMode = true
-                                    }
-                                }
-
-                                Button {
-                                    showingExportSheet = true
-                                } label: {
-                                    Image(systemName: "square.and.arrow.up")
-                                }
-                            }
-                        }
-                    }
-                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Color(UIColor.systemGroupedBackground))
             }
+        }
+        .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            toolbarContent
         }
         .safeAreaInset(edge: .bottom) {
             if isEditMode && !selectedItems.isEmpty {
@@ -132,9 +131,23 @@ struct HistoryView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isEditMode)
+        .sheet(isPresented: $showingAnalytics) {
+            NavigationView {
+                AnalyticsView()
+                    .environmentObject(itemStorage)
+            }
+        }
         .sheet(isPresented: $showingExportSheet) {
             ExportDataView()
                 .environmentObject(itemStorage)
+        }
+        .confirmationDialog("Sort By", isPresented: $showingSortMenu) {
+            ForEach(SortOption.allCases, id: \.self) { option in
+                Button(option.rawValue) {
+                    sortOption = option
+                }
+            }
+            Button("Cancel", role: .cancel) { }
         }
         .alert("Delete Items", isPresented: $showingBulkDeleteAlert) {
             Button("Delete \(selectedItems.count) Item\(selectedItems.count == 1 ? "" : "s")", role: .destructive) {
@@ -145,42 +158,89 @@ struct HistoryView: View {
             Text("Are you sure you want to delete \(selectedItems.count) item\(selectedItems.count == 1 ? "" : "s")? This action cannot be undone.")
         }
     }
+}
 
-    // MARK: - View Components
-
-    private var statsHeaderView: some View {
+// MARK: - View Components
+private extension HistoryView {
+    @ViewBuilder
+    var statsHeaderSection: some View {
         VStack(spacing: 16) {
+            // Top row
             HStack(spacing: 12) {
-                EnhancedStatCard(
-                    title: "Total Scanned",
-                    value: "\(itemStorage.totalItemCount)",
-                    subtitle: "All time",
-                    icon: "camera.fill",
-                    color: .blue
-                )
+                revenueStatCard
+                profitStatCard
+            }
 
-                EnhancedStatCard(
-                    title: "Potential Profit",
-                    value: itemStorage.totalPotentialProfit,
-                    subtitle: "Smart choices",
-                    icon: "dollarsign.circle.fill",
-                    color: .green
-                )
-
-                EnhancedStatCard(
-                    title: "Top Platform",
-                    value: itemStorage.topMarketplace,
-                    subtitle: "Most used",
-                    icon: "crown.fill",
-                    color: .orange
-                )
+            // Bottom row
+            HStack(spacing: 12) {
+                activeListingsStatCard
+                potentialValueStatCard
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(UIColor.systemBackground))
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    private var searchBarView: some View {
+    @ViewBuilder
+    var revenueStatCard: some View {
+        StatCard(
+            title: "Revenue",
+            value: itemStorage.formattedTotalRevenue,
+            subtitle: "\(itemStorage.soldItems.count) sold",
+            icon: "dollarsign.circle.fill",
+            color: .green
+        )
+    }
+
+    @ViewBuilder
+    var profitStatCard: some View {
+        let profit = itemStorage.totalProfit
+        StatCard(
+            title: "Profit",
+            value: itemStorage.formattedTotalProfit,
+            subtitle: profit >= 0 ? "Net gain" : "Net loss",
+            icon: "chart.line.uptrend.xyaxis",
+            color: profit >= 0 ? .green : .red
+        )
+    }
+
+    @ViewBuilder
+    var activeListingsStatCard: some View {
+        StatCard(
+            title: "Active",
+            value: "\(itemStorage.listedItems.count)",
+            subtitle: "Listed now",
+            icon: "tag.fill",
+            color: .blue
+        )
+    }
+
+    @ViewBuilder
+    var potentialValueStatCard: some View {
+        StatCard(
+            title: "Potential",
+            value: itemStorage.totalPotentialProfit,
+            subtitle: "If sold",
+            icon: "sparkles",
+            color: .orange
+        )
+    }
+
+    @ViewBuilder
+    var searchAndFilterSection: some View {
+        VStack(spacing: 16) {
+            searchBar
+            filterTabs
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 16)
+        .background(Color(UIColor.systemGroupedBackground))
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    @ViewBuilder
+    var searchBar: some View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
@@ -203,56 +263,58 @@ struct HistoryView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         )
     }
 
-    private var segmentedControlView: some View {
-        Picker("Filter", selection: $selectedSegment) {
-            ForEach(0..<segments.count, id: \.self) { index in
-                Text(segments[index])
-                    .tag(index)
+    @ViewBuilder
+    var filterTabs: some View {
+        HStack(spacing: 8) {
+            ForEach(FilterOption.allCases, id: \.self) { filter in
+                filterTab(for: filter)
             }
         }
-        .pickerStyle(SegmentedPickerStyle())
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
     }
 
-    private var itemsListView: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(filteredItems) { item in
-                EnhancedHistoryItemCard(
-                    item: item,
-                    isEditMode: isEditMode,
-                    isSelected: selectedItems.contains(item.id),
-                    onTap: {
-                        if isEditMode {
-                            toggleSelection(for: item)
-                        } else {
-                            itemSelectionAction(item)
-                        }
-                    },
-                    onToggleSelection: {
-                        toggleSelection(for: item)
-                    }
+    @ViewBuilder
+    func filterTab(for filter: FilterOption) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedFilter = filter
+            }
+        } label: {
+            Text(filter.rawValue)
+                .font(.subheadline)
+                .fontWeight(selectedFilter == filter ? .semibold : .medium)
+                .foregroundColor(selectedFilter == filter ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(selectedFilter == filter ? Color.blue : Color(UIColor.systemBackground))
                 )
-                .environmentObject(itemStorage)
-            }
         }
-        .padding()
-        .padding(.bottom, 20)
-        .background(Color(.systemGroupedBackground))
+        .buttonStyle(PlainButtonStyle())
     }
 
-    private var bulkActionToolbar: some View {
+    // MARK: - Helper Methods
+
+    func deleteItems(at offsets: IndexSet) {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            let itemsToDelete = offsets.map { filteredAndSortedItems[$0] }
+            for item in itemsToDelete {
+                itemStorage.deleteItem(item)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var bulkActionToolbar: some View {
         VStack(spacing: 0) {
             Divider()
-
             HStack {
                 Spacer()
-
                 Button {
                     showingBulkDeleteAlert = true
                 } label: {
@@ -264,17 +326,121 @@ struct HistoryView: View {
                     .font(.system(size: 17, weight: .medium))
                 }
                 .disabled(selectedItems.isEmpty)
-
                 Spacer()
             }
             .padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .background(Color(UIColor.systemBackground))
+        }
+    }
+
+    @ViewBuilder
+    var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "tray.fill")
+                .font(.system(size: 70))
+                .foregroundColor(.gray.opacity(0.5))
+
+            VStack(spacing: 12) {
+                Text("No Items Yet")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Start scanning items to track your\ninventory and sales")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            Button {
+                scanFirstItemAction()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "camera.fill")
+                    Text("Scan Your First Item")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(Color.blue)
+                .clipShape(Capsule())
+            }
+            .padding(.bottom, 50)
+        }
+    }
+
+    @ToolbarContentBuilder
+    var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarLeading) {
+            if isEditMode {
+                Button(allItemsSelected ? "Deselect All" : "Select All") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if allItemsSelected {
+                            selectedItems.removeAll()
+                        } else {
+                            selectedItems = Set(filteredAndSortedItems.map { $0.id })
+                        }
+                    }
+                }
+            }
+        }
+
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if !itemStorage.isEmpty {
+                if isEditMode {
+                    Button("Done") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isEditMode = false
+                            selectedItems.removeAll()
+                        }
+                    }
+                } else {
+                    HStack(spacing: 16) {
+                        // Analytics button
+                        Button {
+                            showingAnalytics = true
+                        } label: {
+                            Image(systemName: "chart.bar.fill")
+                        }
+
+                        // Sort button
+                        Button {
+                            showingSortMenu = true
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+
+                        // More menu
+                        Menu {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isEditMode = true
+                                }
+                            } label: {
+                                Label("Select Items", systemImage: "checkmark.circle")
+                            }
+
+                            Button {
+                                showingExportSheet = true
+                            } label: {
+                                Label("Export Data", systemImage: "square.and.arrow.up")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
+                }
+            }
         }
     }
 
     // MARK: - Helper Methods
 
-    private func toggleSelection(for item: ScannedItem) {
+    func toggleSelection(for item: ScannedItem) {
         withAnimation(.easeInOut(duration: 0.2)) {
             if selectedItems.contains(item.id) {
                 selectedItems.remove(item.id)
@@ -284,23 +450,20 @@ struct HistoryView: View {
         }
     }
 
-    private func performBulkDelete() {
+    func performBulkDelete() {
         withAnimation(.easeInOut(duration: 0.3)) {
             let itemsToDelete = itemStorage.scannedItems.filter { selectedItems.contains($0.id) }
-
             for item in itemsToDelete {
                 itemStorage.deleteItem(item)
             }
-
             selectedItems.removeAll()
             isEditMode = false
         }
     }
 }
 
-// MARK: - Enhanced Stat Card (following your HomeView style)
-
-struct EnhancedStatCard: View {
+// MARK: - Stat Card Component
+struct StatCard: View {
     let title: String
     let value: String
     let subtitle: String
@@ -308,374 +471,35 @@ struct EnhancedStatCard: View {
     let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(color)
                     .font(.title3)
+                    .foregroundColor(color)
                 Spacer()
             }
 
             Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.primary)
-
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundColor(.gray)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 1)
-        )
-    }
-}
-
-// MARK: - Enhanced History Item Card (iOS Native Style with Selection)
-
-struct EnhancedHistoryItemCard: View {
-    let item: ScannedItem
-    let isEditMode: Bool
-    let isSelected: Bool
-    let onTap: () -> Void
-    let onToggleSelection: () -> Void
-
-    @EnvironmentObject var itemStorage: ItemStorageService
-    @State private var showingActionSheet = false
-    @State private var showingDeleteAlert = false
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                // Selection Circle (like iOS Mail)
-                if isEditMode {
-                    Button(action: onToggleSelection) {
-                        ZStack {
-                            Circle()
-                                .stroke(isSelected ? Color.blue : Color.gray, lineWidth: 2)
-                                .frame(width: 24, height: 24)
-
-                            if isSelected {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 24, height: 24)
-
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 12, weight: .bold))
-                            }
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .transition(.scale.combined(with: .opacity))
-                }
-
-                // Item Image
-                itemImageView
-
-                // Item Details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.itemName)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-
-                    HStack(spacing: 8) {
-                        if !item.category.shortForm.isEmpty {
-                            CategoryBadge(category: item.category.shortForm)
-                        }
-
-                        if !item.condition.shortForm.isEmpty {
-                            ConditionBadge(condition: item.condition.shortForm)
-                        }
-                    }
-                }
-
-                Spacer()
-
-                // Price, Marketplace and Actions
-                VStack(alignment: .trailing, spacing: 6) {
-                    HStack(spacing: 10) {
-                        if let bestPrice = item.priceAnalysis.averagePrices.values.max() {
-                            Text("$\(String(format: "%.0f", bestPrice))")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.green)
-                        }
-
-                        Image(systemName: "chevron.compact.forward")
-                            .resizable()
-                            .frame(width: 7, height: 15)
-                            .foregroundColor(.gray.opacity(0.6))
-                    }
-                    MarketplaceBadge(marketplace: item.priceAnalysis.recommendedMarketplace)
-                }
-            }
-            .padding()
-        }
-        .buttonStyle(PlainButtonStyle())
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isSelected && isEditMode ? Color.blue.opacity(0.1) : Color(.systemBackground))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(isSelected && isEditMode ? Color.blue : Color.clear, lineWidth: 2)
-                )
-                .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
-        )
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-        .animation(.easeInOut(duration: 0.3), value: isEditMode)
-        .confirmationDialog("Item Actions", isPresented: $showingActionSheet, titleVisibility: .visible) {
-            Button("Re-analyze Prices") {
-                // TODO: Re-run price analysis
-            }
-
-            Button("Share Item") {
-                shareItem()
-            }
-
-            Button("Delete Item", role: .destructive) {
-                showingDeleteAlert = true
-            }
-
-            Button("Cancel", role: .cancel) { }
-        }
-        .alert("Delete Item", isPresented: $showingDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    itemStorage.deleteItem(item)
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to delete '\(item.itemName)' from your history?")
-        }
-    }
-
-    private var itemImageView: some View {
-        CachedImageView.listItem(imageUrl: item.imageUrl)
-            .cornerRadius(12)
-    }
-
-    private func shareItem() {
-        let bestPrice = item.priceAnalysis.averagePrices.values.max() ?? 0
-        let shareText = """
-        Check out this item I analyzed with QuickFlip:
-        
-        📱 \(item.itemName)
-        💰 Best price: $\(String(format: "%.2f", bestPrice))
-        🏪 Recommended marketplace: \(item.priceAnalysis.recommendedMarketplace)
-        📅 Analyzed: \(item.formattedTimestamp)
-        """
-
-        let activityVC = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
-
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootVC = window.rootViewController {
-            rootVC.present(activityVC, animated: true)
-        }
-    }
-}
-
-// MARK: - Supporting Badge Components
-
-struct CategoryBadge: View {
-    let category: String
-
-    var body: some View {
-        Text(category)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .foregroundColor(.blue)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(4)
-    }
-}
-
-struct ConditionBadge: View {
-    let condition: String
-
-    var conditionColor: Color {
-        switch condition.lowercased() {
-        case "new", "mint":
-            return .green
-        case "excellent", "very good", "like new":
-            return .blue
-        case "good":
-            return .orange
-        case "fair", "poor", "used":
-            return .red
-        default:
-            return .gray
-        }
-    }
-
-    var body: some View {
-        Text(condition)
-            .font(.caption)
-            .fontWeight(.medium)
-            .foregroundColor(conditionColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(conditionColor.opacity(0.1))
-            .cornerRadius(4)
-    }
-}
-
-/// Displays the current listing status badge
-struct ListingStatusBadge: View {
-    let status: ItemStatus
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: status.iconName)
-            Text(status.rawValue)
-        }
-        .font(.caption)
-        .fontWeight(.medium)
-        .foregroundColor(status.displayColor)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(status.displayColor.opacity(0.15))
-        .cornerRadius(4)
-    }
-}
-
-// MARK: - String Extensions for Shortening
-
-extension String {
-    var shortForm: String {
-        // For categories - make them single words
-        let categoryMappings: [String: String] = [
-            "Electronics": "Tech",
-            "Clothing": "Clothes",
-            "Collectibles": "Collect",
-            "Home & Garden": "Home",
-            "Sports & Outdoors": "Sports",
-            "Health & Beauty": "Beauty",
-            "Toys & Games": "Toys",
-            "Books & Media": "Books",
-            "Automotive": "Auto",
-            "Musical Instruments": "Music"
-        ]
-
-        // For conditions - standardize to 5 simple states
-        let conditionMappings: [String: String] = [
-            "Brand New": "New",
-            "Like New": "Like New",
-            "Very Good": "Good",
-            "Excellent": "Good",
-            "Fair": "Used",
-            "Poor": "Poor"
-        ]
-
-        // Try category mapping first
-        if let shortCategory = categoryMappings[self] {
-            return shortCategory
-        }
-
-        // Try condition mapping
-        if let shortCondition = conditionMappings[self] {
-            return shortCondition
-        }
-
-        // If no mapping found, return original but truncated if too long
-        return self.count > 8 ? String(self.prefix(8)) : self
-    }
-}
-
-struct MarketplaceBadge: View {
-    let marketplace: String
-
-    var marketplaceColor: Color {
-        switch marketplace.lowercased() {
-        case "ebay":
-            return .blue
-        case "stockx":
-            return .green
-        case "mercari":
-            return .orange
-        case "etsy":
-            return .purple
-        default:
-            return .gray
-        }
-    }
-
-    var body: some View {
-        Text(marketplace)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .foregroundColor(marketplaceColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(marketplaceColor.opacity(0.1))
-            .cornerRadius(4)
-    }
-}
-// MARK: - Empty State (keeping your original design)
-
-struct EmptyHistoryView: View {
-    let scanFirstItemAction: () -> Void
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            Image(systemName: "clock.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-
-            Text("No Scanned Items Yet")
                 .font(.title2)
                 .fontWeight(.bold)
+                .foregroundColor(.primary)
 
-            Text("Start scanning items to see your history and track price changes over time")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
 
-            Spacer()
-
-            VStack(spacing: 12) {
-                Text("Ready to start?")
-                    .font(.headline)
-
-                Button("Scan Your First Item") {
-                    scanFirstItemAction()
-                }
-                .buttonStyle(PrimaryButtonStyle())
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
-            .padding(.bottom, 50)
         }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(UIColor.secondarySystemBackground))
+        )
     }
 }
-
-// MARK: - Button Style (keeping your original style)
-
-struct PrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-    }
-}
-
