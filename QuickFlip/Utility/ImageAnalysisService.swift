@@ -51,4 +51,13 @@ class ImageAnalysisService: ObservableObject {
         let request = PriceResearchRequest(itemName: itemName, category: category)
         return try await requester.makeRequest(request)
     }
+
+    /// Generates advanced AI analysis using live eBay data as an anchor
+    /// Generates advanced AI analysis using live eBay data as an anchor
+    func generateAdvancedAnalysis(for itemName: String, category: String, ebayData: MarketPriceData, isFirstGeneration: Bool) async throws -> MarketplacePriceAnalysis {
+        let requester = AdvancedAnalysisRequester(tokenManager: authManager, edgeFunctionCaller: supabaseService, isFirstGeneration: isFirstGeneration)
+        let request = AdvancedAnalysisRequest( itemName: itemName, category: category, ebayData: ebayData, isFirstGeneration: isFirstGeneration)
+
+        return try await requester.makeRequest(request)
+    }
 }

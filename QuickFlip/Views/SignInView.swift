@@ -31,7 +31,7 @@ struct AppleSignInView: View {
 
             // App title and description
             VStack(spacing: 12) {
-                Text("Welcome to QuickFlip")
+                Text("Welcome to QuikFlip")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)

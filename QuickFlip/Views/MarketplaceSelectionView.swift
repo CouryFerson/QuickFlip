@@ -12,10 +12,14 @@ struct MarketplaceSelectionView: View {
     // Services
     @StateObject private var ebayMarketPriceService: eBayMarketPriceService
 
-    // Market Intelligence State
+    // Market Intelligence State (for existing unlock system)
     @State private var marketIntelligenceUnlocked = false
     @State private var isUnlockingIntelligence = false
     @State private var priceAnalysisResult: MarketplacePriceAnalysis?
+
+    // Advanced AI State (new premium feature)
+    @State private var advancedAIAnalysis: MarketplacePriceAnalysis?
+    @State private var isGeneratingAdvancedAI = false
 
     // Market Data State
     @State private var ebayMarketData: MarketPriceData?
@@ -27,13 +31,14 @@ struct MarketplaceSelectionView: View {
     @State private var isLoadingStockX = false
     @State private var isLoadingEtsy = false
 
-    // Error tracking - to know if we should show retry
+    // Error tracking
     @State private var ebayLoadFailed = false
     @State private var stockxLoadFailed = false
     @State private var etsyLoadFailed = false
 
     // Alerts
     @State private var showingTokenAlert = false
+    @State private var showingSubscriptionView = false
     @State private var showPricingDisclaimer = false
 
     init(scannedItem: ScannedItem, capturedImage: UIImage, supabaseService: SupabaseService) {
@@ -47,7 +52,12 @@ struct MarketplaceSelectionView: View {
             LazyVStack(spacing: 0) {
                 itemPreviewSection
 
-                marketIntelligenceSection
+                // Show appropriate intelligence section based on subscription
+                if subscriptionManager.hasStarterOrProAccess {
+                    premiumIntelligenceSection
+                } else {
+                    freeUserIntelligenceSection
+                }
 
                 marketplaceGridSection
             }
@@ -60,9 +70,24 @@ struct MarketplaceSelectionView: View {
         .sheet(isPresented: $showPricingDisclaimer) {
             PricingDisclaimerView()
         }
+        .sheet(isPresented: $showingSubscriptionView) {
+            SubscriptionView()
+                .environmentObject(subscriptionManager)
+        }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Choose Marketplace")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadInitialData()
+        }
+        .onChange(of: subscriptionManager.hasStarterOrProAccess) { oldValue, newValue in
+
+            // If user just upgraded to premium and charts aren't loaded yet
+            if newValue && !marketIntelligenceUnlocked {
+                marketIntelligenceUnlocked = true
+                loadMarketDataForPremiumUsers()
+            }
+        }
     }
 }
 
@@ -81,29 +106,71 @@ private extension MarketplaceSelectionView {
     }
 
     @ViewBuilder
-    var marketIntelligenceSection: some View {
-        MarketIntelligenceSection(
-            scannedItem: scannedItem,
-            capturedImage: capturedImage,
-            supabaseService: supabaseService,
-            isUnlocked: $marketIntelligenceUnlocked,
-            isUnlocking: $isUnlockingIntelligence,
-            priceAnalysisResult: $priceAnalysisResult,
-            ebayMarketData: $ebayMarketData,
-            stockxMarketData: $stockxMarketData,
-            etsyMarketData: $etsyMarketData,
-            isLoadingEbay: isLoadingEbay,
-            isLoadingStockX: isLoadingStockX,
-            isLoadingEtsy: isLoadingEtsy,
-            ebayLoadFailed: ebayLoadFailed,
-            stockxLoadFailed: stockxLoadFailed,
-            etsyLoadFailed: etsyLoadFailed,
-            onUnlock: unlockMarketIntelligence,
-            onRetryEbay: fetchEbayData,
-            onRetryStockX: fetchStockXData,
-            onRetryEtsy: fetchEtsyData,
-            onShowPricingDisclaimer: { showPricingDisclaimer = true }
-        )
+    var premiumIntelligenceSection: some View {
+        VStack(spacing: 16) {
+            // New Advanced AI Button
+            advancedAIButton
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+            if let analysis = advancedAIAnalysis {
+                advancedAIInsightsCard(analysis: analysis)
+                    .padding(.horizontal, 16)
+            }
+
+            // Original Market Intelligence Section (auto-unlocked for premium)
+            MarketIntelligenceSection(
+                scannedItem: scannedItem,
+                capturedImage: capturedImage,
+                supabaseService: supabaseService,
+                isUnlocked: .constant(true), // ← Auto-unlocked for premium
+                isUnlocking: $isUnlockingIntelligence,
+                priceAnalysisResult: $priceAnalysisResult,
+                ebayMarketData: $ebayMarketData,
+                stockxMarketData: $stockxMarketData,
+                etsyMarketData: $etsyMarketData,
+                isLoadingEbay: isLoadingEbay,
+                isLoadingStockX: isLoadingStockX,
+                isLoadingEtsy: isLoadingEtsy,
+                ebayLoadFailed: ebayLoadFailed,
+                stockxLoadFailed: stockxLoadFailed,
+                etsyLoadFailed: etsyLoadFailed,
+                onUnlock: { }, // ← No-op since auto-unlocked
+                onRetryEbay: fetchEbayData,
+                onRetryStockX: fetchStockXData,
+                onRetryEtsy: fetchEtsyData,
+                onShowPricingDisclaimer: { showPricingDisclaimer = true }
+            )
+        }
+    }
+
+    @ViewBuilder
+    var freeUserIntelligenceSection: some View {
+        VStack(spacing: 0) {
+            // Show the locked charts preview (the teaser)
+            MarketIntelligenceSection(
+                scannedItem: scannedItem,
+                capturedImage: capturedImage,
+                supabaseService: supabaseService,
+                isUnlocked: .constant(false), // ← Always locked for free users
+                isUnlocking: .constant(false),
+                priceAnalysisResult: .constant(nil),
+                ebayMarketData: .constant(nil),
+                stockxMarketData: .constant(nil),
+                etsyMarketData: .constant(nil),
+                isLoadingEbay: false,
+                isLoadingStockX: false,
+                isLoadingEtsy: false,
+                ebayLoadFailed: false,
+                stockxLoadFailed: false,
+                etsyLoadFailed: false,
+                onUnlock: { showingSubscriptionView = true }, // ← Show upgrade prompt
+                onRetryEbay: { },
+                onRetryStockX: { },
+                onRetryEtsy: { },
+                onShowPricingDisclaimer: { showPricingDisclaimer = true }
+            )
+        }
     }
 
     @ViewBuilder
@@ -154,6 +221,200 @@ private extension MarketplaceSelectionView {
     }
 }
 
+// MARK: - Advanced AI Components
+private extension MarketplaceSelectionView {
+
+    @ViewBuilder
+    var advancedAIButton: some View {
+        Button(action: handleAdvancedAITap) {
+            HStack(spacing: 12) {
+                Image(systemName: isGeneratingAdvancedAI ? "arrow.triangle.2.circlepath" : "sparkles")
+                    .font(.title3)
+                    .foregroundColor(.white)
+                    .rotationEffect(.degrees(isGeneratingAdvancedAI ? 360 : 0))
+                    .animation(isGeneratingAdvancedAI ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isGeneratingAdvancedAI)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(advancedAIButtonTitle)
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    Text(advancedAIButtonSubtitle)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                Button(action: { showPricingDisclaimer = true }) {
+                    Image(systemName: "info.circle")
+                        .font(.title3)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+            }
+            .padding(16)
+            .background(
+                LinearGradient(
+                    colors: [Color.purple, Color.blue],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+        .disabled(isGeneratingAdvancedAI || isLoadingEbay)
+    }
+
+    var advancedAIButtonTitle: String {
+        if scannedItem.hasAdvancedAIAnalysis {
+            return "Refresh AI Insights"
+        } else {
+            return "Get Advanced AI Insights"
+        }
+    }
+
+    var advancedAIButtonSubtitle: String {
+        if scannedItem.hasAdvancedAIAnalysis {
+            if let timestamp = scannedItem.formattedAIAnalysisTimestamp {
+                return "Generated \(timestamp) • 1 token to refresh"
+            }
+            return "1 token to refresh"
+        } else {
+            return "Free for this item • Powered by live eBay data"
+        }
+    }
+
+    @ViewBuilder
+    func advancedAIInsightsCard(analysis: MarketplacePriceAnalysis) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundColor(.blue)
+                Text("AI Market Insights")
+                    .font(.headline)
+
+                Spacer()
+
+                if let timestamp = scannedItem.formattedAIAnalysisTimestamp {
+                    Text(timestamp)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Text(analysis.reasoning)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            // Recommended marketplace badge
+            HStack {
+                Label(analysis.recommendedMarketplace.displayName, systemImage: "star.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.orange)
+
+                Spacer()
+
+                Text(analysis.confidence.displayText)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(confidenceColor(analysis.confidence).opacity(0.15))
+                    .foregroundColor(confidenceColor(analysis.confidence))
+                    .clipShape(Capsule())
+            }
+
+            // All marketplace prices sorted highest to lowest
+            if !analysis.averagePrices.isEmpty {
+                Divider()
+                    .padding(.vertical, 4)
+
+                VStack(spacing: 8) {
+                    Text("Price Comparison")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ForEach(sortedMarketplacePrices(from: analysis.averagePrices), id: \.0) { marketplace, price in
+                        HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: marketplace.systemImage)
+                                    .font(.caption)
+                                    .foregroundColor(marketplace.color)
+                                    .frame(width: 16)
+
+                                Text(marketplace.displayName)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
+                            }
+
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                Text("$\(Int(price))")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(marketplace == analysis.recommendedMarketplace ? .orange : .secondary)
+
+                                // Show star for recommended
+                                if marketplace == analysis.recommendedMarketplace {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    func unlockMarketIntelligence() {
+        // For premium users, charts are automatically unlocked
+        // No token charge, just load the data
+        isUnlockingIntelligence = true
+
+        // Set loading states for all marketplaces
+        isLoadingEbay = true
+        isLoadingStockX = true
+        isLoadingEtsy = true
+
+        Task {
+            // Fetch market data for each marketplace independently
+            await fetchEbayDataAsync()
+            await fetchStockXDataAsync()
+            await fetchEtsyDataAsync()
+
+            await MainActor.run {
+                self.marketIntelligenceUnlocked = true
+                self.isUnlockingIntelligence = false
+            }
+        }
+    }
+
+    // Helper function to sort prices highest to lowest
+    private func sortedMarketplacePrices(from prices: [Marketplace: Double]) -> [(Marketplace, Double)] {
+        return prices
+            .sorted { $0.value > $1.value } // Highest to lowest
+            .map { ($0.key, $0.value) }
+    }
+
+    func confidenceColor(_ confidence: AnalysisConfidence) -> Color {
+        switch confidence {
+        case .high: return .green
+        case .medium: return .orange
+        case .low: return .red
+        }
+    }
+}
+
 // MARK: - Grid Components
 private extension MarketplaceSelectionView {
 
@@ -169,6 +430,7 @@ private extension MarketplaceSelectionView {
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 16)
+                .multilineTextAlignment(.center)
 
             Rectangle()
                 .fill(Color(.systemGray4))
@@ -199,7 +461,6 @@ private extension MarketplaceSelectionView {
             destinationView(for: marketplace)
         } label: {
             VStack(spacing: 12) {
-                // Platform Icon
                 ZStack {
                     Circle()
                         .fill(marketplace.color.opacity(0.15))
@@ -211,7 +472,6 @@ private extension MarketplaceSelectionView {
                         .foregroundColor(marketplace.color)
                 }
 
-                // Platform Info
                 VStack(spacing: 4) {
                     Text(marketplace.displayName)
                         .font(.headline)
@@ -225,8 +485,7 @@ private extension MarketplaceSelectionView {
                         recommendedBadge
                     }
 
-                    // Real data badge for markets with live data
-                    if marketIntelligenceUnlocked && hasRealData(for: marketplace) {
+                    if subscriptionManager.hasStarterOrProAccess && hasRealData(for: marketplace) {
                         realDataBadge
                     }
                 }
@@ -240,10 +499,10 @@ private extension MarketplaceSelectionView {
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(
-                        marketIntelligenceUnlocked && hasRealData(for: marketplace)
+                        subscriptionManager.hasStarterOrProAccess && hasRealData(for: marketplace)
                             ? Color.blue.opacity(0.3)
                             : Color(.systemGray5),
-                        lineWidth: marketIntelligenceUnlocked && hasRealData(for: marketplace) ? 2 : 1
+                        lineWidth: subscriptionManager.hasStarterOrProAccess && hasRealData(for: marketplace) ? 2 : 1
                     )
             )
             .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
@@ -259,7 +518,7 @@ private extension MarketplaceSelectionView {
                 .fontWeight(.medium)
                 .foregroundColor(.green)
 
-            if marketIntelligenceUnlocked && hasRealData(for: marketplace) {
+            if subscriptionManager.hasStarterOrProAccess && hasRealData(for: marketplace) {
                 Text("Live Data")
                     .font(.caption2)
                     .foregroundColor(.blue)
@@ -325,66 +584,110 @@ private extension MarketplaceSelectionView {
 // MARK: - Business Logic
 private extension MarketplaceSelectionView {
 
-    func unlockMarketIntelligence() {
-        guard authManager.hasTokens() else {
-            showingTokenAlert = true
-            return
+    func loadInitialData() {
+
+        // Load cached advanced AI analysis if exists
+        if let cachedAnalysis = scannedItem.advancedAIAnalysis {
+            advancedAIAnalysis = cachedAnalysis.toMarketplacePriceAnalysis()
         }
 
-        isUnlockingIntelligence = true
+        // Auto-load charts for premium users
+        if subscriptionManager.hasStarterOrProAccess {
+            marketIntelligenceUnlocked = true
+            loadMarketDataForPremiumUsers()
+        }
+    }
 
-        // Set loading states for all marketplaces
+    func loadMarketDataForPremiumUsers() {
         isLoadingEbay = true
         isLoadingStockX = true
         isLoadingEtsy = true
 
         Task {
+            await fetchEbayDataAsync()
+            await fetchStockXDataAsync()
+            await fetchEtsyDataAsync()
+        }
+    }
+
+    func handleAdvancedAITap() {
+        let isFirstGeneration = !scannedItem.hasAdvancedAIAnalysis
+
+        // If it's a refresh, check for tokens
+        if !isFirstGeneration {
+            guard authManager.hasTokens() else {
+                showingTokenAlert = true
+                return
+            }
+        }
+
+        // Must have eBay data first
+        guard let ebayData = ebayMarketData, ebayData.hasData else {
+            // If eBay data not loaded yet, wait for it
+            if isLoadingEbay {
+                return
+            }
+            // Try to load eBay data first
+            fetchEbayData()
+            return
+        }
+
+        isGeneratingAdvancedAI = true
+
+        Task {
             do {
-                // Run AI analysis
-                let analysis = try await imageAnalysisService.researchPrices(
+                let analysis = try await imageAnalysisService.generateAdvancedAnalysis(
                     for: scannedItem.itemName,
-                    category: scannedItem.category
+                    category: scannedItem.category,
+                    ebayData: ebayData,
+                    isFirstGeneration: isFirstGeneration
                 )
 
                 await MainActor.run {
-                    self.priceAnalysisResult = analysis
-                }
+                    self.advancedAIAnalysis = analysis
+                    self.isGeneratingAdvancedAI = false
 
-                // Fetch market data for each marketplace independently
-                await fetchEbayDataAsync()
-                await fetchStockXDataAsync()
-                await fetchEtsyDataAsync()
-
-                await MainActor.run {
-                    self.marketIntelligenceUnlocked = true
-                    self.isUnlockingIntelligence = false
+                    // Save to database
+                    saveAdvancedAnalysisToItem(analysis)
                 }
 
             } catch {
-                print("QuickFlip: Market intelligence error: \(error)")
+                print("QuickFlip: Advanced AI generation error: \(error)")
                 await MainActor.run {
-                    self.isUnlockingIntelligence = false
-                    self.isLoadingEbay = false
-                    self.isLoadingStockX = false
-                    self.isLoadingEtsy = false
+                    self.isGeneratingAdvancedAI = false
                 }
             }
         }
     }
 
+    func saveAdvancedAnalysisToItem(_ analysis: MarketplacePriceAnalysis) {
+        var updatedItem = scannedItem
+        updatedItem.advancedAIAnalysis = StorableMarketplacePriceAnalysis(from: analysis)
+        updatedItem.aiAnalysisGeneratedAt = Date()
+
+        Task {
+            await itemStorage.updateItem(matching: { $0.id == scannedItem.id }, with: updatedItem)
+        }
+    }
+
     func fetchEbayDataAsync() async {
+        print("QuickFlip: Starting eBay data fetch for: \(scannedItem.itemName)")
         do {
             let data = try await fetchMarketData(for: .ebay)
+            print("QuickFlip: eBay data fetched successfully. Has data: \(data?.hasData ?? false)")
             await MainActor.run {
                 self.ebayMarketData = data
                 self.isLoadingEbay = false
+                self.ebayLoadFailed = (data == nil)
+                print("QuickFlip: eBay state updated - Loading: false, Failed: \(data == nil)")
             }
         } catch {
             print("QuickFlip: eBay data error: \(error)")
             await MainActor.run {
-                // Set to nil to trigger error state
                 self.ebayMarketData = nil
                 self.isLoadingEbay = false
+                self.ebayLoadFailed = true
+                print("QuickFlip: eBay state updated - Loading: false, Failed: true")
             }
         }
     }
@@ -395,12 +698,14 @@ private extension MarketplaceSelectionView {
             await MainActor.run {
                 self.stockxMarketData = data
                 self.isLoadingStockX = false
+                self.stockxLoadFailed = (data == nil)
             }
         } catch {
             print("QuickFlip: StockX data error: \(error)")
             await MainActor.run {
                 self.stockxMarketData = nil
                 self.isLoadingStockX = false
+                self.stockxLoadFailed = true
             }
         }
     }
@@ -411,12 +716,14 @@ private extension MarketplaceSelectionView {
             await MainActor.run {
                 self.etsyMarketData = data
                 self.isLoadingEtsy = false
+                self.etsyLoadFailed = (data == nil)
             }
         } catch {
             print("QuickFlip: Etsy data error: \(error)")
             await MainActor.run {
                 self.etsyMarketData = nil
                 self.isLoadingEtsy = false
+                self.etsyLoadFailed = true
             }
         }
     }
@@ -429,12 +736,8 @@ private extension MarketplaceSelectionView {
                 category: scannedItem.category
             )
         case .stockx:
-            // TODO: Add StockX service when credentials are available
-            // return try await stockxMarketPriceService.fetchMarketPrices(for: scannedItem.itemName)
             return nil
         case .etsy:
-            // TODO: Add Etsy service when credentials are available
-            // return try await etsyMarketPriceService.fetchMarketPrices(for: scannedItem.itemName)
             return nil
         default:
             return nil
@@ -479,12 +782,17 @@ private extension MarketplaceSelectionView {
     }
 
     func getRecommendedMarketplaces() -> [Marketplace] {
-        // If we have AI recommendation, use that
+        // If we have advanced AI recommendation, use that
+        if let analysis = advancedAIAnalysis {
+            return [analysis.recommendedMarketplace]
+        }
+
+        // If we have price analysis from the charts, use that
         if let priceAnalysis = priceAnalysisResult {
             return [priceAnalysis.recommendedMarketplace]
         }
 
-        // Otherwise, use the existing logic
+        // Otherwise use basic logic
         let itemName = scannedItem.itemName.lowercased()
         let category = scannedItem.category.lowercased()
 
@@ -515,8 +823,14 @@ private extension MarketplaceSelectionView {
     }
 
     func specificMarketplacePrice(for marketplace: Marketplace) -> String {
-        // If intelligence is unlocked and we have real data, use it
-        if marketIntelligenceUnlocked {
+        // If we have advanced AI analysis, use those prices
+        if let analysis = advancedAIAnalysis,
+           let price = analysis.averagePrices[marketplace] {
+            return "$\(Int(price))"
+        }
+
+        // If premium and we have real data, use it
+        if subscriptionManager.hasStarterOrProAccess {
             switch marketplace {
             case .ebay:
                 if let data = ebayMarketData, data.hasData {
@@ -534,7 +848,7 @@ private extension MarketplaceSelectionView {
                 break
             }
 
-            // If we have AI price analysis, use those prices
+            // Check price analysis result
             if let priceAnalysisResult,
                let marketplacePrice = priceAnalysisResult.averagePrices[marketplace] {
                 return "$\(Int(marketplacePrice))"

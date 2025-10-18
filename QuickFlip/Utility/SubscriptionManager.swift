@@ -173,6 +173,11 @@ class SubscriptionManager: ObservableObject {
         return currentTier.tierName != "pro"
     }
 
+    var hasStarterOrProAccess: Bool {
+        guard let currentTier = currentTier else { return false }
+        return currentTier.tierName == "starter" || currentTier.tierName == "pro"
+    }
+
     func shouldShowUpgrade(for product: Product) -> Bool {
         guard let currentTier = currentTier else { return true }
         let productTier = getTierName(from: product.id)

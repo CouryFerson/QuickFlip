@@ -199,8 +199,14 @@ private extension SwipeableMarketChartsView {
                 displayMode: .compact
             )
         } else {
-            // Initial state - haven't loaded yet, show waiting state
-            waitingToLoad(marketplace: marketplace)
+            // Initial state - for eBay and Stockx this should never happen for premium users
+            // For Etsy, show "Coming Soon"
+            if marketplace == .ebay || marketplace == .stockx {
+                // eBay should always attempt to load for premium users
+                MarketPriceLoadingView(displayMode: .compact)
+            } else {
+                waitingToLoad(marketplace: marketplace)
+            }
         }
     }
 

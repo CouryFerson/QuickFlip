@@ -17,6 +17,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
     let userNotes: String?
     let profitBreakdowns: [StorableProfitBreakdown]?
     var listingStatus: ListingStatus
+    var advancedAIAnalysis: StorableMarketplacePriceAnalysis?
+    var aiAnalysisGeneratedAt: Date?
 
     // MARK: - Database CodingKeys (maps Swift names to database columns)
     enum CodingKeys: String, CodingKey {
@@ -33,6 +35,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         case userNotes = "user_notes"
         case profitBreakdowns = "profit_breakdowns"
         case listingStatus = "listing_status"
+        case advancedAIAnalysis = "advanced_ai_analysis"
+        case aiAnalysisGeneratedAt = "ai_analysis_generated_at"
     }
 
     // MARK: - Standard Initializer (for creating new items)
@@ -47,7 +51,9 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         userCostBasis: Double? = nil,
         userNotes: String? = nil,
         profitBreakdowns: [ProfitBreakdown]? = nil,
-        listingStatus: ListingStatus? = nil
+        listingStatus: ListingStatus? = nil,
+        advancedAIAnalysis: MarketplacePriceAnalysis? = nil,
+        aiAnalysisGeneratedAt: Date? = nil
     ) {
         self.id = UUID()
         self.itemName = itemName
@@ -61,7 +67,9 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns?.map { StorableProfitBreakdown(from: $0) }
-        self.listingStatus = listingStatus ?? ListingStatus() // Default to readyToList
+        self.listingStatus = listingStatus ?? ListingStatus()
+        self.advancedAIAnalysis = advancedAIAnalysis.map { StorableMarketplacePriceAnalysis(from: $0) }
+        self.aiAnalysisGeneratedAt = aiAnalysisGeneratedAt
     }
 
     // MARK: - Database Initializer (for Supabase loading)
@@ -78,7 +86,9 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         userCostBasis: Double?,
         userNotes: String?,
         profitBreakdowns: [StorableProfitBreakdown]?,
-        listingStatus: ListingStatus?
+        listingStatus: ListingStatus?,
+        advancedAIAnalysis: StorableMarketplacePriceAnalysis?,
+        aiAnalysisGeneratedAt: Date?
     ) {
         self.id = id
         self.itemName = itemName
@@ -92,7 +102,9 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.userCostBasis = userCostBasis
         self.userNotes = userNotes
         self.profitBreakdowns = profitBreakdowns
-        self.listingStatus = listingStatus ?? ListingStatus() 
+        self.listingStatus = listingStatus ?? ListingStatus()
+        self.advancedAIAnalysis = advancedAIAnalysis
+        self.aiAnalysisGeneratedAt = aiAnalysisGeneratedAt
     }
 
     var formattedTimestamp: String {
@@ -107,6 +119,18 @@ struct ScannedItem: Codable, Identifiable, Equatable {
 
     var categoryName: String? {
         category.components(separatedBy: ">").last
+    }
+
+    // MARK: - Advanced AI Helpers
+    var hasAdvancedAIAnalysis: Bool {
+        return advancedAIAnalysis != nil
+    }
+
+    var formattedAIAnalysisTimestamp: String? {
+        guard let date = aiAnalysisGeneratedAt else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

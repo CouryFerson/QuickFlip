@@ -212,7 +212,7 @@ private extension MarketIntelligenceSection {
                 // Value propositions
                 VStack(spacing: 10) {
                     valuePropositionRow(icon: "sparkles", text: "AI marketplace recommendation", color: .orange)
-                    valuePropositionRow(icon: "chart.bar.fill", text: "Real-time data for eBay", color: .blue)
+                    valuePropositionRow(icon: "chart.bar.fill", text: "Real-time data for eBay and StockX", color: .blue)
                     valuePropositionRow(icon: "dollarsign.circle.fill", text: "Profit calculator access", color: .green)
                 }
 
@@ -226,7 +226,7 @@ private extension MarketIntelligenceSection {
                             .font(.headline)
                     }
 
-                    Text(isUnlocking ? "Unlocking..." : "Unlock for 1 Token")
+                    Text(isUnlocking ? "Unlocking..." : "Upgrade to View Market Data")
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -259,6 +259,7 @@ private extension MarketIntelligenceSection {
             Text(text)
                 .font(.subheadline)
                 .foregroundColor(.primary)
+                .lineLimit(1)
 
             Spacer()
 

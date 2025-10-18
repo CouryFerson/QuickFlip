@@ -337,12 +337,14 @@ class SupabaseService: ObservableObject {
             description: item.description,
             estimatedValue: item.estimatedValue,
             timestamp: item.timestamp,
-            imageUrl: imageUrl, // ← Now has the actual URL
+            imageUrl: imageUrl,
             priceAnalysis: item.priceAnalysis,
             userCostBasis: item.userCostBasis,
             userNotes: item.userNotes,
             profitBreakdowns: item.profitBreakdowns,
-            listingStatus: item.listingStatus
+            listingStatus: item.listingStatus,
+            advancedAIAnalysis: item.advancedAIAnalysis,
+            aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt
         )
 
         struct ScannedItemForDB: Codable {
@@ -354,11 +356,14 @@ class SupabaseService: ObservableObject {
             let description: String
             let estimatedValue: String
             let timestamp: Date
-            let imageUrl: String? // Updated to imageUrl
+            let imageUrl: String?
             let priceAnalysis: StorableMarketplacePriceAnalysis
             let userCostBasis: Double?
             let userNotes: String?
             let profitBreakdowns: [StorableProfitBreakdown]?
+            let listingStatus: ListingStatus
+            let advancedAIAnalysis: StorableMarketplacePriceAnalysis?
+            let aiAnalysisGeneratedAt: Date?
 
             enum CodingKeys: String, CodingKey {
                 case userProfileId = "user_profile_id"
@@ -369,11 +374,14 @@ class SupabaseService: ObservableObject {
                 case description
                 case estimatedValue = "estimated_value"
                 case timestamp
-                case imageUrl = "image_url" // Updated mapping
+                case imageUrl = "image_url"
                 case priceAnalysis = "price_analysis"
                 case userCostBasis = "user_cost_basis"
                 case userNotes = "user_notes"
                 case profitBreakdowns = "profit_breakdowns"
+                case listingStatus = "listing_status"
+                case advancedAIAnalysis = "advanced_ai_analysis"
+                case aiAnalysisGeneratedAt = "ai_analysis_generated_at"
             }
         }
 
@@ -391,7 +399,10 @@ class SupabaseService: ObservableObject {
             priceAnalysis: updatedItem.priceAnalysis,
             userCostBasis: updatedItem.userCostBasis,
             userNotes: updatedItem.userNotes,
-            profitBreakdowns: updatedItem.profitBreakdowns
+            profitBreakdowns: updatedItem.profitBreakdowns,
+            listingStatus: updatedItem.listingStatus,
+            advancedAIAnalysis: updatedItem.advancedAIAnalysis,
+            aiAnalysisGeneratedAt: updatedItem.aiAnalysisGeneratedAt
         )
 
         try await client
@@ -399,7 +410,7 @@ class SupabaseService: ObservableObject {
             .insert(itemForDB)
             .execute()
 
-        return updatedItem // ← Return the updated item
+        return updatedItem
     }
 
     func fetchUserScannedItems() async throws -> [ScannedItem] {
@@ -466,7 +477,9 @@ class SupabaseService: ObservableObject {
                 userCostBasis: item.userCostBasis,
                 userNotes: item.userNotes,
                 profitBreakdowns: item.profitBreakdowns,
-                listingStatus: item.listingStatus
+                listingStatus: item.listingStatus,
+                advancedAIAnalysis: item.advancedAIAnalysis,
+                aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt
             )
         }
 
