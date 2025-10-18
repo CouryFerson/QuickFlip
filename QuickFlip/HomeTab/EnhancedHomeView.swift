@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct EnhancedHomeView: View {
-    let marketAnalysisAction: (MarketTrends?, PersonalInsights?, Bool, Bool, @escaping () -> Void) -> Void
+    let marketAnalysisAction: (MarketTrends?, PersonalInsights?, Bool, Bool) -> Void
     let scanItemAction: () -> Void
     let viewAllScansAction: () -> Void
     let viewDealsActions: () -> Void
@@ -187,13 +187,7 @@ struct EnhancedHomeView: View {
                     marketAnalysisAction(marketIntelligence.dailyTrends,
                                          personalAnalytics.insights,
                                          marketIntelligence.isLoadingTrends,
-                                         personalAnalytics.isLoadingInsights,
-                                         {
-                        Task {
-                            await refreshAllData()
-                        }
-                    })
-
+                                         personalAnalytics.isLoadingInsights)
                 }
                 .font(.subheadline)
                 .foregroundColor(.blue)
@@ -1166,7 +1160,6 @@ struct FullMarketInsightsView: View {
     let personalInsights: PersonalInsights?
     let isLoadingTrends: Bool
     let isLoadingPersonal: Bool
-    let onRefresh: () -> Void
 
     @Environment(\.presentationMode) var presentationMode
 
@@ -1197,13 +1190,6 @@ struct FullMarketInsightsView: View {
         }
         .navigationTitle("Market Intelligence")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Refresh") {
-                    onRefresh()
-                }
-            }
-        }
     }
 
     private var aiLoadingSection: some View {

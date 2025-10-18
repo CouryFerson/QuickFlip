@@ -11,7 +11,7 @@ import SwiftUI
 
 /// This is used for analytics
 enum HomeFlow: Hashable {
-    case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool, () -> Void)
+    case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool)
     case viewDeals
 
     var id: Int {
@@ -38,8 +38,8 @@ public struct HomeCoordinatorView: View {
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
-            EnhancedHomeView { trends, insights, isTrendsLoading, isInsightsLoading, block in
-                router.push(.marketInsights(trends, insights, isTrendsLoading, isInsightsLoading, block))
+            EnhancedHomeView { trends, insights, isTrendsLoading, isInsightsLoading in
+                router.push(.marketInsights(trends, insights, isTrendsLoading, isInsightsLoading))
             } scanItemAction: {
                 appRouter.navigateToCapture()
             } viewAllScansAction: {
@@ -58,8 +58,8 @@ public struct HomeCoordinatorView: View {
     @ViewBuilder
     private func viewForPath(_ path: HomeFlow) -> some View {
         switch path {
-        case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal, let block):
-            FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal, onRefresh: block)
+        case .marketInsights(let trends, let insights, let isLoadingTrends, let isLoadingPersonal):
+            FullMarketInsightsView(trends: trends, personalInsights: insights, isLoadingTrends: isLoadingTrends, isLoadingPersonal: isLoadingPersonal)
         case .viewDeals:
             MarketplaceDealsWebView(
                 marketplaceURL: URL(string: "https://www.ebay.com/deals")!,
