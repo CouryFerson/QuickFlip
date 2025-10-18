@@ -4,6 +4,7 @@ import SwiftUI
 struct MarketIntelligenceSection: View {
     let scannedItem: ScannedItem
     let capturedImage: UIImage
+    let supabaseService: SupabaseService
 
     // State
     @Binding var isUnlocked: Bool
@@ -270,20 +271,19 @@ private extension MarketIntelligenceSection {
     @ViewBuilder
     var unlockedContent: some View {
         VStack(spacing: 16) {
-            // Swipeable charts
+            // Swipeable charts - NOW WITH STOCKX!
             SwipeableMarketChartsView(
+                scannedItem: scannedItem,
+                supabaseService: supabaseService, // Need to pass this from parent
                 ebayData: ebayMarketData,
                 stockxData: stockxMarketData,
                 etsyData: etsyMarketData,
                 isLoadingEbay: isLoadingEbay,
-                isLoadingStockX: isLoadingStockX,
                 isLoadingEtsy: isLoadingEtsy,
                 ebayLoadFailed: ebayLoadFailed,
-                stockxLoadFailed: stockxLoadFailed,
                 etsyLoadFailed: etsyLoadFailed,
                 recommendedMarketplace: priceAnalysisResult?.recommendedMarketplace ?? .ebay,
                 onRetryEbay: onRetryEbay,
-                onRetryStockX: onRetryStockX,
                 onRetryEtsy: onRetryEtsy
             )
 

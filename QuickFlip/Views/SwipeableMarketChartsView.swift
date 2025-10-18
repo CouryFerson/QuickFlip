@@ -2,18 +2,16 @@ import SwiftUI
 
 // MARK: - Swipeable Market Charts View
 struct SwipeableMarketChartsView: View {
+    let scannedItem: ScannedItem
+    let supabaseService: SupabaseService
     let ebayData: MarketPriceData?
-    let stockxData: MarketPriceData?
     let etsyData: MarketPriceData?
     let isLoadingEbay: Bool
-    let isLoadingStockX: Bool
     let isLoadingEtsy: Bool
     let ebayLoadFailed: Bool
-    let stockxLoadFailed: Bool
     let etsyLoadFailed: Bool
     let recommendedMarketplace: Marketplace
     let onRetryEbay: () -> Void
-    let onRetryStockX: () -> Void
     let onRetryEtsy: () -> Void
 
     @State private var selectedMarketplace: Marketplace
@@ -26,32 +24,36 @@ struct SwipeableMarketChartsView: View {
     }
 
     init(
+        scannedItem: ScannedItem,
+        supabaseService: SupabaseService,
         ebayData: MarketPriceData?,
-        stockxData: MarketPriceData?,
+        stockxData: MarketPriceData?, // Keep for compatibility
         etsyData: MarketPriceData?,
         isLoadingEbay: Bool = false,
-        isLoadingStockX: Bool = false,
+        isLoadingStockX: Bool = false, // Keep for compatibility
         isLoadingEtsy: Bool = false,
         ebayLoadFailed: Bool = false,
-        stockxLoadFailed: Bool = false,
+        stockxLoadFailed: Bool = false, // Keep for compatibility
         etsyLoadFailed: Bool = false,
         recommendedMarketplace: Marketplace = .ebay,
         onRetryEbay: @escaping () -> Void = {},
-        onRetryStockX: @escaping () -> Void = {},
+        onRetryStockX: @escaping () -> Void = {}, // Keep for compatibility
         onRetryEtsy: @escaping () -> Void = {}
     ) {
+        self.scannedItem = scannedItem
+        self.supabaseService = supabaseService
         self.ebayData = ebayData
-        self.stockxData = stockxData
+        // Note: stockxData is ignored since StockX uses search card
         self.etsyData = etsyData
         self.isLoadingEbay = isLoadingEbay
-        self.isLoadingStockX = isLoadingStockX
+        // Note: isLoadingStockX is ignored since StockX uses search card
         self.isLoadingEtsy = isLoadingEtsy
         self.ebayLoadFailed = ebayLoadFailed
-        self.stockxLoadFailed = stockxLoadFailed
+        // Note: stockxLoadFailed is ignored since StockX uses search card
         self.etsyLoadFailed = etsyLoadFailed
         self.recommendedMarketplace = recommendedMarketplace
         self.onRetryEbay = onRetryEbay
-        self.onRetryStockX = onRetryStockX
+        // Note: onRetryStockX is ignored since StockX uses search card
         self.onRetryEtsy = onRetryEtsy
 
         // Start on recommended marketplace
@@ -74,8 +76,7 @@ private extension SwipeableMarketChartsView {
 
     @ViewBuilder
     var chartCardsSection: some View {
-        // Only show eBay for now - StockX and Etsy coming in future update
-        VStack(spacing: 0) {
+        TabView(selection: $selectedMarketplace) {
             // eBay Card
             marketChartCard(
                 marketplace: .ebay,
@@ -84,8 +85,40 @@ private extension SwipeableMarketChartsView {
                 loadFailed: ebayLoadFailed,
                 onRetry: onRetryEbay
             )
+            .tag(Marketplace.ebay)
+
+            // StockX Search Card
+            stockXSearchCard
+                .tag(Marketplace.stockx)
+
+            // Etsy Card (placeholder for future)
+            marketChartCard(
+                marketplace: .etsy,
+                data: etsyData,
+                isLoading: isLoadingEtsy,
+                loadFailed: etsyLoadFailed,
+                onRetry: onRetryEtsy
+            )
+            .tag(Marketplace.etsy)
         }
-        .frame(height: 300)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 400)
+    }
+
+    @ViewBuilder
+    var stockXSearchCard: some View {
+        VStack(spacing: 0) {
+            // Recommended badge if applicable
+            if recommendedMarketplace == .stockx {
+                recommendedBadge
+            }
+
+            // StockX search card
+            StockXMarketSearchCard(
+                scannedItem: scannedItem,
+                supabaseService: supabaseService
+            )
+        }
     }
 
     @ViewBuilder
@@ -183,12 +216,12 @@ private extension SwipeableMarketChartsView {
                 .fontWeight(.medium)
                 .foregroundColor(.primary)
 
-            Text("Will load when unlocked")
+            Text("Coming soon")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 50)
+        .frame(height: 340)
         .background(Color(.systemBackground))
     }
 
@@ -209,15 +242,20 @@ private extension SwipeableMarketChartsView {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 50)
+        .frame(height: 340)
         .background(Color(.systemBackground))
     }
 
     @ViewBuilder
     var pageIndicator: some View {
-        // Hidden for now since we only show eBay
-        // Will return when StockX and Etsy are added
-        EmptyView()
+        HStack(spacing: 8) {
+            ForEach([Marketplace.ebay, .stockx, .etsy], id: \.self) { marketplace in
+                Circle()
+                    .fill(selectedMarketplace == marketplace ? marketplace.color : Color.gray.opacity(0.3))
+                    .frame(width: 8, height: 8)
+                    .animation(.easeInOut(duration: 0.2), value: selectedMarketplace)
+            }
+        }
     }
 
     @ViewBuilder
@@ -267,54 +305,4 @@ private extension SwipeableMarketChartsView {
             .cornerRadius(12)
         }
     }
-}
-
-// MARK: - Preview
-#Preview("With Data") {
-    ScrollView {
-        VStack(spacing: 20) {
-            Text("Swipeable Market Charts")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            SwipeableMarketChartsView(
-                ebayData: .mock,
-                stockxData: .mock,
-                etsyData: .mock,
-                recommendedMarketplace: .ebay
-            )
-        }
-        .padding(.vertical)
-    }
-    .background(Color(.systemGroupedBackground))
-}
-
-#Preview("Loading States") {
-    ScrollView {
-        SwipeableMarketChartsView(
-            ebayData: nil,
-            stockxData: nil,
-            etsyData: nil,
-            isLoadingEbay: true,
-            isLoadingStockX: true,
-            isLoadingEtsy: true,
-            recommendedMarketplace: .stockx
-        )
-    }
-    .background(Color(.systemGroupedBackground))
-}
-
-#Preview("Mixed States") {
-    ScrollView {
-        SwipeableMarketChartsView(
-            ebayData: .mock,
-            stockxData: nil,
-            etsyData: .mockNoData,
-            isLoadingEbay: false,
-            isLoadingStockX: true,
-            isLoadingEtsy: false,
-            recommendedMarketplace: .ebay
-        )
-    }
-    .background(Color(.systemGroupedBackground))
 }

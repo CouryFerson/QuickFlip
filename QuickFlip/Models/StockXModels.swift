@@ -63,7 +63,7 @@ struct StockXVariant: Codable, Identifiable {
     let productId: String
     let variantId: String
     let variantName: String
-    let variantValue: String
+    let variantValue: String?
     let sizeChart: VariantSizeChart?
     let gtins: [GTIN]?
     let isFlexEligible: Bool
@@ -73,7 +73,7 @@ struct StockXVariant: Codable, Identifiable {
 
     // Display properties
     var sizeDisplay: String {
-        sizeChart?.defaultConversion?.size ?? variantValue
+        sizeChart?.defaultConversion?.size ?? variantValue ?? "No size available"
     }
 
     var sizeType: String {

@@ -85,6 +85,7 @@ private extension MarketplaceSelectionView {
         MarketIntelligenceSection(
             scannedItem: scannedItem,
             capturedImage: capturedImage,
+            supabaseService: supabaseService,
             isUnlocked: $marketIntelligenceUnlocked,
             isUnlocking: $isUnlockingIntelligence,
             priceAnalysisResult: $priceAnalysisResult,
