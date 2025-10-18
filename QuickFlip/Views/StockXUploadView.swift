@@ -77,13 +77,6 @@ struct StockXUploadView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            }
-        }
         .onAppear {
             if authService.isAuthenticated {
                 currentStep = .search
