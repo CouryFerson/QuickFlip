@@ -4,6 +4,7 @@ import SwiftUI
 struct StockXMarketSearchCard: View {
     let scannedItem: ScannedItem
     let supabaseService: SupabaseService
+    let displayMode: ChartDisplayMode
 
     @StateObject private var productService: StockXProductService
     @StateObject private var authService: StockXAuthService
@@ -26,9 +27,10 @@ struct StockXMarketSearchCard: View {
     private let textSecondary = Color.secondary
     private let accentGreen = Color(red: 0.0, green: 0.8, blue: 0.4)
 
-    init(scannedItem: ScannedItem, supabaseService: SupabaseService) {
+    init(scannedItem: ScannedItem, supabaseService: SupabaseService, displayMode: ChartDisplayMode = .compact) {
         self.scannedItem = scannedItem
         self.supabaseService = supabaseService
+        self.displayMode = displayMode
 
         let auth = StockXAuthService(supabaseService: supabaseService)
         _authService = StateObject(wrappedValue: auth)
@@ -429,36 +431,41 @@ private extension StockXMarketSearchCard {
 
                 Spacer()
 
-                // Expand button
-                Button(action: {
-                    showingExpandedChart = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 12))
-                        Text("View Details")
-                            .font(.system(size: 14, weight: .medium))
+                // Only show expand button in compact mode
+                if displayMode == .compact {
+                    Button(action: {
+                        showingExpandedChart = true
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 12))
+                            Text("View Details")
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundColor(accentGreen)
                     }
-                    .foregroundColor(accentGreen)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
             .padding(.bottom, 12)
 
-            // Compact Chart - tappable
+            // Chart with proper display mode
             ScrollView {
                 StockXMarketChartView(
                     product: product,
                     variant: variant,
                     marketData: market,
-                    displayMode: .compact
+                    displayMode: displayMode
                 )
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    showingExpandedChart = true
+                    // Only allow tap to expand in compact mode
+                    if displayMode == .compact {
+                        showingExpandedChart = true
+                    }
                 }
             }
         }
