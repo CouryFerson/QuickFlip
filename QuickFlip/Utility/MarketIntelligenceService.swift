@@ -310,6 +310,43 @@ struct WeeklyInsights: Codable, Identifiable {
         case strategicRecommendation = "strategic_recommendation"
     }
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        createdAt = try? container.decode(Date.self, forKey: .createdAt)
+
+        // Decode dates in YYYY-MM-DD format
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let weekStartString = try container.decode(String.self, forKey: .weekStartDate)
+        let weekEndString = try container.decode(String.self, forKey: .weekEndDate)
+
+        guard let startDate = dateFormatter.date(from: weekStartString),
+              let endDate = dateFormatter.date(from: weekEndString) else {
+            throw DecodingError.dataCorruptedError(forKey: .weekStartDate,
+                                                   in: container,
+                                                   debugDescription: "Date string does not match format yyyy-MM-dd")
+        }
+
+        weekStartDate = startDate
+        weekEndDate = endDate
+
+        trendingHotCategories = try container.decode([TrendingCategory].self, forKey: .trendingHotCategories)
+        trendingCoolCategories = try container.decode([TrendingCategory].self, forKey: .trendingCoolCategories)
+        consistentPerformers = try container.decode([TrendingCategory].self, forKey: .consistentPerformers)
+        sentimentTrend = try container.decode(String.self, forKey: .sentimentTrend)
+        dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
+        sentimentBreakdown = try container.decode([String: Double].self, forKey: .sentimentBreakdown)
+        recommendedListingTimes = try container.decode([String].self, forKey: .recommendedListingTimes)
+        weekOverWeekSummary = try? container.decode(String.self, forKey: .weekOverWeekSummary)
+        topWeeklyInsight = try container.decode(String.self, forKey: .topWeeklyInsight)
+        strategicRecommendation = try container.decode(String.self, forKey: .strategicRecommendation)
+    }
+
     var marketSentiment: MarketSentiment {
         MarketSentiment.from(dominantSentiment)
     }
@@ -349,6 +386,44 @@ struct MonthlyInsights: Codable, Identifiable {
         case topMonthlyInsight = "top_monthly_insight"
         case nextMonthForecast = "next_month_forecast"
         case strategicOpportunities = "strategic_opportunities"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        createdAt = try? container.decode(Date.self, forKey: .createdAt)
+
+        // Decode dates in YYYY-MM-DD format
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let monthStartString = try container.decode(String.self, forKey: .monthStartDate)
+        let monthEndString = try container.decode(String.self, forKey: .monthEndDate)
+
+        guard let startDate = dateFormatter.date(from: monthStartString),
+              let endDate = dateFormatter.date(from: monthEndString) else {
+            throw DecodingError.dataCorruptedError(forKey: .monthStartDate,
+                                                   in: container,
+                                                   debugDescription: "Date string does not match format yyyy-MM-dd")
+        }
+
+        monthStartDate = startDate
+        monthEndDate = endDate
+
+        categoryChampions = try container.decode([TrendingCategory].self, forKey: .categoryChampions)
+        categoryDecliners = try container.decode([TrendingCategory].self, forKey: .categoryDecliners)
+        emergingTrends = try container.decode([TrendingCategory].self, forKey: .emergingTrends)
+        marketVolatilityScore = try container.decode(Int.self, forKey: .marketVolatilityScore)
+        dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
+        sentimentDistribution = try container.decode([String: Double].self, forKey: .sentimentDistribution)
+        seasonalPatternSummary = try container.decode(String.self, forKey: .seasonalPatternSummary)
+        monthOverMonthSummary = try? container.decode(String.self, forKey: .monthOverMonthSummary)
+        topMonthlyInsight = try container.decode(String.self, forKey: .topMonthlyInsight)
+        nextMonthForecast = try container.decode(String.self, forKey: .nextMonthForecast)
+        strategicOpportunities = try container.decode([String].self, forKey: .strategicOpportunities)
     }
 
     var marketSentiment: MarketSentiment {
