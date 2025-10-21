@@ -11,17 +11,67 @@ import Foundation
 // MARK: - Market Intelligence Service
 class MarketIntelligenceService: ObservableObject {
     @Published var dailyTrends: MarketTrends?
+    @Published var weeklyInsights: WeeklyInsights?
+    @Published var monthlyInsights: MonthlyInsights?
     @Published var isLoadingTrends = false
+    @Published var isLoadingWeekly = false
+    @Published var isLoadingMonthly = false
     @Published var lastUpdated: Date?
 
     func loadDailyTrends(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingTrends = true
+        }
+
         do {
             let trends = try await supabaseService.fetchCachedMarketTrends()
             await MainActor.run {
                 dailyTrends = trends
+                isLoadingTrends = false
             }
         } catch {
             print("QuickFlip: Failed to fetch cached market trends: \(error)")
+            await MainActor.run {
+                isLoadingTrends = false
+            }
+        }
+    }
+
+    func loadWeeklyInsights(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingWeekly = true
+        }
+
+        do {
+            let insights = try await supabaseService.fetchWeeklyInsights()
+            await MainActor.run {
+                weeklyInsights = insights
+                isLoadingWeekly = false
+            }
+        } catch {
+            print("QuickFlip: Failed to fetch weekly insights: \(error)")
+            await MainActor.run {
+                isLoadingWeekly = false
+            }
+        }
+    }
+
+    func loadMonthlyInsights(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingMonthly = true
+        }
+
+        do {
+            let insights = try await supabaseService.fetchMonthlyInsights()
+            await MainActor.run {
+                monthlyInsights = insights
+                isLoadingMonthly = false
+            }
+        } catch {
+            print("QuickFlip: Failed to fetch monthly insights: \(error)")
+            await MainActor.run {
+                isLoadingMonthly = false
+            }
         }
     }
 }
@@ -204,6 +254,8 @@ class PersonalAnalyticsService: ObservableObject {
 }
 
 // MARK: - Data Models
+
+// MARK: - Daily Insights
 struct MarketTrends: Codable {
     let hotCategories: [TrendingCategory]
     let coolingCategories: [TrendingCategory]
@@ -221,6 +273,86 @@ struct MarketTrends: Codable {
         case topInsight = "top_insight"
         case seasonalOpportunity = "seasonal_opportunity"
         case timestamp
+    }
+}
+
+// MARK: - Weekly Insights
+struct WeeklyInsights: Codable, Identifiable {
+    let id: UUID
+    let createdAt: Date?
+    let weekStartDate: Date
+    let weekEndDate: Date
+    let trendingHotCategories: [TrendingCategory]
+    let trendingCoolCategories: [TrendingCategory]
+    let consistentPerformers: [TrendingCategory]
+    let sentimentTrend: String
+    let dominantSentiment: String
+    let sentimentBreakdown: [String: Double]
+    let recommendedListingTimes: [String]
+    let weekOverWeekSummary: String?
+    let topWeeklyInsight: String
+    let strategicRecommendation: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case weekStartDate = "week_start_date"
+        case weekEndDate = "week_end_date"
+        case trendingHotCategories = "trending_hot_categories"
+        case trendingCoolCategories = "trending_cool_categories"
+        case consistentPerformers = "consistent_performers"
+        case sentimentTrend = "sentiment_trend"
+        case dominantSentiment = "dominant_sentiment"
+        case sentimentBreakdown = "sentiment_breakdown"
+        case recommendedListingTimes = "recommended_listing_times"
+        case weekOverWeekSummary = "week_over_week_summary"
+        case topWeeklyInsight = "top_weekly_insight"
+        case strategicRecommendation = "strategic_recommendation"
+    }
+
+    var marketSentiment: MarketSentiment {
+        MarketSentiment.from(dominantSentiment)
+    }
+}
+
+// MARK: - Monthly Insights
+struct MonthlyInsights: Codable, Identifiable {
+    let id: UUID
+    let createdAt: Date?
+    let monthStartDate: Date
+    let monthEndDate: Date
+    let categoryChampions: [TrendingCategory]
+    let categoryDecliners: [TrendingCategory]
+    let emergingTrends: [TrendingCategory]
+    let marketVolatilityScore: Int
+    let dominantSentiment: String
+    let sentimentDistribution: [String: Double]
+    let seasonalPatternSummary: String
+    let monthOverMonthSummary: String?
+    let topMonthlyInsight: String
+    let nextMonthForecast: String
+    let strategicOpportunities: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case monthStartDate = "month_start_date"
+        case monthEndDate = "month_end_date"
+        case categoryChampions = "category_champions"
+        case categoryDecliners = "category_decliners"
+        case emergingTrends = "emerging_trends"
+        case marketVolatilityScore = "market_volatility_score"
+        case dominantSentiment = "dominant_sentiment"
+        case sentimentDistribution = "sentiment_distribution"
+        case seasonalPatternSummary = "seasonal_pattern_summary"
+        case monthOverMonthSummary = "month_over_month_summary"
+        case topMonthlyInsight = "top_monthly_insight"
+        case nextMonthForecast = "next_month_forecast"
+        case strategicOpportunities = "strategic_opportunities"
+    }
+
+    var marketSentiment: MarketSentiment {
+        MarketSentiment.from(dominantSentiment)
     }
 }
 
