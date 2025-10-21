@@ -439,9 +439,32 @@ struct TrendingCategory: Codable {
 
     enum CodingKeys: String, CodingKey {
         case name
-        case percentageChange = "percentage_change"
+        case percentageChange
+        case percentageChangeSnake = "percentage_change"
         case reason
-        case isPositive = "is_positive"
+        case isPositive
+        case isPositiveSnake = "is_positive"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        name = try container.decode(String.self, forKey: .name)
+        reason = try container.decode(String.self, forKey: .reason)
+
+        // Try camelCase first (for daily insights), then snake_case (for weekly/monthly)
+        if let change = try? container.decode(Double.self, forKey: .percentageChange) {
+            percentageChange = change
+        } else {
+            percentageChange = try container.decode(Double.self, forKey: .percentageChangeSnake)
+        }
+
+        // Try camelCase first (for daily insights), then snake_case (for weekly/monthly)
+        if let positive = try? container.decode(Bool.self, forKey: .isPositive) {
+            isPositive = positive
+        } else {
+            isPositive = try container.decode(Bool.self, forKey: .isPositiveSnake)
+        }
     }
 
     var formattedChange: String {
