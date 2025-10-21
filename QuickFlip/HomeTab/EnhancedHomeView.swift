@@ -1591,8 +1591,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.green)
 
-                    ForEach(insights.categoryChampions, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.categoryChampions.prefix(5), id: \.name) { category in
+                        MonthlyCategoryRow(category: category)
                     }
                 }
             }
@@ -1605,8 +1605,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
 
-                    ForEach(insights.emergingTrends, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.emergingTrends, id: \.name) { trend in
+                        EmergingTrendRow(trend: trend)
                     }
                 }
             }
@@ -1619,8 +1619,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.red)
 
-                    ForEach(insights.categoryDecliners, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.categoryDecliners.prefix(5), id: \.name) { category in
+                        MonthlyCategoryRow(category: category)
                     }
                 }
             }
@@ -2412,6 +2412,107 @@ struct DetailedTrendingRow: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(category.color.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct MonthlyCategoryRow: View {
+    let category: MonthlyCategory
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 8) {
+                    Text("Frequency: \(category.frequency)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Text("Score: \(String(format: "%.1f", category.consistencyScore))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(category.formattedChange)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(category.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(category.color.opacity(0.1))
+                    .cornerRadius(6)
+
+                Text("\(Int(category.totalPercentage))")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct EmergingTrendRow: View {
+    let trend: EmergingTrend
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(trend.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Text("\(trend.hotFrequency)")
+                            .font(.caption)
+                    }
+
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "snowflake")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                        Text("\(trend.coolFrequency)")
+                            .font(.caption)
+                    }
+                }
+                .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            Text(trend.trend.replacingOccurrences(of: "_", with: " ").capitalized)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.blue)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.blue.opacity(0.1))
                 .cornerRadius(6)
         }
         .padding()

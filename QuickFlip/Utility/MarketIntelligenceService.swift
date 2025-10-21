@@ -352,15 +352,56 @@ struct WeeklyInsights: Codable, Identifiable {
     }
 }
 
+// MARK: - Monthly Category Model
+struct MonthlyCategory: Codable {
+    let name: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+    let consistencyScore: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+        case consistencyScore = "consistency_score"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return avgPercentage > 0 ? .green : .red
+    }
+}
+
+// MARK: - Emerging Trend Model
+struct EmergingTrend: Codable {
+    let name: String
+    let trend: String
+    let hotFrequency: Int
+    let coolFrequency: Int
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case trend
+        case hotFrequency = "hot_frequency"
+        case coolFrequency = "cool_frequency"
+    }
+}
+
 // MARK: - Monthly Insights
 struct MonthlyInsights: Codable, Identifiable {
     let id: UUID
     let createdAt: Date?
     let monthStartDate: Date
     let monthEndDate: Date
-    let categoryChampions: [TrendingCategory]
-    let categoryDecliners: [TrendingCategory]
-    let emergingTrends: [TrendingCategory]
+    let categoryChampions: [MonthlyCategory]
+    let categoryDecliners: [MonthlyCategory]
+    let emergingTrends: [EmergingTrend]
     let marketVolatilityScore: Int
     let dominantSentiment: String
     let sentimentDistribution: [String: Double]
