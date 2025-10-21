@@ -276,19 +276,75 @@ struct MarketTrends: Codable {
     }
 }
 
+// MARK: - Weekly Category Model
+struct WeeklyCategory: Codable {
+    let name: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return avgPercentage > 0 ? .green : .red
+    }
+}
+
+// MARK: - Consistent Performer Model
+struct ConsistentPerformer: Codable {
+    let name: String
+    let type: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case type
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return type == "hot" ? .green : .red
+    }
+}
+
+// MARK: - Recommended Listing Time Model
+struct RecommendedListingTime: Codable {
+    let time: String
+    let frequency: Int
+}
+
 // MARK: - Weekly Insights
 struct WeeklyInsights: Codable, Identifiable {
     let id: UUID
     let createdAt: Date?
     let weekStartDate: Date
     let weekEndDate: Date
-    let trendingHotCategories: [TrendingCategory]
-    let trendingCoolCategories: [TrendingCategory]
-    let consistentPerformers: [TrendingCategory]
+    let trendingHotCategories: [WeeklyCategory]
+    let trendingCoolCategories: [WeeklyCategory]
+    let consistentPerformers: [ConsistentPerformer]
     let sentimentTrend: String
     let dominantSentiment: String
     let sentimentBreakdown: [String: Double]
-    let recommendedListingTimes: [String]
+    let recommendedListingTimes: [RecommendedListingTime]
     let weekOverWeekSummary: String?
     let topWeeklyInsight: String
     let strategicRecommendation: String

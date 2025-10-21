@@ -1425,8 +1425,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.green)
 
-                    ForEach(insights.trendingHotCategories, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.trendingHotCategories.prefix(5), id: \.name) { category in
+                        WeeklyCategoryRow(category: category)
                     }
                 }
             }
@@ -1439,8 +1439,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.purple)
 
-                    ForEach(insights.consistentPerformers, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.consistentPerformers.prefix(5), id: \.name) { performer in
+                        ConsistentPerformerRow(performer: performer)
                     }
                 }
             }
@@ -1453,8 +1453,8 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.red)
 
-                    ForEach(insights.trendingCoolCategories, id: \.name) { category in
-                        DetailedTrendingRow(category: category)
+                    ForEach(insights.trendingCoolCategories.prefix(5), id: \.name) { category in
+                        WeeklyCategoryRow(category: category)
                     }
                 }
             }
@@ -1481,14 +1481,26 @@ struct FullMarketInsightsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.purple)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(insights.recommendedListingTimes, id: \.self) { time in
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(insights.recommendedListingTimes.prefix(5), id: \.time) { timeSlot in
                             HStack {
                                 Image(systemName: "clock.fill")
                                     .font(.caption)
                                     .foregroundColor(.purple)
-                                Text(time)
+
+                                Text(timeSlot.time)
                                     .font(.subheadline)
+
+                                Spacer()
+
+                                Text("×\(timeSlot.frequency)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.purple)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple.opacity(0.15))
+                                    .cornerRadius(4)
                             }
                         }
                     }
@@ -2514,6 +2526,90 @@ struct EmergingTrendRow: View {
                 .padding(.vertical, 4)
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct WeeklyCategoryRow: View {
+    let category: WeeklyCategory
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("Frequency: \(category.frequency)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(category.formattedChange)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(category.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(category.color.opacity(0.1))
+                    .cornerRadius(6)
+
+                Text("\(Int(category.totalPercentage))")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct ConsistentPerformerRow: View {
+    let performer: ConsistentPerformer
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(performer.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Image(systemName: performer.type == "hot" ? "flame.fill" : "snowflake")
+                        .font(.caption2)
+                        .foregroundColor(performer.type == "hot" ? .orange : .blue)
+                }
+
+                Text("Frequency: \(performer.frequency)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(performer.formattedChange)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(performer.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(performer.color.opacity(0.1))
+                    .cornerRadius(6)
+
+                Text(performer.type.capitalized)
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
         }
         .padding()
         .background(Color(.systemBackground))
