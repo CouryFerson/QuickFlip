@@ -467,6 +467,15 @@ struct TrendingCategory: Codable {
         }
     }
 
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(name, forKey: .name)
+        try container.encode(percentageChange, forKey: .percentageChange)
+        try container.encode(reason, forKey: .reason)
+        try container.encode(isPositive, forKey: .isPositive)
+    }
+
     var formattedChange: String {
         let sign = isPositive ? "+" : ""
         return "\(sign)\(Int(percentageChange))%"
