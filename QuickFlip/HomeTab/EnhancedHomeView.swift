@@ -2460,20 +2460,14 @@ struct MonthlyCategoryRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(category.formattedChange)
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundColor(category.color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(category.color.opacity(0.1))
-                    .cornerRadius(6)
-
-                Text("\(Int(category.totalPercentage))")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
+            Text(category.formattedChange)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(category.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(category.color.opacity(0.1))
+                .cornerRadius(6)
         }
         .padding()
         .background(Color(.systemBackground))
@@ -2551,20 +2545,14 @@ struct WeeklyCategoryRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(category.formattedChange)
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundColor(category.color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(category.color.opacity(0.1))
-                    .cornerRadius(6)
-
-                Text("\(Int(category.totalPercentage))")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
+            Text(category.formattedChange)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(category.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(category.color.opacity(0.1))
+                .cornerRadius(6)
         }
         .padding()
         .background(Color(.systemBackground))
