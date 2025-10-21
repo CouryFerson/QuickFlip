@@ -437,6 +437,13 @@ struct TrendingCategory: Codable {
     let reason: String
     let isPositive: Bool
 
+    enum CodingKeys: String, CodingKey {
+        case name
+        case percentageChange = "percentage_change"
+        case reason
+        case isPositive = "is_positive"
+    }
+
     var formattedChange: String {
         let sign = isPositive ? "+" : ""
         return "\(sign)\(Int(percentageChange))%"
