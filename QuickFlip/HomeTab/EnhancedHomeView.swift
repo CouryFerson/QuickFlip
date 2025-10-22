@@ -1155,6 +1155,12 @@ struct NoDataInsightCard: View {
 
 // MARK: - Full Market Insights View
 
+enum InsightsPeriod: String, CaseIterable {
+    case daily = "Daily"
+    case weekly = "Weekly"
+    case monthly = "Monthly"
+}
+
 struct FullMarketInsightsView: View {
     let trends: MarketTrends?
     let personalInsights: PersonalInsights?
@@ -1162,26 +1168,66 @@ struct FullMarketInsightsView: View {
     let isLoadingPersonal: Bool
 
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var supabaseService: SupabaseService
+    @StateObject private var marketIntelligence = MarketIntelligenceService()
+    @State private var selectedPeriod: InsightsPeriod = .daily
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Market Intelligence Section
-                if isLoadingTrends {
-                    aiLoadingSection
-                } else if let trends = trends {
-                    marketTrendsSection(trends: trends)
-                } else {
-                    noMarketDataSection
+                // Segmented Control for Time Period
+                Picker("Time Period", selection: $selectedPeriod) {
+                    ForEach(InsightsPeriod.allCases, id: \.self) { period in
+                        Text(period.rawValue).tag(period)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .onChange(of: selectedPeriod) { newValue in
+                    Task {
+                        await loadDataForPeriod(newValue)
+                    }
                 }
 
-                // Personal Analytics Section
-                if isLoadingPersonal {
-                    personalLoadingSection
-                } else if let insights = personalInsights {
-                    personalAnalyticsSection(insights: insights)
-                } else {
-                    noPersonalDataSection
+                // Market Intelligence Section based on selected period
+                switch selectedPeriod {
+                case .daily:
+                    if isLoadingTrends || marketIntelligence.isLoadingTrends {
+                        aiLoadingSection
+                    } else if let trends = marketIntelligence.dailyTrends ?? trends {
+                        dailyTrendsSection(trends: trends)
+                    } else {
+                        noMarketDataSection
+                    }
+
+                case .weekly:
+                    if marketIntelligence.isLoadingWeekly {
+                        aiLoadingSection
+                    } else if let weekly = marketIntelligence.weeklyInsights {
+                        weeklyInsightsSection(insights: weekly)
+                    } else {
+                        noMarketDataSection
+                    }
+
+                case .monthly:
+                    if marketIntelligence.isLoadingMonthly {
+                        aiLoadingSection
+                    } else if let monthly = marketIntelligence.monthlyInsights {
+                        monthlyInsightsSection(insights: monthly)
+                    } else {
+                        noMarketDataSection
+                    }
+                }
+
+                // Personal Analytics Section (only show for daily)
+                if selectedPeriod == .daily {
+                    if isLoadingPersonal {
+                        personalLoadingSection
+                    } else if let insights = personalInsights {
+                        personalAnalyticsSection(insights: insights)
+                    } else {
+                        noPersonalDataSection
+                    }
                 }
 
                 Spacer(minLength: 50)
@@ -1190,6 +1236,27 @@ struct FullMarketInsightsView: View {
         }
         .navigationTitle("Market Intelligence")
         .navigationBarTitleDisplayMode(.large)
+        .task {
+            // Load initial data based on selected period
+            await loadDataForPeriod(selectedPeriod)
+        }
+    }
+
+    private func loadDataForPeriod(_ period: InsightsPeriod) async {
+        switch period {
+        case .daily:
+            if marketIntelligence.dailyTrends == nil {
+                await marketIntelligence.loadDailyTrends(supabaseService: supabaseService)
+            }
+        case .weekly:
+            if marketIntelligence.weeklyInsights == nil {
+                await marketIntelligence.loadWeeklyInsights(supabaseService: supabaseService)
+            }
+        case .monthly:
+            if marketIntelligence.monthlyInsights == nil {
+                await marketIntelligence.loadMonthlyInsights(supabaseService: supabaseService)
+            }
+        }
     }
 
     private var aiLoadingSection: some View {
@@ -1213,7 +1280,7 @@ struct FullMarketInsightsView: View {
         .cornerRadius(12)
     }
 
-    private func marketTrendsSection(trends: MarketTrends) -> some View {
+    private func dailyTrendsSection(trends: MarketTrends) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             // Header with sentiment
             HStack {
@@ -1306,6 +1373,337 @@ struct FullMarketInsightsView: View {
                     .padding()
                     .background(Color.purple.opacity(0.1))
                     .cornerRadius(8)
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private func weeklyInsightsSection(insights: WeeklyInsights) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Date range and sentiment
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Week of \(insights.weekStartDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text(insights.marketSentiment.emoji)
+                    Text(insights.marketSentiment.rawValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(insights.marketSentiment.color)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(insights.marketSentiment.color.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // Top weekly insight
+            VStack(alignment: .leading, spacing: 8) {
+                Text("💡 WEEKLY HIGHLIGHT")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+
+                Text(insights.topWeeklyInsight)
+                    .font(.subheadline)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Trending hot categories
+            if !insights.trendingHotCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("🔥 TRENDING THIS WEEK")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+
+                    ForEach(insights.trendingHotCategories.prefix(5), id: \.name) { category in
+                        WeeklyCategoryRow(category: category)
+                    }
+                }
+            }
+
+            // Consistent performers
+            if !insights.consistentPerformers.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("⭐️ CONSISTENT PERFORMERS")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.purple)
+
+                    ForEach(insights.consistentPerformers.prefix(5), id: \.name) { performer in
+                        ConsistentPerformerRow(performer: performer)
+                    }
+                }
+            }
+
+            // Cooling categories
+            if !insights.trendingCoolCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("❄️ COOLING THIS WEEK")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+
+                    ForEach(insights.trendingCoolCategories.prefix(5), id: \.name) { category in
+                        WeeklyCategoryRow(category: category)
+                    }
+                }
+            }
+
+            // Strategic recommendation
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🎯 STRATEGIC RECOMMENDATION")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.orange)
+
+                Text(insights.strategicRecommendation)
+                    .font(.subheadline)
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Recommended listing times
+            if !insights.recommendedListingTimes.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("⏰ BEST TIMES TO LIST")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.purple)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(insights.recommendedListingTimes.prefix(5), id: \.time) { timeSlot in
+                            HStack {
+                                Image(systemName: "clock.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.purple)
+
+                                Text(timeSlot.time)
+                                    .font(.subheadline)
+
+                                Spacer()
+
+                                Text("×\(timeSlot.frequency)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.purple)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple.opacity(0.15))
+                                    .cornerRadius(4)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+
+            // Week over week summary (if available)
+            if let weekOverWeek = insights.weekOverWeekSummary, !weekOverWeek.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("📊 WEEK OVER WEEK")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+
+                    Text(weekOverWeek)
+                        .font(.subheadline)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private func monthlyInsightsSection(insights: MonthlyInsights) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Month header and sentiment
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(insights.monthStartDate.formatted(.dateTime.month(.wide).year()))
+                        .font(.title3)
+                        .fontWeight(.bold)
+
+                    Text("Monthly Market Overview")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text(insights.marketSentiment.emoji)
+                    Text(insights.marketSentiment.rawValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(insights.marketSentiment.color)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(insights.marketSentiment.color.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // Top monthly insight
+            VStack(alignment: .leading, spacing: 8) {
+                Text("💡 MONTHLY HIGHLIGHT")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+
+                Text(insights.topMonthlyInsight)
+                    .font(.subheadline)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Market volatility
+            VStack(alignment: .leading, spacing: 8) {
+                Text("📈 MARKET VOLATILITY")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.orange)
+
+                HStack {
+                    Text("Volatility Score: \(insights.marketVolatilityScore)/100")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+
+                    ProgressView(value: Double(insights.marketVolatilityScore), total: 100)
+                        .tint(insights.marketVolatilityScore > 70 ? .red : (insights.marketVolatilityScore > 40 ? .orange : .green))
+                        .frame(width: 100)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // Category champions
+            if !insights.categoryChampions.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("🏆 CATEGORY CHAMPIONS")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+
+                    ForEach(insights.categoryChampions.prefix(5), id: \.name) { category in
+                        MonthlyCategoryRow(category: category)
+                    }
+                }
+            }
+
+            // Emerging trends
+            if !insights.emergingTrends.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("🌱 EMERGING TRENDS")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+
+                    ForEach(insights.emergingTrends, id: \.name) { trend in
+                        EmergingTrendRow(trend: trend)
+                    }
+                }
+            }
+
+            // Category decliners
+            if !insights.categoryDecliners.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("📉 DECLINING CATEGORIES")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+
+                    ForEach(insights.categoryDecliners.prefix(5), id: \.name) { category in
+                        MonthlyCategoryRow(category: category)
+                    }
+                }
+            }
+
+            // Seasonal pattern
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🌟 SEASONAL PATTERNS")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.purple)
+
+                Text(insights.seasonalPatternSummary)
+                    .font(.subheadline)
+                    .padding()
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Next month forecast
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🔮 NEXT MONTH FORECAST")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.blue)
+
+                Text(insights.nextMonthForecast)
+                    .font(.subheadline)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
+
+            // Strategic opportunities
+            if !insights.strategicOpportunities.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("💼 STRATEGIC OPPORTUNITIES")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(insights.strategicOpportunities, id: \.self) { opportunity in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Text(opportunity)
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            }
+
+            // Month over month (if available)
+            if let monthOverMonth = insights.monthOverMonthSummary, !monthOverMonth.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("📊 MONTH OVER MONTH")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+
+                    Text(monthOverMonth)
+                        .font(.subheadline)
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                }
             }
         }
         .background(Color(.systemBackground))
@@ -2027,6 +2425,179 @@ struct DetailedTrendingRow: View {
                 .padding(.vertical, 4)
                 .background(category.color.opacity(0.1))
                 .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct MonthlyCategoryRow: View {
+    let category: MonthlyCategory
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 8) {
+                    Text("Frequency: \(category.frequency)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    Text("Score: \(String(format: "%.1f", category.consistencyScore))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+
+            Spacer()
+
+            Text(category.formattedChange)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(category.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(category.color.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct EmergingTrendRow: View {
+    let trend: EmergingTrend
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(trend.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Text("\(trend.hotFrequency)")
+                            .font(.caption)
+                    }
+
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "snowflake")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                        Text("\(trend.coolFrequency)")
+                            .font(.caption)
+                    }
+                }
+                .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            Text(trend.trend.replacingOccurrences(of: "_", with: " ").capitalized)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.blue)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct WeeklyCategoryRow: View {
+    let category: WeeklyCategory
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("Frequency: \(category.frequency)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            Text(category.formattedChange)
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(category.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(category.color.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+    }
+}
+
+struct ConsistentPerformerRow: View {
+    let performer: ConsistentPerformer
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(performer.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Image(systemName: performer.type == "hot" ? "flame.fill" : "snowflake")
+                        .font(.caption2)
+                        .foregroundColor(performer.type == "hot" ? .orange : .blue)
+                }
+
+                Text("Frequency: \(performer.frequency)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(performer.formattedChange)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(performer.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(performer.color.opacity(0.1))
+                    .cornerRadius(6)
+
+                Text(performer.type.capitalized)
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
         }
         .padding()
         .background(Color(.systemBackground))
