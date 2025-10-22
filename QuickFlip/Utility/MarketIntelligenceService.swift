@@ -391,13 +391,13 @@ struct WeeklyInsights: Codable, Identifiable {
         weekStartDate = startDate
         weekEndDate = endDate
 
-        trendingHotCategories = try container.decode([TrendingCategory].self, forKey: .trendingHotCategories)
-        trendingCoolCategories = try container.decode([TrendingCategory].self, forKey: .trendingCoolCategories)
-        consistentPerformers = try container.decode([TrendingCategory].self, forKey: .consistentPerformers)
+        trendingHotCategories = try container.decode([WeeklyCategory].self, forKey: .trendingHotCategories)
+        trendingCoolCategories = try container.decode([WeeklyCategory].self, forKey: .trendingCoolCategories)
+        consistentPerformers = try container.decode([ConsistentPerformer].self, forKey: .consistentPerformers)
         sentimentTrend = try container.decode(String.self, forKey: .sentimentTrend)
         dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
         sentimentBreakdown = try container.decode([String: Double].self, forKey: .sentimentBreakdown)
-        recommendedListingTimes = try container.decode([String].self, forKey: .recommendedListingTimes)
+        recommendedListingTimes = try container.decode([RecommendedListingTime].self, forKey: .recommendedListingTimes)
         weekOverWeekSummary = try? container.decode(String.self, forKey: .weekOverWeekSummary)
         topWeeklyInsight = try container.decode(String.self, forKey: .topWeeklyInsight)
         strategicRecommendation = try container.decode(String.self, forKey: .strategicRecommendation)
@@ -510,9 +510,9 @@ struct MonthlyInsights: Codable, Identifiable {
         monthStartDate = startDate
         monthEndDate = endDate
 
-        categoryChampions = try container.decode([TrendingCategory].self, forKey: .categoryChampions)
-        categoryDecliners = try container.decode([TrendingCategory].self, forKey: .categoryDecliners)
-        emergingTrends = try container.decode([TrendingCategory].self, forKey: .emergingTrends)
+        categoryChampions = try container.decode([MonthlyCategory].self, forKey: .categoryChampions)
+        categoryDecliners = try container.decode([MonthlyCategory].self, forKey: .categoryDecliners)
+        emergingTrends = try container.decode([EmergingTrend].self, forKey: .emergingTrends)
         marketVolatilityScore = try container.decode(Int.self, forKey: .marketVolatilityScore)
         dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
         sentimentDistribution = try container.decode([String: Double].self, forKey: .sentimentDistribution)
