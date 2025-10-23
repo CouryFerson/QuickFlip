@@ -329,6 +329,28 @@ extension ItemStorageService {
         await updateListingStatus(for: item, newStatus: newStatus)
     }
 
+    /// Update storage location for an item
+    func updateStorageLocation(for item: ScannedItem, location: String?) async {
+        guard let index = scannedItems.firstIndex(where: { $0.id == item.id }) else { return }
+
+        var updatedItem = scannedItems[index]
+        updatedItem.storageLocation = location
+
+        // Optimistically update UI
+        scannedItems[index] = updatedItem
+
+        do {
+            try await supabaseService.updateScannedItem(updatedItem)
+            print("QuickFlip: Updated storage location to '\(location ?? "none")'")
+            clearError()
+        } catch {
+            // Revert on failure
+            scannedItems[index] = item
+            setError("Failed to update storage location: \(error.localizedDescription)")
+            print("QuickFlip: Failed to update storage location: \(error)")
+        }
+    }
+
     // MARK: - Query Methods for Listing Status
 
     /// Get all items with a specific status

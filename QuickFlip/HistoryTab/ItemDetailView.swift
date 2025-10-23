@@ -13,6 +13,7 @@ struct ItemDetailView: View {
     @State private var showingMarkAsSoldSheet = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
+    @State private var showingStorageLocationSheet = false
 
     // Camera
     @State private var showingCamera = false
@@ -66,6 +67,11 @@ struct ItemDetailView: View {
                     handleMarkAsSold(price: price, marketplace: marketplace, costBasis: costBasis)
                 }
             }
+            .sheet(isPresented: $showingStorageLocationSheet) {
+                StorageLocationSheet(item: item) { location in
+                    handleUpdateStorageLocation(location: location)
+                }
+            }
             .fullScreenCover(isPresented: $showingCamera) {
                 ItemDetailCameraView(capturedImage: $capturedImage)
                     .ignoresSafeArea()
@@ -106,6 +112,16 @@ struct ItemDetailView: View {
     private func handleMarkAsReadyToList() {
         Task {
             await itemStorage.markItemAsReadyToList(item: item)
+            // Update local item state
+            if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
+                self.item = updatedItem
+            }
+        }
+    }
+
+    private func handleUpdateStorageLocation(location: String?) {
+        Task {
+            await itemStorage.updateStorageLocation(for: item, location: location)
             // Update local item state
             if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
                 self.item = updatedItem
@@ -338,6 +354,7 @@ private extension ItemDetailView {
                 Spacer()
             }
             updateStatusButton
+            storageLocationButton
             deleteButton
             marketplaceButton
         }
@@ -368,6 +385,26 @@ private extension ItemDetailView {
             )
             .clipShape(Capsule())
             .shadow(color: item.listingStatus.status.displayColor.opacity(0.3), radius: 10, x: 0, y: 5)
+        }
+    }
+
+    @ViewBuilder
+    var storageLocationButton: some View {
+        Button(action: { showingStorageLocationSheet = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 16, weight: .medium))
+                Text(item.storageLocation?.isEmpty == false ? item.storageLocation! : "Set Storage Location")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(Color.purple)
+            .clipShape(Capsule())
         }
     }
 
@@ -516,5 +553,111 @@ struct ItemDetailCameraView: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.presentationMode.wrappedValue.dismiss()
         }
+    }
+}
+
+// MARK: - Storage Location Sheet
+struct StorageLocationSheet: View {
+    let item: ScannedItem
+    let onSave: (String?) -> Void
+
+    @Environment(\.dismiss) var dismiss
+    @State private var locationText: String
+    @State private var recentLocations: [String] = []
+
+    init(item: ScannedItem, onSave: @escaping (String?) -> Void) {
+        self.item = item
+        self.onSave = onSave
+        _locationText = State(initialValue: item.storageLocation ?? "")
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Where are you storing this item?")
+                        .font(.headline)
+
+                    TextField("e.g., Garage shelf, Closet bin 3", text: $locationText)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.vertical, 8)
+
+                    if !recentLocations.isEmpty {
+                        Text("Recent Locations")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(recentLocations, id: \.self) { location in
+                                    Button(action: { locationText = location }) {
+                                        Text(location)
+                                            .font(.caption)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(Color.blue.opacity(0.1))
+                                            .foregroundColor(.blue)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding()
+
+                Spacer()
+            }
+            .navigationTitle("Storage Location")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let trimmed = locationText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        onSave(trimmed.isEmpty ? nil : trimmed)
+                        saveToRecentLocations(trimmed)
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .destructiveAction) {
+                    if item.storageLocation != nil {
+                        Button("Clear") {
+                            onSave(nil)
+                            dismiss()
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadRecentLocations()
+        }
+    }
+
+    private func loadRecentLocations() {
+        if let saved = UserDefaults.standard.stringArray(forKey: "recentStorageLocations") {
+            recentLocations = saved
+        }
+    }
+
+    private func saveToRecentLocations(_ location: String) {
+        guard !location.isEmpty else { return }
+
+        var locations = recentLocations
+        // Remove if already exists
+        locations.removeAll { $0 == location }
+        // Add to front
+        locations.insert(location, at: 0)
+        // Keep only last 5
+        locations = Array(locations.prefix(5))
+
+        recentLocations = locations
+        UserDefaults.standard.set(locations, forKey: "recentStorageLocations")
     }
 }
