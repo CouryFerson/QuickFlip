@@ -25,6 +25,7 @@ struct HistoryView: View {
         case readyToList = "Ready"
         case listed = "Listed"
         case sold = "Sold"
+        case aging = "Aging"
     }
 
     enum SortOption: String, CaseIterable {
@@ -48,6 +49,8 @@ struct HistoryView: View {
             filtered = searchResults.filter { $0.listingStatus.status == .listed }
         case .sold:
             filtered = searchResults.filter { $0.listingStatus.status == .sold }
+        case .aging:
+            filtered = searchResults.filter { $0.daysSinceScanned > 30 && $0.listingStatus.status != .sold }
         }
 
         // Sort

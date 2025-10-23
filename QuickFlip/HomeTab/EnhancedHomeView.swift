@@ -38,6 +38,11 @@ struct EnhancedHomeView: View {
 //                    personalInsightsView
 //                }
 
+                // Inventory Health Alerts
+                if !itemStorage.unsoldItems.isEmpty {
+                    inventoryHealthAlertsView
+                }
+
                 // Smart Quick Actions
                 smartQuickActionsView
 
@@ -444,6 +449,49 @@ struct EnhancedHomeView: View {
         }
     }
 
+    private var inventoryHealthAlertsView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Stale items alert
+            if !itemStorage.staleItems.isEmpty {
+                InventoryAlertCard(
+                    title: "\(itemStorage.staleItems.count) item\(itemStorage.staleItems.count == 1 ? "" : "s") sitting 30+ days",
+                    subtitle: "Consider repricing or relisting",
+                    icon: "exclamationmark.triangle.fill",
+                    color: .red,
+                    count: itemStorage.staleItems.count
+                ) {
+                    viewAllScansAction()
+                }
+            }
+
+            // Items needing attention
+            if !itemStorage.itemsNeedingAttention.isEmpty && itemStorage.staleItems.isEmpty {
+                InventoryAlertCard(
+                    title: "\(itemStorage.itemsNeedingAttention.count) item\(itemStorage.itemsNeedingAttention.count == 1 ? "" : "s") need attention",
+                    subtitle: "Items not listed or listed too long",
+                    icon: "clock.badge.exclamationmark.fill",
+                    color: .orange,
+                    count: itemStorage.itemsNeedingAttention.count
+                ) {
+                    viewAllScansAction()
+                }
+            }
+
+            // Ready to list reminder
+            if itemStorage.readyToListItems.count >= 3 && itemStorage.staleItems.isEmpty {
+                InventoryAlertCard(
+                    title: "\(itemStorage.readyToListItems.count) items ready to list",
+                    subtitle: "Time to get them online!",
+                    icon: "clock.fill",
+                    color: .blue,
+                    count: itemStorage.readyToListItems.count
+                ) {
+                    viewAllScansAction()
+                }
+            }
+        }
+    }
+
     private var smartQuickActionsView: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Smart Actions")
@@ -783,6 +831,58 @@ struct SmartQuickActionCard: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.systemBackground))
                     .shadow(color: Color(.systemGray4), radius: 2, x: 0, y: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Inventory Alert Card
+struct InventoryAlertCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 60, height: 60)
+
+                    Image(systemName: icon)
+                        .foregroundColor(color)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                VStack(spacing: 4) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .foregroundColor(color)
+                        .font(.title3)
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.secondarySystemBackground))
+                    .shadow(color: color.opacity(0.2), radius: 8, x: 0, y: 4)
             )
         }
         .buttonStyle(PlainButtonStyle())

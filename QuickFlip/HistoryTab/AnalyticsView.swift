@@ -16,7 +16,9 @@ struct AnalyticsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 overviewSection
+                inventoryHealthSection
                 performanceInsightsSection
+                inventoryVelocitySection
                 marketplaceBreakdownSection
                 revenueChartSection
                 categoryBreakdownSection
@@ -75,6 +77,221 @@ private extension AnalyticsView {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(UIColor.systemBackground))
         )
+    }
+
+    @ViewBuilder
+    var inventoryHealthSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(title: "Inventory Health", icon: "shippingbox.fill")
+
+            if itemStorage.unsoldItems.isEmpty {
+                emptyStateCard(message: "No items in inventory")
+            } else {
+                VStack(spacing: 12) {
+                    // Fresh / Active / Stale breakdown
+                    HStack(spacing: 12) {
+                        healthCard(
+                            title: "Fresh",
+                            subtitle: "0-7 days",
+                            count: itemStorage.freshItems.count,
+                            color: .green,
+                            icon: "leaf.fill"
+                        )
+                        healthCard(
+                            title: "Active",
+                            subtitle: "8-30 days",
+                            count: itemStorage.activeItems.count,
+                            color: .orange,
+                            icon: "clock.fill"
+                        )
+                        healthCard(
+                            title: "Stale",
+                            subtitle: "30+ days",
+                            count: itemStorage.staleItems.count,
+                            color: .red,
+                            icon: "exclamationmark.triangle.fill"
+                        )
+                    }
+
+                    // Total value tied up
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Total Value Tied Up")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text(itemStorage.formattedTotalInventoryValue)
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Items in Inventory")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(itemStorage.unsoldItems.count)")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemBackground))
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    func healthCard(title: String, subtitle: String, count: Int, color: Color, icon: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+
+            Text("\(count)")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.1))
+        )
+    }
+
+    @ViewBuilder
+    var inventoryVelocitySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(title: "Inventory Velocity", icon: "speedometer")
+
+            if itemStorage.soldItems.isEmpty {
+                emptyStateCard(message: "No sales data yet")
+            } else {
+                VStack(spacing: 12) {
+                    // Cycle time metrics
+                    if let avgToList = itemStorage.averageDaysToList {
+                        velocityMetric(
+                            label: "Avg Days to List",
+                            value: String(format: "%.0f days", avgToList),
+                            icon: "clock.arrow.circlepath",
+                            color: avgToList <= 7 ? .green : avgToList <= 14 ? .orange : .red
+                        )
+                    }
+
+                    if let avgToSell = itemStorage.averageDaysToSell {
+                        velocityMetric(
+                            label: "Avg Days to Sell",
+                            value: String(format: "%.0f days", avgToSell),
+                            icon: "tag.fill",
+                            color: avgToSell <= 14 ? .green : avgToSell <= 30 ? .orange : .red
+                        )
+                    }
+
+                    if let avgCycle = itemStorage.averageCycleTime {
+                        velocityMetric(
+                            label: "Total Cycle Time",
+                            value: String(format: "%.0f days", avgCycle),
+                            icon: "arrow.triangle.2.circlepath",
+                            color: avgCycle <= 30 ? .green : avgCycle <= 60 ? .orange : .red
+                        )
+                    }
+
+                    // Fastest / Slowest flips
+                    if !itemStorage.fastestFlips.isEmpty {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Your Fastest Flips")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
+
+                            ForEach(itemStorage.fastestFlips.prefix(3)) { item in
+                                flipRow(item: item, isfast: true)
+                            }
+                        }
+                    }
+
+                    if !itemStorage.slowestFlips.isEmpty {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Your Slowest Flips")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+
+                            ForEach(itemStorage.slowestFlips.prefix(3)) { item in
+                                flipRow(item: item, isfast: false)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemBackground))
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    func velocityMetric(label: String, value: String, icon: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .frame(width: 24)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            Text(value)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+        }
+    }
+
+    @ViewBuilder
+    func flipRow(item: ScannedItem, isfast: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(item.itemName)
+                .font(.caption)
+                .lineLimit(1)
+
+            Spacer()
+
+            if let dateSold = item.listingStatus.dateSold {
+                let days = Calendar.current.dateComponents([.day], from: item.timestamp, to: dateSold).day ?? 0
+                Text("\(days) days")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isfast ? .green : .orange)
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder

@@ -393,4 +393,135 @@ extension ItemStorageService {
         let sign = totalProfit >= 0 ? "+" : ""
         return "\(sign)$\(String(format: "%.2f", totalProfit))"
     }
+
+    // MARK: - Inventory Health Properties
+
+    /// Get all unsold items (ready to list + listed)
+    var unsoldItems: [ScannedItem] {
+        return scannedItems.filter { $0.listingStatus.status != .sold }
+    }
+
+    /// Get fresh items (scanned 0-7 days ago, not sold)
+    var freshItems: [ScannedItem] {
+        return unsoldItems.filter { $0.daysSinceScanned <= 7 }
+    }
+
+    /// Get active items (scanned 8-30 days ago, not sold)
+    var activeItems: [ScannedItem] {
+        let days = unsoldItems.map { $0.daysSinceScanned }
+        return unsoldItems.filter { $0.daysSinceScanned > 7 && $0.daysSinceScanned <= 30 }
+    }
+
+    /// Get stale items (scanned 30+ days ago, not sold)
+    var staleItems: [ScannedItem] {
+        return unsoldItems.filter { $0.daysSinceScanned > 30 }
+    }
+
+    /// Get items that need attention (ready to list for 14+ days OR listed for 30+ days)
+    var itemsNeedingAttention: [ScannedItem] {
+        return scannedItems.filter { item in
+            if item.listingStatus.status == .readyToList && item.daysSinceScanned > 14 {
+                return true
+            }
+            if item.listingStatus.status == .listed,
+               let dateListed = item.listingStatus.dateListed {
+                let daysListed = Calendar.current.dateComponents([.day], from: dateListed, to: Date()).day ?? 0
+                return daysListed > 30
+            }
+            return false
+        }
+    }
+
+    /// Calculate total inventory value (estimated value of unsold items)
+    var totalInventoryValue: Double {
+        return unsoldItems.compactMap { item -> Double? in
+            // Parse estimated value string (e.g., "$50-75" -> take midpoint)
+            let cleaned = item.estimatedValue.replacingOccurrences(of: "$", with: "")
+            let components = cleaned.components(separatedBy: "-")
+
+            if components.count == 2,
+               let min = Double(components[0].trimmingCharacters(in: .whitespaces)),
+               let max = Double(components[1].trimmingCharacters(in: .whitespaces)) {
+                return (min + max) / 2
+            } else if let single = Double(cleaned.trimmingCharacters(in: .whitespaces)) {
+                return single
+            }
+            return nil
+        }.reduce(0, +)
+    }
+
+    /// Get formatted total inventory value
+    var formattedTotalInventoryValue: String {
+        return String(format: "$%.0f", totalInventoryValue)
+    }
+
+    // MARK: - Inventory Velocity Metrics
+
+    /// Average days from scan to list
+    var averageDaysToList: Double? {
+        let listedAndSoldItems = scannedItems.filter {
+            $0.listingStatus.status == .listed || $0.listingStatus.status == .sold
+        }
+
+        guard !listedAndSoldItems.isEmpty else { return nil }
+
+        let totalDays = listedAndSoldItems.compactMap { item -> Int? in
+            guard let dateListed = item.listingStatus.dateListed else { return nil }
+            return Calendar.current.dateComponents([.day], from: item.timestamp, to: dateListed).day
+        }.reduce(0, +)
+
+        guard !listedAndSoldItems.isEmpty else { return nil }
+        return Double(totalDays) / Double(listedAndSoldItems.count)
+    }
+
+    /// Average days from list to sold
+    var averageDaysToSell: Double? {
+        guard !soldItems.isEmpty else { return nil }
+
+        let totalDays = soldItems.compactMap { item -> Int? in
+            guard let dateListed = item.listingStatus.dateListed,
+                  let dateSold = item.listingStatus.dateSold else { return nil }
+            return Calendar.current.dateComponents([.day], from: dateListed, to: dateSold).day
+        }.reduce(0, +)
+
+        return Double(totalDays) / Double(soldItems.count)
+    }
+
+    /// Average total cycle time (scan to sold)
+    var averageCycleTime: Double? {
+        guard !soldItems.isEmpty else { return nil }
+
+        let totalDays = soldItems.compactMap { item -> Int? in
+            guard let dateSold = item.listingStatus.dateSold else { return nil }
+            return Calendar.current.dateComponents([.day], from: item.timestamp, to: dateSold).day
+        }.reduce(0, +)
+
+        return Double(totalDays) / Double(soldItems.count)
+    }
+
+    /// Get fastest selling items (top 3)
+    var fastestFlips: [ScannedItem] {
+        return soldItems
+            .compactMap { item -> (item: ScannedItem, days: Int)? in
+                guard let dateSold = item.listingStatus.dateSold else { return nil }
+                let days = Calendar.current.dateComponents([.day], from: item.timestamp, to: dateSold).day ?? 0
+                return (item, days)
+            }
+            .sorted { $0.days < $1.days }
+            .prefix(3)
+            .map { $0.item }
+    }
+
+    /// Get slowest selling items (top 3)
+    var slowestFlips: [ScannedItem] {
+        return soldItems
+            .compactMap { item -> (item: ScannedItem, days: Int)? in
+                guard let dateSold = item.listingStatus.dateSold else { return nil }
+                let days = Calendar.current.dateComponents([.day], from: item.timestamp, to: dateSold).day ?? 0
+                return (item, days)
+            }
+            .sorted { $0.days > $1.days }
+            .prefix(3)
+            .map { $0.item }
+    }
 }
