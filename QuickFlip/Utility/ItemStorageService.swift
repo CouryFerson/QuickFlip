@@ -146,7 +146,8 @@ class ItemStorageService: ObservableObject {
         return scannedItems.filter { item in
             item.itemName.localizedCaseInsensitiveContains(query) ||
             item.category.localizedCaseInsensitiveContains(query) ||
-            item.description.localizedCaseInsensitiveContains(query)
+            item.description.localizedCaseInsensitiveContains(query) ||
+            (item.storageLocation?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
