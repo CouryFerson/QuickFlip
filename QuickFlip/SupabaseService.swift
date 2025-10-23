@@ -344,7 +344,8 @@ class SupabaseService: ObservableObject {
             profitBreakdowns: item.profitBreakdowns,
             listingStatus: item.listingStatus,
             advancedAIAnalysis: item.advancedAIAnalysis,
-            aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt
+            aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt,
+            storageLocation: item.storageLocation
         )
 
         struct ScannedItemForDB: Codable {
@@ -479,7 +480,8 @@ class SupabaseService: ObservableObject {
                 profitBreakdowns: item.profitBreakdowns,
                 listingStatus: item.listingStatus,
                 advancedAIAnalysis: item.advancedAIAnalysis,
-                aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt
+                aiAnalysisGeneratedAt: item.aiAnalysisGeneratedAt,
+                storageLocation: item.storageLocation
             )
         }
 
