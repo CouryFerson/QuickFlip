@@ -640,6 +640,40 @@ class SupabaseService: ObservableObject {
         }
     }
 
+    func fetchWeeklyInsights() async throws -> WeeklyInsights? {
+        do {
+            let response: WeeklyInsights = try await client
+                .from("weekly_insights")
+                .select()
+                .order("week_start_date", ascending: false)
+                .limit(1)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
+    func fetchMonthlyInsights() async throws -> MonthlyInsights? {
+        do {
+            let response: MonthlyInsights = try await client
+                .from("monthly_insights")
+                .select()
+                .order("month_start_date", ascending: false)
+                .limit(1)
+                .single()
+                .execute()
+                .value
+
+            return response
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Helper Methods
 
     func checkConnection() async throws -> Bool {

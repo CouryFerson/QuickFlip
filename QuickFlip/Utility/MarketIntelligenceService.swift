@@ -11,17 +11,67 @@ import Foundation
 // MARK: - Market Intelligence Service
 class MarketIntelligenceService: ObservableObject {
     @Published var dailyTrends: MarketTrends?
+    @Published var weeklyInsights: WeeklyInsights?
+    @Published var monthlyInsights: MonthlyInsights?
     @Published var isLoadingTrends = false
+    @Published var isLoadingWeekly = false
+    @Published var isLoadingMonthly = false
     @Published var lastUpdated: Date?
 
     func loadDailyTrends(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingTrends = true
+        }
+
         do {
             let trends = try await supabaseService.fetchCachedMarketTrends()
             await MainActor.run {
                 dailyTrends = trends
+                isLoadingTrends = false
             }
         } catch {
             print("QuickFlip: Failed to fetch cached market trends: \(error)")
+            await MainActor.run {
+                isLoadingTrends = false
+            }
+        }
+    }
+
+    func loadWeeklyInsights(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingWeekly = true
+        }
+
+        do {
+            let insights = try await supabaseService.fetchWeeklyInsights()
+            await MainActor.run {
+                weeklyInsights = insights
+                isLoadingWeekly = false
+            }
+        } catch {
+            print("QuickFlip: Failed to fetch weekly insights: \(error)")
+            await MainActor.run {
+                isLoadingWeekly = false
+            }
+        }
+    }
+
+    func loadMonthlyInsights(supabaseService: SupabaseService) async {
+        await MainActor.run {
+            isLoadingMonthly = true
+        }
+
+        do {
+            let insights = try await supabaseService.fetchMonthlyInsights()
+            await MainActor.run {
+                monthlyInsights = insights
+                isLoadingMonthly = false
+            }
+        } catch {
+            print("QuickFlip: Failed to fetch monthly insights: \(error)")
+            await MainActor.run {
+                isLoadingMonthly = false
+            }
         }
     }
 }
@@ -204,6 +254,8 @@ class PersonalAnalyticsService: ObservableObject {
 }
 
 // MARK: - Data Models
+
+// MARK: - Daily Insights
 struct MarketTrends: Codable {
     let hotCategories: [TrendingCategory]
     let coolingCategories: [TrendingCategory]
@@ -224,11 +276,302 @@ struct MarketTrends: Codable {
     }
 }
 
+// MARK: - Weekly Category Model
+struct WeeklyCategory: Codable {
+    let name: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return avgPercentage > 0 ? .green : .red
+    }
+}
+
+// MARK: - Consistent Performer Model
+struct ConsistentPerformer: Codable {
+    let name: String
+    let type: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case type
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return type == "hot" ? .green : .red
+    }
+}
+
+// MARK: - Recommended Listing Time Model
+struct RecommendedListingTime: Codable {
+    let time: String
+    let frequency: Int
+}
+
+// MARK: - Weekly Insights
+struct WeeklyInsights: Codable, Identifiable {
+    let id: UUID
+    let createdAt: Date?
+    let weekStartDate: Date
+    let weekEndDate: Date
+    let trendingHotCategories: [WeeklyCategory]
+    let trendingCoolCategories: [WeeklyCategory]
+    let consistentPerformers: [ConsistentPerformer]
+    let sentimentTrend: String
+    let dominantSentiment: String
+    let sentimentBreakdown: [String: Double]
+    let recommendedListingTimes: [RecommendedListingTime]
+    let weekOverWeekSummary: String?
+    let topWeeklyInsight: String
+    let strategicRecommendation: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case weekStartDate = "week_start_date"
+        case weekEndDate = "week_end_date"
+        case trendingHotCategories = "trending_hot_categories"
+        case trendingCoolCategories = "trending_cool_categories"
+        case consistentPerformers = "consistent_performers"
+        case sentimentTrend = "sentiment_trend"
+        case dominantSentiment = "dominant_sentiment"
+        case sentimentBreakdown = "sentiment_breakdown"
+        case recommendedListingTimes = "recommended_listing_times"
+        case weekOverWeekSummary = "week_over_week_summary"
+        case topWeeklyInsight = "top_weekly_insight"
+        case strategicRecommendation = "strategic_recommendation"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        createdAt = try? container.decode(Date.self, forKey: .createdAt)
+
+        // Decode dates in YYYY-MM-DD format
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let weekStartString = try container.decode(String.self, forKey: .weekStartDate)
+        let weekEndString = try container.decode(String.self, forKey: .weekEndDate)
+
+        guard let startDate = dateFormatter.date(from: weekStartString),
+              let endDate = dateFormatter.date(from: weekEndString) else {
+            throw DecodingError.dataCorruptedError(forKey: .weekStartDate,
+                                                   in: container,
+                                                   debugDescription: "Date string does not match format yyyy-MM-dd")
+        }
+
+        weekStartDate = startDate
+        weekEndDate = endDate
+
+        trendingHotCategories = try container.decode([WeeklyCategory].self, forKey: .trendingHotCategories)
+        trendingCoolCategories = try container.decode([WeeklyCategory].self, forKey: .trendingCoolCategories)
+        consistentPerformers = try container.decode([ConsistentPerformer].self, forKey: .consistentPerformers)
+        sentimentTrend = try container.decode(String.self, forKey: .sentimentTrend)
+        dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
+        sentimentBreakdown = try container.decode([String: Double].self, forKey: .sentimentBreakdown)
+        recommendedListingTimes = try container.decode([RecommendedListingTime].self, forKey: .recommendedListingTimes)
+        weekOverWeekSummary = try? container.decode(String.self, forKey: .weekOverWeekSummary)
+        topWeeklyInsight = try container.decode(String.self, forKey: .topWeeklyInsight)
+        strategicRecommendation = try container.decode(String.self, forKey: .strategicRecommendation)
+    }
+
+    var marketSentiment: MarketSentiment {
+        MarketSentiment.from(dominantSentiment)
+    }
+}
+
+// MARK: - Monthly Category Model
+struct MonthlyCategory: Codable {
+    let name: String
+    let frequency: Int
+    let avgPercentage: Double
+    let totalPercentage: Double
+    let consistencyScore: Double
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case frequency
+        case avgPercentage = "avg_percentage"
+        case totalPercentage = "total_percentage"
+        case consistencyScore = "consistency_score"
+    }
+
+    var formattedChange: String {
+        let sign = avgPercentage > 0 ? "+" : ""
+        return "\(sign)\(Int(avgPercentage))%"
+    }
+
+    var color: Color {
+        return avgPercentage > 0 ? .green : .red
+    }
+}
+
+// MARK: - Emerging Trend Model
+struct EmergingTrend: Codable {
+    let name: String
+    let trend: String
+    let hotFrequency: Int
+    let coolFrequency: Int
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case trend
+        case hotFrequency = "hot_frequency"
+        case coolFrequency = "cool_frequency"
+    }
+}
+
+// MARK: - Monthly Insights
+struct MonthlyInsights: Codable, Identifiable {
+    let id: UUID
+    let createdAt: Date?
+    let monthStartDate: Date
+    let monthEndDate: Date
+    let categoryChampions: [MonthlyCategory]
+    let categoryDecliners: [MonthlyCategory]
+    let emergingTrends: [EmergingTrend]
+    let marketVolatilityScore: Int
+    let dominantSentiment: String
+    let sentimentDistribution: [String: Double]
+    let seasonalPatternSummary: String
+    let monthOverMonthSummary: String?
+    let topMonthlyInsight: String
+    let nextMonthForecast: String
+    let strategicOpportunities: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case monthStartDate = "month_start_date"
+        case monthEndDate = "month_end_date"
+        case categoryChampions = "category_champions"
+        case categoryDecliners = "category_decliners"
+        case emergingTrends = "emerging_trends"
+        case marketVolatilityScore = "market_volatility_score"
+        case dominantSentiment = "dominant_sentiment"
+        case sentimentDistribution = "sentiment_distribution"
+        case seasonalPatternSummary = "seasonal_pattern_summary"
+        case monthOverMonthSummary = "month_over_month_summary"
+        case topMonthlyInsight = "top_monthly_insight"
+        case nextMonthForecast = "next_month_forecast"
+        case strategicOpportunities = "strategic_opportunities"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        createdAt = try? container.decode(Date.self, forKey: .createdAt)
+
+        // Decode dates in YYYY-MM-DD format
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let monthStartString = try container.decode(String.self, forKey: .monthStartDate)
+        let monthEndString = try container.decode(String.self, forKey: .monthEndDate)
+
+        guard let startDate = dateFormatter.date(from: monthStartString),
+              let endDate = dateFormatter.date(from: monthEndString) else {
+            throw DecodingError.dataCorruptedError(forKey: .monthStartDate,
+                                                   in: container,
+                                                   debugDescription: "Date string does not match format yyyy-MM-dd")
+        }
+
+        monthStartDate = startDate
+        monthEndDate = endDate
+
+        categoryChampions = try container.decode([MonthlyCategory].self, forKey: .categoryChampions)
+        categoryDecliners = try container.decode([MonthlyCategory].self, forKey: .categoryDecliners)
+        emergingTrends = try container.decode([EmergingTrend].self, forKey: .emergingTrends)
+        marketVolatilityScore = try container.decode(Int.self, forKey: .marketVolatilityScore)
+        dominantSentiment = try container.decode(String.self, forKey: .dominantSentiment)
+        sentimentDistribution = try container.decode([String: Double].self, forKey: .sentimentDistribution)
+        seasonalPatternSummary = try container.decode(String.self, forKey: .seasonalPatternSummary)
+        monthOverMonthSummary = try? container.decode(String.self, forKey: .monthOverMonthSummary)
+        topMonthlyInsight = try container.decode(String.self, forKey: .topMonthlyInsight)
+        nextMonthForecast = try container.decode(String.self, forKey: .nextMonthForecast)
+        strategicOpportunities = try container.decode([String].self, forKey: .strategicOpportunities)
+    }
+
+    var marketSentiment: MarketSentiment {
+        MarketSentiment.from(dominantSentiment)
+    }
+}
+
 struct TrendingCategory: Codable {
     let name: String
     let percentageChange: Double
     let reason: String
     let isPositive: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case percentageChange
+        case percentageChangeSnake = "percentage_change"
+        case reason
+        case isPositive
+        case isPositiveSnake = "is_positive"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        name = try container.decode(String.self, forKey: .name)
+        reason = try container.decode(String.self, forKey: .reason)
+
+        // Try camelCase first (for daily insights), then snake_case (for weekly/monthly)
+        if let change = try? container.decode(Double.self, forKey: .percentageChange) {
+            percentageChange = change
+        } else {
+            percentageChange = try container.decode(Double.self, forKey: .percentageChangeSnake)
+        }
+
+        // Try camelCase first (for daily insights), then snake_case (for weekly/monthly)
+        if let positive = try? container.decode(Bool.self, forKey: .isPositive) {
+            isPositive = positive
+        } else {
+            isPositive = try container.decode(Bool.self, forKey: .isPositiveSnake)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(name, forKey: .name)
+        try container.encode(percentageChange, forKey: .percentageChange)
+        try container.encode(reason, forKey: .reason)
+        try container.encode(isPositive, forKey: .isPositive)
+    }
 
     var formattedChange: String {
         let sign = isPositive ? "+" : ""

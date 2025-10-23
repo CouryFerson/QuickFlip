@@ -4,8 +4,12 @@ struct ItemDetailView: View {
     @State private var item: ScannedItem
     let marketplaceAction: () -> Void
     @EnvironmentObject var itemStorage: ItemStorageService
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var marketPriceService: eBayMarketPriceService
+
+    // Supabase service for StockX
+    let supabaseService: SupabaseService
 
     // Action sheets and modals
     @State private var showingStatusActionSheet = false
@@ -14,6 +18,7 @@ struct ItemDetailView: View {
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
     @State private var showingStorageLocationSheet = false
+    @State private var showingSubscriptionView = false
 
     // Camera
     @State private var showingCamera = false
@@ -21,11 +26,26 @@ struct ItemDetailView: View {
 
     // UI state
     @State private var imageScale: CGFloat = 1.0
-    @State private var marketData: MarketPriceData?
     @State private var imageRefreshID = UUID()
+
+    // Market Data State for all marketplaces
+    @State private var ebayMarketData: MarketPriceData?
+    @State private var stockxMarketData: MarketPriceData?
+    @State private var etsyMarketData: MarketPriceData?
+
+    // Loading States
+    @State private var isLoadingEbay = false
+    @State private var isLoadingStockX = false
+    @State private var isLoadingEtsy = false
+
+    // Error tracking
+    @State private var ebayLoadFailed = false
+    @State private var stockxLoadFailed = false
+    @State private var etsyLoadFailed = false
 
     init(item: ScannedItem, supabaseService: SupabaseService, marketplaceAction: @escaping () -> Void) {
         self._item = State(initialValue: item)
+        self.supabaseService = supabaseService
         self.marketplaceAction = marketplaceAction
         _marketPriceService = StateObject(wrappedValue: eBayMarketPriceService(supabaseService: supabaseService))
     }
@@ -72,16 +92,29 @@ struct ItemDetailView: View {
                     handleUpdateStorageLocation(location: location)
                 }
             }
+            .sheet(isPresented: $showingSubscriptionView) {
+                SubscriptionView()
+                    .environmentObject(subscriptionManager)
+            }
             .fullScreenCover(isPresented: $showingCamera) {
                 ItemDetailCameraView(capturedImage: $capturedImage)
                     .ignoresSafeArea()
             }
             .task {
-                marketData = try? await marketPriceService.fetchMarketPrices(for: item.itemName, category: item.category)
+                // Only load market data for premium users - don't waste API calls!
+                if subscriptionManager.hasStarterOrProAccess {
+                    loadAllMarketData()
+                }
             }
             .onChange(of: capturedImage) { newImage in
                 if let newImage = newImage {
                     handleNewImage(newImage)
+                }
+            }
+            .onChange(of: subscriptionManager.hasStarterOrProAccess) { oldValue, newValue in
+                // If user just upgraded, load market data
+                if newValue && !oldValue {
+                    loadAllMarketData()
                 }
             }
         }
@@ -92,7 +125,6 @@ struct ItemDetailView: View {
     private func handleMarkAsListed(marketplaces: [Marketplace]) {
         Task {
             await itemStorage.markItemAsListed(item: item, on: marketplaces)
-            // Update local item state
             if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
                 self.item = updatedItem
             }
@@ -102,7 +134,6 @@ struct ItemDetailView: View {
     private func handleMarkAsSold(price: Double, marketplace: Marketplace, costBasis: Double?) {
         Task {
             await itemStorage.markItemAsSold(item: item, price: price, marketplace: marketplace, costBasis: costBasis)
-            // Update local item state
             if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
                 self.item = updatedItem
             }
@@ -112,7 +143,6 @@ struct ItemDetailView: View {
     private func handleMarkAsReadyToList() {
         Task {
             await itemStorage.markItemAsReadyToList(item: item)
-            // Update local item state
             if let updatedItem = itemStorage.scannedItems.first(where: { $0.id == item.id }) {
                 self.item = updatedItem
             }
@@ -140,6 +170,79 @@ struct ItemDetailView: View {
             }
         }
         capturedImage = nil
+    }
+
+    // MARK: - Market Data Loading
+
+    private func loadAllMarketData() {
+        isLoadingEbay = true
+        isLoadingStockX = true
+        isLoadingEtsy = true
+
+        Task {
+            await fetchEbayDataAsync()
+            await fetchStockXDataAsync()
+            await fetchEtsyDataAsync()
+        }
+    }
+
+    private func fetchEbayDataAsync() async {
+        do {
+            let data = try await marketPriceService.fetchMarketPrices(for: item.itemName, category: item.category)
+            await MainActor.run {
+                self.ebayMarketData = data
+                self.isLoadingEbay = false
+                self.ebayLoadFailed = (data == nil)
+            }
+        } catch {
+            await MainActor.run {
+                self.ebayMarketData = nil
+                self.isLoadingEbay = false
+                self.ebayLoadFailed = true
+            }
+        }
+    }
+
+    private func fetchStockXDataAsync() async {
+        // StockX uses search card, so no data to fetch
+        await MainActor.run {
+            self.stockxMarketData = nil
+            self.isLoadingStockX = false
+            self.stockxLoadFailed = false
+        }
+    }
+
+    private func fetchEtsyDataAsync() async {
+        // Etsy not implemented yet
+        await MainActor.run {
+            self.etsyMarketData = nil
+            self.isLoadingEtsy = false
+            self.etsyLoadFailed = false
+        }
+    }
+
+    private func retryEbayFetch() {
+        ebayLoadFailed = false
+        isLoadingEbay = true
+        Task {
+            await fetchEbayDataAsync()
+        }
+    }
+
+    private func retryStockXFetch() {
+        stockxLoadFailed = false
+        isLoadingStockX = true
+        Task {
+            await fetchStockXDataAsync()
+        }
+    }
+
+    private func retryEtsyFetch() {
+        etsyLoadFailed = false
+        isLoadingEtsy = true
+        Task {
+            await fetchEtsyDataAsync()
+        }
     }
 }
 
@@ -236,7 +339,7 @@ private extension ItemDetailView {
             descriptionSection
 
             if item.itemName != "Unknown Item" {
-                chartView.padding(.horizontal, 8)
+                marketIntelligenceSection
             }
 
             quickActionsSection
@@ -263,7 +366,6 @@ private extension ItemDetailView {
                         if !item.condition.isEmpty {
                             ConditionBadge(condition: item.condition)
                         }
-                        // Status Badge
                         ListingStatusBadge(status: item.listingStatus.status)
                         Spacer()
                     }
@@ -271,7 +373,6 @@ private extension ItemDetailView {
                 Spacer()
             }
 
-            // Show sold details if applicable
             if item.listingStatus.status == .sold {
                 soldDetailsCard
             }
@@ -345,6 +446,314 @@ private extension ItemDetailView {
     }
 
     @ViewBuilder
+    var marketIntelligenceSection: some View {
+        VStack(spacing: 0) {
+            sectionHeader
+
+            if subscriptionManager.hasStarterOrProAccess {
+                unlockedChartContent
+            } else {
+                lockedChartContent
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+    }
+
+    @ViewBuilder
+    var sectionHeader: some View {
+        HStack {
+            Label("Market Intelligence", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.blue)
+
+            Spacer()
+
+            if subscriptionManager.hasStarterOrProAccess {
+                unlockedBadge
+            } else {
+                lockedBadge
+            }
+        }
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    var unlockedBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+            Text("UNLOCKED")
+                .font(.caption2)
+                .fontWeight(.bold)
+        }
+        .foregroundColor(.green)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.green.opacity(0.15))
+        .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    var lockedBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "lock.fill")
+                .font(.caption)
+            Text("LOCKED")
+                .font(.caption2)
+                .fontWeight(.bold)
+        }
+        .foregroundColor(.orange)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.orange.opacity(0.15))
+        .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    var unlockedChartContent: some View {
+        VStack(spacing: 16) {
+            // Use SwipeableMarketChartsView for all 3 marketplaces in FULL mode!
+            SwipeableMarketChartsView(
+                scannedItem: item,
+                supabaseService: supabaseService,
+                ebayData: ebayMarketData,
+                stockxData: stockxMarketData,
+                etsyData: etsyMarketData,
+                isLoadingEbay: isLoadingEbay,
+                isLoadingStockX: isLoadingStockX,
+                isLoadingEtsy: isLoadingEtsy,
+                ebayLoadFailed: ebayLoadFailed,
+                stockxLoadFailed: stockxLoadFailed,
+                etsyLoadFailed: etsyLoadFailed,
+                recommendedMarketplace: .ebay,
+                onRetryEbay: retryEbayFetch,
+                onRetryStockX: retryStockXFetch,
+                onRetryEtsy: retryEtsyFetch,
+                displayMode: .full
+            )
+        }
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    var lockedChartContent: some View {
+        VStack(spacing: 0) {
+            lockedPreview
+            unlockButton
+        }
+    }
+
+    @ViewBuilder
+    var lockedPreview: some View {
+        ZStack {
+            // Blurred background with fake swipeable chart preview
+            VStack(spacing: 12) {
+                // Tab-like preview showing multiple marketplaces
+                HStack(spacing: 8) {
+                    ForEach([("eBay", Color.blue), ("StockX", Color.green), ("Etsy", Color.orange)], id: \.0) { name, color in
+                        VStack(spacing: 4) {
+                            Circle()
+                                .fill(color.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                            Text(name)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
+
+                // Fake chart card
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("eBay")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            Text("24 listings")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("$127")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                            Text("avg price")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    // Fake chart bars
+                    HStack(alignment: .bottom, spacing: 8) {
+                        ForEach(0..<6) { index in
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.blue.opacity(0.3))
+                                .frame(height: CGFloat.random(in: 40...120))
+                        }
+                    }
+                    .frame(height: 140)
+
+                    HStack(spacing: 12) {
+                        VStack(spacing: 2) {
+                            Text("Range")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text("$80-$180")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider()
+                            .frame(height: 30)
+
+                        VStack(spacing: 2) {
+                            Text("Competition")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text("Moderate")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Fake selling strategy preview
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lightbulb.fill")
+                                .foregroundColor(.yellow)
+                                .font(.caption)
+                            Text("Your Selling Strategy")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Suggested List Price")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text("$139")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.green)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(8)
+                        .background(Color.green.opacity(0.05))
+                        .cornerRadius(6)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .blur(radius: 5)
+            .opacity(0.4)
+
+            // Lock overlay
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.15))
+                        .frame(width: 64, height: 64)
+
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.blue)
+                }
+
+                VStack(spacing: 6) {
+                    Text("Unlock Market Data")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Text("Access eBay, StockX & Etsy pricing")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+            .padding(.vertical, 40)
+        }
+        .frame(height: 420)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    var unlockButton: some View {
+        VStack(spacing: 16) {
+            Divider()
+                .padding(.top, 12)
+
+            // Value propositions
+            VStack(spacing: 10) {
+                valuePropositionRow(icon: "chart.bar.fill", text: "Swipe through eBay, StockX & Etsy data", color: .blue)
+                valuePropositionRow(icon: "dollarsign.circle.fill", text: "AI pricing recommendations", color: .green)
+                valuePropositionRow(icon: "lightbulb.fill", text: "Selling strategy insights", color: .orange)
+            }
+
+            // Unlock button
+            Button(action: { showingSubscriptionView = true }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock.open.fill")
+                        .font(.headline)
+
+                    Text("Upgrade to Unlock")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [Color.blue, Color.blue.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .padding(.bottom, 8)
+        }
+    }
+
+    @ViewBuilder
+    func valuePropositionRow(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundColor(color)
+                .frame(width: 24)
+
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.body)
+                .foregroundColor(.green.opacity(0.6))
+        }
+    }
+
+    @ViewBuilder
     var quickActionsSection: some View {
         VStack(spacing: 16) {
             HStack {
@@ -359,7 +768,7 @@ private extension ItemDetailView {
             marketplaceButton
         }
         .padding(.horizontal, 24)
-        .padding(.top, 8)
+        .padding(.top, 24)
     }
 
     @ViewBuilder
@@ -454,21 +863,6 @@ private extension ItemDetailView {
         }
     }
 
-    @ViewBuilder
-    var chartView: some View {
-        if marketPriceService.isLoading {
-            MarketPriceLoadingView()
-        } else if let error = marketPriceService.lastError {
-            MarketPriceErrorView(errorMessage: error) {
-                Task {
-                    marketData = try? await marketPriceService.fetchMarketPrices(for: item.itemName, category: item.category)
-                }
-            }
-        } else if let marketData = marketData {
-            MarketPriceChartView(marketData: marketData)
-        }
-    }
-
     // MARK: - Action Sheet and Alert Content
 
     @ViewBuilder
@@ -517,7 +911,7 @@ private extension ItemDetailView {
     }
 }
 
-// MARK: - Camera View (unchanged)
+// MARK: - Camera View
 struct ItemDetailCameraView: UIViewControllerRepresentable {
     @Binding var capturedImage: UIImage?
     @Environment(\.presentationMode) var presentationMode

@@ -13,6 +13,7 @@ struct SwipeableMarketChartsView: View {
     let recommendedMarketplace: Marketplace
     let onRetryEbay: () -> Void
     let onRetryEtsy: () -> Void
+    let displayMode: ChartDisplayMode // NEW: Allow caller to specify display mode
 
     @State private var selectedMarketplace: Marketplace
     @State private var expandedChartData: ExpandedChartData?
@@ -38,7 +39,8 @@ struct SwipeableMarketChartsView: View {
         recommendedMarketplace: Marketplace = .ebay,
         onRetryEbay: @escaping () -> Void = {},
         onRetryStockX: @escaping () -> Void = {}, // Keep for compatibility
-        onRetryEtsy: @escaping () -> Void = {}
+        onRetryEtsy: @escaping () -> Void = {},
+        displayMode: ChartDisplayMode = .compact // NEW: Default to compact for backwards compatibility
     ) {
         self.scannedItem = scannedItem
         self.supabaseService = supabaseService
@@ -55,6 +57,7 @@ struct SwipeableMarketChartsView: View {
         self.onRetryEbay = onRetryEbay
         // Note: onRetryStockX is ignored since StockX uses search card
         self.onRetryEtsy = onRetryEtsy
+        self.displayMode = displayMode
 
         // Start on recommended marketplace
         _selectedMarketplace = State(initialValue: recommendedMarketplace)
@@ -91,7 +94,7 @@ private extension SwipeableMarketChartsView {
             stockXSearchCard
                 .tag(Marketplace.stockx)
 
-            // Etsy Card (placeholder for future)
+            // Etsy Card
             marketChartCard(
                 marketplace: .etsy,
                 data: etsyData,
@@ -102,7 +105,7 @@ private extension SwipeableMarketChartsView {
             .tag(Marketplace.etsy)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 400)
+        .frame(height: displayMode == .compact ? 400 : 800) // Adjust height based on display mode
     }
 
     @ViewBuilder
@@ -113,10 +116,11 @@ private extension SwipeableMarketChartsView {
                 recommendedBadge
             }
 
-            // StockX search card
+            // StockX search card with proper display mode
             StockXMarketSearchCard(
                 scannedItem: scannedItem,
-                supabaseService: supabaseService
+                supabaseService: supabaseService,
+                displayMode: displayMode
             )
         }
     }
@@ -141,10 +145,11 @@ private extension SwipeableMarketChartsView {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, displayMode == .compact ? 20 : 0) // Remove horizontal padding in full mode
         .contentShape(Rectangle())
         .onTapGesture {
-            if let data = data, data.hasData {
+            // Only allow tap to expand in compact mode
+            if displayMode == .compact, let data = data, data.hasData {
                 expandedChartData = ExpandedChartData(marketplace: marketplace, data: data)
             }
         }
@@ -182,11 +187,11 @@ private extension SwipeableMarketChartsView {
     ) -> some View {
         if isLoading {
             // Loading state - show spinner
-            MarketPriceLoadingView(displayMode: .compact)
+            MarketPriceLoadingView(displayMode: displayMode)
         } else if let data = data {
             // We have data - check if it has content
             if data.hasData {
-                MarketPriceChartView(marketData: data, displayMode: .compact)
+                MarketPriceChartView(marketData: data, displayMode: displayMode) // Use the passed display mode!
             } else {
                 // Data loaded but no listings found
                 noListingsFound(marketplace: marketplace)
@@ -196,14 +201,14 @@ private extension SwipeableMarketChartsView {
             MarketPriceErrorView(
                 errorMessage: "Couldn't load data",
                 retryAction: onRetry,
-                displayMode: .compact
+                displayMode: displayMode
             )
         } else {
-            // Initial state - for eBay and Stockx this should never happen for premium users
+            // Initial state - for eBay this should never happen for premium users
             // For Etsy, show "Coming Soon"
             if marketplace == .ebay || marketplace == .stockx {
                 // eBay should always attempt to load for premium users
-                MarketPriceLoadingView(displayMode: .compact)
+                MarketPriceLoadingView(displayMode: displayMode)
             } else {
                 waitingToLoad(marketplace: marketplace)
             }
@@ -227,7 +232,7 @@ private extension SwipeableMarketChartsView {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 340)
+        .frame(height: displayMode == .compact ? 340 : 540)
         .background(Color(.systemBackground))
     }
 
@@ -248,7 +253,7 @@ private extension SwipeableMarketChartsView {
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 340)
+        .frame(height: displayMode == .compact ? 340 : 540)
         .background(Color(.systemBackground))
     }
 
