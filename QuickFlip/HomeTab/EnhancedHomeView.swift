@@ -38,17 +38,13 @@ struct EnhancedHomeView: View {
 //                    personalInsightsView
 //                }
 
-                // Inventory Health Alerts
-                if !itemStorage.unsoldItems.isEmpty {
-                    inventoryHealthAlertsView
-                }
-
                 // Smart Quick Actions
                 smartQuickActionsView
 
                 // Recent Activity with Real Data
                 if !itemStorage.scannedItems.isEmpty {
                     recentActivityView
+
                 } else {
                     getStartedView
                 }
@@ -558,6 +554,11 @@ struct EnhancedHomeView: View {
                         .font(.subheadline)
                         .foregroundColor(.blue)
                 }
+            }
+
+            // Inventory Health Alerts
+            if !itemStorage.unsoldItems.isEmpty {
+                inventoryHealthAlertsView
             }
 
             LazyVStack(spacing: 12) {

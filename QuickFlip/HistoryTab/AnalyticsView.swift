@@ -16,8 +16,8 @@ struct AnalyticsView: View {
         ScrollView {
             VStack(spacing: 24) {
                 overviewSection
-                inventoryHealthSection
                 performanceInsightsSection
+                inventoryHealthSection
                 inventoryVelocitySection
                 marketplaceBreakdownSection
                 revenueChartSection
