@@ -3,9 +3,9 @@ import SwiftUI
 struct BulkStatusUpdateSheet: View {
     @Environment(\.dismiss) private var dismiss
     let selectedCount: Int
-    let onUpdate: (ListingStatus.Status) -> Void
+    let onUpdate: (ItemStatus) -> Void
 
-    @State private var selectedStatus: ListingStatus.Status = .readyToList
+    @State private var selectedStatus: ItemStatus = .readyToList
 
     var body: some View {
         NavigationView {
@@ -44,7 +44,7 @@ struct BulkStatusUpdateSheet: View {
     }
 
     @ViewBuilder
-    private func statusOption(for status: ListingStatus.Status, title: String, icon: String, color: Color) -> some View {
+    private func statusOption(for status: ItemStatus, title: String, icon: String, color: Color) -> some View {
         Button {
             selectedStatus = status
         } label: {

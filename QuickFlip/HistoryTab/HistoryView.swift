@@ -541,19 +541,21 @@ private extension HistoryView {
         }
     }
 
-    func performBulkStatusUpdate(status: ListingStatus.Status) {
+    func performBulkStatusUpdate(status: ItemStatus) {
         Task {
             let itemsToUpdate = getSelectedItems()
             for item in itemsToUpdate {
-                await itemStorage.updateListingStatus(
-                    for: item,
-                    status: status,
-                    listedPrice: item.listingStatus.listedPrice,
-                    soldPrice: item.listingStatus.soldPrice,
-                    listedDate: status == .listed ? (item.listingStatus.listedDate ?? Date()) : item.listingStatus.listedDate,
-                    soldDate: status == .sold ? (item.listingStatus.soldDate ?? Date()) : item.listingStatus.soldDate,
-                    marketplace: item.listingStatus.marketplace
-                )
+                var newStatus = item.listingStatus
+                newStatus.status = status
+
+                // Set appropriate dates when changing status
+                if status == .listed && newStatus.dateListed == nil {
+                    newStatus.dateListed = Date()
+                } else if status == .sold && newStatus.dateSold == nil {
+                    newStatus.dateSold = Date()
+                }
+
+                await itemStorage.updateListingStatus(for: item, newStatus: newStatus)
             }
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.3)) {
