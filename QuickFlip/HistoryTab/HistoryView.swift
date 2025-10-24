@@ -20,6 +20,11 @@ struct HistoryView: View {
     @State private var selectedItems = Set<UUID>()
     @State private var showingBulkDeleteAlert = false
 
+    // Bulk actions
+    @State private var showingBulkStatusSheet = false
+    @State private var showingBulkLocationSheet = false
+    @State private var showingBulkExportSheet = false
+
     enum FilterOption: String, CaseIterable {
         case all = "All"
         case readyToList = "Ready"
@@ -153,6 +158,27 @@ struct HistoryView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Are you sure you want to delete \(selectedItems.count) item\(selectedItems.count == 1 ? "" : "s")? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingBulkStatusSheet) {
+            BulkStatusUpdateSheet(
+                selectedCount: selectedItems.count,
+                onUpdate: performBulkStatusUpdate
+            )
+        }
+        .sheet(isPresented: $showingBulkLocationSheet) {
+            BulkStorageLocationSheet(
+                selectedCount: selectedItems.count,
+                onUpdate: performBulkLocationUpdate
+            )
+        }
+        .sheet(isPresented: $showingBulkExportSheet) {
+            BulkExportSheet(
+                items: getSelectedItems(),
+                onDismiss: {
+                    showingBulkExportSheet = false
+                }
+            )
+            .environmentObject(itemStorage)
         }
     }
 }
@@ -333,24 +359,65 @@ private extension HistoryView {
     var bulkActionToolbar: some View {
         VStack(spacing: 0) {
             Divider()
-            HStack {
-                Spacer()
-                Button {
-                    showingBulkDeleteAlert = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "trash")
-                        Text("Delete (\(selectedItems.count))")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    // Bulk status update
+                    bulkActionButton(
+                        title: "Status",
+                        icon: "checkmark.circle",
+                        color: .blue
+                    ) {
+                        showingBulkStatusSheet = true
                     }
-                    .foregroundColor(.red)
-                    .font(.system(size: 17, weight: .medium))
+
+                    // Bulk location update
+                    bulkActionButton(
+                        title: "Location",
+                        icon: "mappin.circle",
+                        color: .orange
+                    ) {
+                        showingBulkLocationSheet = true
+                    }
+
+                    // Bulk export
+                    bulkActionButton(
+                        title: "Export",
+                        icon: "square.and.arrow.up",
+                        color: .green
+                    ) {
+                        showingBulkExportSheet = true
+                    }
+
+                    // Bulk delete
+                    bulkActionButton(
+                        title: "Delete",
+                        icon: "trash",
+                        color: .red
+                    ) {
+                        showingBulkDeleteAlert = true
+                    }
                 }
-                .disabled(selectedItems.isEmpty)
-                Spacer()
+                .padding(.horizontal, 16)
             }
             .padding(.vertical, 12)
             .background(Color(UIColor.systemBackground))
         }
+    }
+
+    @ViewBuilder
+    func bulkActionButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(color)
+            .frame(width: 70)
+        }
+        .disabled(selectedItems.isEmpty)
     }
 
     @ViewBuilder
@@ -472,6 +539,48 @@ private extension HistoryView {
             selectedItems.removeAll()
             isEditMode = false
         }
+    }
+
+    func performBulkStatusUpdate(status: ListingStatus.Status) {
+        Task {
+            let itemsToUpdate = getSelectedItems()
+            for item in itemsToUpdate {
+                await itemStorage.updateListingStatus(
+                    for: item,
+                    status: status,
+                    listedPrice: item.listingStatus.listedPrice,
+                    soldPrice: item.listingStatus.soldPrice,
+                    listedDate: status == .listed ? (item.listingStatus.listedDate ?? Date()) : item.listingStatus.listedDate,
+                    soldDate: status == .sold ? (item.listingStatus.soldDate ?? Date()) : item.listingStatus.soldDate,
+                    marketplace: item.listingStatus.marketplace
+                )
+            }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    selectedItems.removeAll()
+                    isEditMode = false
+                }
+            }
+        }
+    }
+
+    func performBulkLocationUpdate(location: String) {
+        Task {
+            let itemsToUpdate = getSelectedItems()
+            for item in itemsToUpdate {
+                await itemStorage.updateStorageLocation(for: item, location: location.isEmpty ? nil : location)
+            }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    selectedItems.removeAll()
+                    isEditMode = false
+                }
+            }
+        }
+    }
+
+    func getSelectedItems() -> [ScannedItem] {
+        return itemStorage.scannedItems.filter { selectedItems.contains($0.id) }
     }
 }
 
