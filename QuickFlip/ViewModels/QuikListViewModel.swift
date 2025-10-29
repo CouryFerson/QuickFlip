@@ -156,8 +156,16 @@ class QuikListViewModel: ObservableObject {
         isSearchingStockX = true
 
         do {
-            let results = try await supabaseService.searchStockXProducts(query: stockXSearchQuery, limit: 20)
-            stockXSearchResults = results
+            // Get valid access token
+            let accessToken = try await stockXAuthService.getValidAccessToken()
+
+            let response = try await supabaseService.searchStockXProducts(
+                query: stockXSearchQuery,
+                pageSize: 20,
+                pageNumber: 1,
+                accessToken: accessToken
+            )
+            stockXSearchResults = response.products
         } catch {
             print("Error searching StockX products: \(error)")
             stockXSearchResults = []
@@ -178,7 +186,13 @@ class QuikListViewModel: ObservableObject {
         isLoadingVariants = true
 
         do {
-            let variants = try await supabaseService.getStockXVariants(productId: productId)
+            // Get valid access token
+            let accessToken = try await stockXAuthService.getValidAccessToken()
+
+            let variants = try await supabaseService.getStockXVariants(
+                productId: productId,
+                accessToken: accessToken
+            )
             stockXVariants = variants
 
             // Auto-select if only one variant
@@ -204,8 +218,23 @@ class QuikListViewModel: ObservableObject {
     }
 
     func loadStockXMarketData(variantId: String) async {
+        // Need productId for market data call
+        guard let productId = listingData.stockXProductId else {
+            print("Cannot load market data: missing productId")
+            return
+        }
+
         do {
-            let marketData = try await supabaseService.getStockXMarketData(variantId: variantId)
+            // Get valid access token
+            let accessToken = try await stockXAuthService.getValidAccessToken()
+
+            let marketData = try await supabaseService.getStockXMarketData(
+                productId: productId,
+                variantId: variantId,
+                currencyCode: "USD",
+                country: "US",
+                accessToken: accessToken
+            )
             listingData.stockXMarketData = marketData
 
             // Suggest price based on market data if ask price is 0
