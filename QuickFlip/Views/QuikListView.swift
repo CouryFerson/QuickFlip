@@ -16,6 +16,15 @@ struct QuikListView: View {
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showingImagePicker = false
 
+    // Auth code inputs
+    @State private var showEbayAuthCodeInput = false
+    @State private var ebayAuthCode = ""
+    @State private var isExchangingEbayToken = false
+
+    @State private var showStockXAuthCodeInput = false
+    @State private var stockXAuthCode = ""
+    @State private var isExchangingStockXToken = false
+
     init(supabaseService: SupabaseService, scannedItem: ScannedItem? = nil, capturedImage: UIImage? = nil) {
         _viewModel = StateObject(wrappedValue: QuikListViewModel(
             supabaseService: supabaseService,
@@ -44,7 +53,9 @@ struct QuikListView: View {
                     case .platformSelection:
                         PlatformSelectionStepView(
                             listingData: $viewModel.listingData,
-                            viewModel: viewModel
+                            viewModel: viewModel,
+                            showEbayAuthCodeInput: $showEbayAuthCodeInput,
+                            showStockXAuthCodeInput: $showStockXAuthCodeInput
                         )
 
                     case .platformDetails:
@@ -142,6 +153,61 @@ struct QuikListView: View {
         .sheet(isPresented: $viewModel.showingResults) {
             ResultsView(result: viewModel.submissionResult!) {
                 dismiss()
+            }
+        }
+        .sheet(isPresented: $showEbayAuthCodeInput) {
+            ebayAuthCodeInputSheet
+        }
+        .sheet(isPresented: $showStockXAuthCodeInput) {
+            stockXAuthCodeInputSheet
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // When user returns to app after OAuth, prompt for auth code
+            if viewModel.needsEbayAuth && !viewModel.ebayAuthService.isAuthenticated && !showEbayAuthCodeInput {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showEbayAuthCodeInput = true
+                }
+            }
+            if viewModel.needsStockXAuth && !viewModel.stockXAuthService.isAuthenticated && !showStockXAuthCodeInput {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showStockXAuthCodeInput = true
+                }
+            }
+        }
+    }
+
+    var ebayAuthCodeInputSheet: some View {
+        AuthCodeInputSheet(
+            isPresented: $showEbayAuthCodeInput,
+            authCode: $ebayAuthCode,
+            isProcessing: $isExchangingEbayToken
+        ) { code in
+            Task {
+                isExchangingEbayToken = true
+                await viewModel.ebayAuthService.exchangeCodeForToken(code: code)
+                await MainActor.run {
+                    isExchangingEbayToken = false
+                    ebayAuthCode = ""
+                    showEbayAuthCodeInput = false
+                }
+            }
+        }
+    }
+
+    var stockXAuthCodeInputSheet: some View {
+        StockXAuthCodeInputSheet(
+            isPresented: $showStockXAuthCodeInput,
+            authCode: $stockXAuthCode,
+            isProcessing: $isExchangingStockXToken
+        ) { code in
+            Task {
+                isExchangingStockXToken = true
+                await viewModel.stockXAuthService.exchangeCodeForToken(code: code)
+                await MainActor.run {
+                    isExchangingStockXToken = false
+                    stockXAuthCode = ""
+                    showStockXAuthCodeInput = false
+                }
             }
         }
     }
@@ -321,6 +387,8 @@ struct ItemDetailsStepView: View {
 struct PlatformSelectionStepView: View {
     @Binding var listingData: QuikListingData
     @ObservedObject var viewModel: QuikListViewModel
+    @Binding var showEbayAuthCodeInput: Bool
+    @Binding var showStockXAuthCodeInput: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -336,7 +404,8 @@ struct PlatformSelectionStepView: View {
                 isAuthenticated: viewModel.ebayAuthService.isAuthenticated,
                 onAuthenticate: {
                     viewModel.ebayAuthService.startAuthentication()
-                }
+                },
+                showAuthCodeInput: $showEbayAuthCodeInput
             )
 
             // StockX
@@ -348,7 +417,8 @@ struct PlatformSelectionStepView: View {
                 isAuthenticated: viewModel.stockXAuthService.isAuthenticated,
                 onAuthenticate: {
                     viewModel.stockXAuthService.startAuthentication()
-                }
+                },
+                showAuthCodeInput: $showStockXAuthCodeInput
             )
         }
     }
@@ -361,6 +431,7 @@ struct PlatformSelectionCard: View {
     @Binding var isSelected: Bool
     let isAuthenticated: Bool
     let onAuthenticate: () -> Void
+    @Binding var showAuthCodeInput: Bool
 
     var body: some View {
         Button(action: {
@@ -396,7 +467,13 @@ struct PlatformSelectionCard: View {
                         .font(.system(size: 24))
                         .foregroundColor(isSelected ? platformColor : .gray)
                 } else {
-                    Button(action: onAuthenticate) {
+                    Button(action: {
+                        onAuthenticate()
+                        // Show auth code input after OAuth flow starts
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            showAuthCodeInput = true
+                        }
+                    }) {
                         Text("Sign In")
                             .font(.caption)
                             .padding(.horizontal, 12)
@@ -1015,6 +1092,82 @@ struct ResultCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(success ? Color.green : Color.red, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - StockX Auth Code Input Sheet
+struct StockXAuthCodeInputSheet: View {
+    @Binding var isPresented: Bool
+    @Binding var authCode: String
+    @Binding var isProcessing: Bool
+    let onComplete: (String) -> Void
+
+    private let stockXGreen = Color(red: 0.0, green: 0.7, blue: 0.4)
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 32) {
+                Spacer()
+
+                Image(systemName: "key.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(stockXGreen)
+
+                VStack(spacing: 16) {
+                    Text("Enter Authorization Code")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    VStack(spacing: 12) {
+                        Text("After signing in to StockX, you'll see an authorization page.")
+                        Text("Copy the code from that page and paste it below:")
+                    }
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                }
+
+                VStack(spacing: 16) {
+                    TextField("Paste your code here", text: $authCode)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .padding(.horizontal)
+
+                    Button(action: {
+                        onComplete(authCode)
+                    }) {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            }
+                            Text(isProcessing ? "Connecting..." : "Complete Sign In")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(authCode.isEmpty || isProcessing ? Color.gray : stockXGreen)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(authCode.isEmpty || isProcessing)
+                    .padding(.horizontal)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("StockX Authorization")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        isPresented = false
+                        authCode = ""
+                    }
+                }
+            }
+        }
     }
 }
 
