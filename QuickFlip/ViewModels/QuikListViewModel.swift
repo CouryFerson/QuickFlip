@@ -238,8 +238,8 @@ class QuikListViewModel: ObservableObject {
             listingData.stockXMarketData = marketData
 
             // Suggest price based on market data if ask price is 0
-            if listingData.stockXAskPrice == 0, let lowestAsk = marketData.lowestAsk {
-                listingData.stockXAskPrice = lowestAsk
+            if listingData.stockXAskPrice == 0 {
+                listingData.stockXAskPrice = marketData.lowestAsk
             }
         } catch {
             print("Error loading StockX market data: \(error)")

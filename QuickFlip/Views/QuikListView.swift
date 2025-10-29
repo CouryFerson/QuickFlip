@@ -25,132 +25,123 @@ struct QuikListView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Progress indicator
-                StepProgressView(currentStep: viewModel.currentStep)
-                    .padding()
+        VStack(spacing: 0) {
+            // Progress indicator
+            StepProgressView(currentStep: viewModel.currentStep)
+                .padding()
 
-                // Content
-                ScrollView {
-                    VStack(spacing: 20) {
-                        switch viewModel.currentStep {
-                        case .itemDetails:
-                            ItemDetailsStepView(
-                                listingData: $viewModel.listingData,
-                                selectedPhotos: $selectedPhotos,
-                                showingImagePicker: $showingImagePicker
-                            )
+            // Content
+            ScrollView {
+                VStack(spacing: 20) {
+                    switch viewModel.currentStep {
+                    case .itemDetails:
+                        ItemDetailsStepView(
+                            listingData: $viewModel.listingData,
+                            selectedPhotos: $selectedPhotos,
+                            showingImagePicker: $showingImagePicker
+                        )
 
-                        case .platformSelection:
-                            PlatformSelectionStepView(
-                                listingData: $viewModel.listingData,
-                                viewModel: viewModel
-                            )
+                    case .platformSelection:
+                        PlatformSelectionStepView(
+                            listingData: $viewModel.listingData,
+                            viewModel: viewModel
+                        )
 
-                        case .platformDetails:
-                            PlatformDetailsStepView(
-                                listingData: $viewModel.listingData,
-                                viewModel: viewModel
-                            )
+                    case .platformDetails:
+                        PlatformDetailsStepView(
+                            listingData: $viewModel.listingData,
+                            viewModel: viewModel
+                        )
 
-                        case .review:
-                            ReviewStepView(
-                                listingData: viewModel.listingData,
-                                viewModel: viewModel
-                            )
-                        }
-
-                        // Validation errors
-                        if !viewModel.validationErrors.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(viewModel.validationErrors, id: \.self) { error in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.red)
-                                        Text(error)
-                                            .font(.caption)
-                                            .foregroundColor(.red)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding()
-                }
-
-                // Navigation buttons
-                HStack(spacing: 15) {
-                    if viewModel.currentStep != .itemDetails {
-                        Button(action: { viewModel.previousStep() }) {
-                            Label("Back", systemImage: "chevron.left")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.2))
-                                .foregroundColor(.primary)
-                                .cornerRadius(10)
-                        }
+                    case .review:
+                        ReviewStepView(
+                            listingData: viewModel.listingData,
+                            viewModel: viewModel
+                        )
                     }
 
-                    if viewModel.currentStep == .review {
-                        Button(action: {
-                            Task {
-                                await viewModel.submitListings()
-                            }
-                        }) {
-                            HStack {
-                                if viewModel.isSubmitting {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Label("Submit Listings", systemImage: "paperplane.fill")
+                    // Validation errors
+                    if !viewModel.validationErrors.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(viewModel.validationErrors, id: \.self) { error in
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.red)
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
                                 }
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(viewModel.canSubmit ? Color.blue : Color.gray)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
                         }
-                        .disabled(!viewModel.canSubmit || viewModel.isSubmitting)
-                    } else {
-                        Button(action: { viewModel.nextStep() }) {
-                            Label("Next", systemImage: "chevron.right")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                        }
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(8)
                     }
                 }
                 .padding()
             }
-            .navigationTitle("Quik List")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
-                        dismiss()
+
+            // Navigation buttons
+            HStack(spacing: 15) {
+                if viewModel.currentStep != .itemDetails {
+                    Button(action: { viewModel.previousStep() }) {
+                        Label("Back", systemImage: "chevron.left")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.2))
+                            .foregroundColor(.primary)
+                            .cornerRadius(10)
+                    }
+                }
+
+                if viewModel.currentStep == .review {
+                    Button(action: {
+                        Task {
+                            await viewModel.submitListings()
+                        }
+                    }) {
+                        HStack {
+                            if viewModel.isSubmitting {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Label("Submit Listings", systemImage: "paperplane.fill")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(viewModel.canSubmit ? Color.blue : Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .disabled(!viewModel.canSubmit || viewModel.isSubmitting)
+                } else {
+                    Button(action: { viewModel.nextStep() }) {
+                        Label("Next", systemImage: "chevron.right")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
                 }
             }
-            .photosPicker(
-                isPresented: $showingImagePicker,
-                selection: $selectedPhotos,
-                maxSelectionCount: 10,
-                matching: .images
-            )
-            .onChange(of: selectedPhotos) { newPhotos in
-                loadPhotos(newPhotos)
-            }
-            .sheet(isPresented: $viewModel.showingResults) {
-                ResultsView(result: viewModel.submissionResult!) {
-                    dismiss()
-                }
+            .padding()
+        }
+        .navigationTitle("Quik List")
+        .navigationBarTitleDisplayMode(.inline)
+        .photosPicker(
+            isPresented: $showingImagePicker,
+            selection: $selectedPhotos,
+            maxSelectionCount: 10,
+            matching: .images
+        )
+        .onChange(of: selectedPhotos) { newPhotos in
+            loadPhotos(newPhotos)
+        }
+        .sheet(isPresented: $viewModel.showingResults) {
+            ResultsView(result: viewModel.submissionResult!) {
+                dismiss()
             }
         }
     }
@@ -659,33 +650,29 @@ struct StockXDetailsSection: View {
                             .foregroundColor(.secondary)
 
                         HStack(spacing: 12) {
-                            if let lowestAsk = marketData.lowestAsk {
-                                VStack {
-                                    Text("$\(Int(lowestAsk))")
-                                        .font(.headline)
-                                    Text("Lowest Ask")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(Color.green.opacity(0.1))
-                                .cornerRadius(8)
+                            VStack {
+                                Text("$\(Int(marketData.lowestAsk))")
+                                    .font(.headline)
+                                Text("Lowest Ask")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
 
-                            if let highestBid = marketData.highestBid {
-                                VStack {
-                                    Text("$\(Int(highestBid))")
-                                        .font(.headline)
-                                    Text("Highest Bid")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(Color.blue.opacity(0.1))
-                                .cornerRadius(8)
+                            VStack {
+                                Text("$\(Int(marketData.highestBid))")
+                                    .font(.headline)
+                                Text("Highest Bid")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
                         }
                     }
                 }
@@ -843,7 +830,7 @@ struct StockXSummaryCard: View {
                         HStack {
                             Text("Size:")
                             Spacer()
-                            Text(variant.sizeDisplay ?? "N/A")
+                            Text(variant.sizeDisplay)
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -855,12 +842,11 @@ struct StockXSummaryCard: View {
                             .foregroundColor(.secondary)
                     }
 
-                    if let marketData = listingData.stockXMarketData,
-                       let lowestAsk = marketData.lowestAsk {
+                    if let marketData = listingData.stockXMarketData {
                         HStack {
                             Text("Current Lowest Ask:")
                             Spacer()
-                            Text("$\(Int(lowestAsk))")
+                            Text("$\(Int(marketData.lowestAsk))")
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -1033,13 +1019,13 @@ struct ResultCard: View {
 }
 
 // MARK: - Preview
-struct QuikListView_Previews: PreviewProvider {
-    static var previews: some View {
-        let client = SupabaseClient(
-            supabaseURL: URL(string: "https://example.supabase.co")!,
-            supabaseKey: "example-key"
-        )
-        let supabaseService = SupabaseService(client: client)
-        return QuikListView(supabaseService: supabaseService)
-    }
-}
+//struct QuikListView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        let client = SupabaseClient(
+//            supabaseURL: URL(string: "https://example.supabase.co")!,
+//            supabaseKey: "example-key"
+//        )
+//        let supabaseService = SupabaseService(client: client)
+//        return QuikListView(supabaseService: supabaseService)
+//    }
+//}

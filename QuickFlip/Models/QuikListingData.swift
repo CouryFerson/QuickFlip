@@ -23,17 +23,14 @@ struct QuikListingData {
     init(from scannedItem: ScannedItem, image: UIImage) {
         self.photos = [image]
         self.title = scannedItem.itemName
-        self.description = scannedItem.itemDescription ?? ""
+        self.description = scannedItem.description
 
         // Parse price from estimated value (e.g., "$99.99" -> 99.99)
         if let priceValue = Self.parsePrice(from: scannedItem.estimatedValue) {
             self.basePrice = priceValue
         }
 
-        // Map condition if available
-        if let scannedCondition = scannedItem.condition {
-            self.condition = ItemCondition(from: scannedCondition)
-        }
+        self.condition = ItemCondition(from: scannedItem.condition)
     }
 
     private static func parsePrice(from priceString: String) -> Double? {
