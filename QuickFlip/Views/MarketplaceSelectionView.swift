@@ -176,6 +176,7 @@ private extension MarketplaceSelectionView {
     @ViewBuilder
     var marketplaceGridSection: some View {
         VStack(spacing: 16) {
+            quikListButton
             sectionDivider
             marketplaceGrid
         }
@@ -417,6 +418,68 @@ private extension MarketplaceSelectionView {
 
 // MARK: - Grid Components
 private extension MarketplaceSelectionView {
+
+    @ViewBuilder
+    var quikListButton: some View {
+        NavigationLink {
+            QuikListView(
+                supabaseService: supabaseService,
+                scannedItem: scannedItem,
+                capturedImage: capturedImage
+            )
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.purple, Color.blue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "bolt.fill")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Quik List")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+
+                    Text("List to eBay & StockX at once")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+            }
+            .padding(16)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.3), Color.blue.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 2
+                    )
+            )
+            .shadow(color: .purple.opacity(0.15), radius: 8, x: 0, y: 4)
+        }
+        .padding(.horizontal, 20)
+    }
 
     @ViewBuilder
     var sectionDivider: some View {

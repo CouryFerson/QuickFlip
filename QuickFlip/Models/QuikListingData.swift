@@ -17,6 +17,30 @@ struct QuikListingData {
     var condition: ItemCondition = .good
     var basePrice: Double = 0.0
 
+    // MARK: - Initialization
+    init() {}
+
+    init(from scannedItem: ScannedItem, image: UIImage) {
+        self.photos = [image]
+        self.title = scannedItem.itemName
+        self.description = scannedItem.itemDescription ?? ""
+
+        // Parse price from estimated value (e.g., "$99.99" -> 99.99)
+        if let priceValue = Self.parsePrice(from: scannedItem.estimatedValue) {
+            self.basePrice = priceValue
+        }
+
+        // Map condition if available
+        if let scannedCondition = scannedItem.condition {
+            self.condition = ItemCondition(from: scannedCondition)
+        }
+    }
+
+    private static func parsePrice(from priceString: String) -> Double? {
+        let numbers = priceString.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        return Double(numbers).flatMap { $0 / 100.0 } // Assumes cents
+    }
+
     // MARK: - Platform Selection
     var listToEbay: Bool = false
     var listToStockX: Bool = false
@@ -124,6 +148,23 @@ enum ItemCondition: String, CaseIterable {
         case .good: return "star.leadinghalf.filled"
         case .fair: return "star"
         case .poor: return "minus.circle"
+        }
+    }
+
+    init(from scannedCondition: String) {
+        let lowercased = scannedCondition.lowercased()
+        if lowercased.contains("new") || lowercased.contains("mint") {
+            self = .new
+        } else if lowercased.contains("like new") || lowercased.contains("excellent") {
+            self = .likeNew
+        } else if lowercased.contains("good") || lowercased.contains("used") {
+            self = .good
+        } else if lowercased.contains("fair") || lowercased.contains("acceptable") {
+            self = .fair
+        } else if lowercased.contains("poor") || lowercased.contains("damaged") {
+            self = .poor
+        } else {
+            self = .good // Default
         }
     }
 

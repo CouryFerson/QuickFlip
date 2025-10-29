@@ -16,8 +16,12 @@ struct QuikListView: View {
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showingImagePicker = false
 
-    init(supabaseService: SupabaseService) {
-        _viewModel = StateObject(wrappedValue: QuikListViewModel(supabaseService: supabaseService))
+    init(supabaseService: SupabaseService, scannedItem: ScannedItem? = nil, capturedImage: UIImage? = nil) {
+        _viewModel = StateObject(wrappedValue: QuikListViewModel(
+            supabaseService: supabaseService,
+            scannedItem: scannedItem,
+            capturedImage: capturedImage
+        ))
     }
 
     var body: some View {

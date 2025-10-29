@@ -57,7 +57,7 @@ class QuikListViewModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    init(supabaseService: SupabaseService) {
+    init(supabaseService: SupabaseService, scannedItem: ScannedItem? = nil, capturedImage: UIImage? = nil) {
         self.supabaseService = supabaseService
 
         // Initialize auth services
@@ -76,6 +76,11 @@ class QuikListViewModel: ObservableObject {
             supabaseService: supabaseService,
             authService: stockXAuth
         )
+
+        // Pre-populate with scanned item data if provided
+        if let scannedItem = scannedItem, let capturedImage = capturedImage {
+            self.listingData = QuikListingData(from: scannedItem, image: capturedImage)
+        }
     }
 
     // MARK: - Navigation

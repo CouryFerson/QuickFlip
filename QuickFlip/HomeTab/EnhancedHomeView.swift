@@ -10,7 +10,6 @@ struct EnhancedHomeView: View {
     let scanItemAction: () -> Void
     let viewAllScansAction: () -> Void
     let viewDealsActions: () -> Void
-    let quikListAction: () -> Void
 
     @EnvironmentObject var supabaseService: SupabaseService
     @EnvironmentObject var itemStorage: ItemStorageService
@@ -527,16 +526,6 @@ struct EnhancedHomeView: View {
 //                ) {
 //                    // Navigate to optimization view
 //                }
-
-                SmartQuickActionCard(
-                    title: "Quik List",
-                    subtitle: "List to eBay & StockX at once",
-                    icon: "bolt.fill",
-                    color: .purple,
-                    isRecommended: itemStorage.readyToListItems.count > 0
-                ) {
-                    quikListAction()
-                }
 
                 SmartQuickActionCard(
                     title: "Find deals",

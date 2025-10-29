@@ -13,7 +13,6 @@ import SwiftUI
 enum HomeFlow: Hashable {
     case marketInsights(MarketTrends?, PersonalInsights?, Bool, Bool)
     case viewDeals
-    case quikList
 
     var id: Int {
         switch self {
@@ -21,8 +20,6 @@ enum HomeFlow: Hashable {
             return 0
         case .viewDeals:
             return 1
-        case .quikList:
-            return 2
         }
     }
 
@@ -38,7 +35,6 @@ enum HomeFlow: Hashable {
 public struct HomeCoordinatorView: View {
     @StateObject private var router = Router<HomeFlow>()
     @EnvironmentObject private var appRouter: AppRouter
-    @EnvironmentObject private var supabaseService: SupabaseService
 
     public var body: some View {
         NavigationStack(path: $router.paths) {
@@ -50,8 +46,6 @@ public struct HomeCoordinatorView: View {
                 appRouter.navigateToHistory()
             } viewDealsActions: {
                 router.push(.viewDeals)
-            } quikListAction: {
-                router.push(.quikList)
             }
             .navigationDestination(for: HomeFlow.self) { path in
                 viewForPath(path)
@@ -71,8 +65,6 @@ public struct HomeCoordinatorView: View {
                 marketplaceURL: URL(string: "https://www.ebay.com/deals")!,
                 marketplaceName: "eBay"
             )
-        case .quikList:
-            QuikListView(supabaseService: supabaseService)
         }
     }
 }
