@@ -109,30 +109,44 @@ class eBayTradingListingService: ObservableObject {
             print("=== Building Item Specifics for Category \(categoryID) ===")
         }
 
-        let brand = extractBrand(from: listing.title) ?? "Unbranded"
+        // Use AI-extracted attributes if available, otherwise fall back to basic extraction
+        guard let itemSpecifics = listing.itemSpecifics, !itemSpecifics.isEmpty else {
+            // Fallback: basic brand extraction for legacy items without AI attributes
+            let brand = extractBrand(from: listing.title) ?? "Unbranded"
+            return """
+            <ItemSpecifics>
+                <NameValueList>
+                    <Name>Brand</Name>
+                    <Value>\(escapeXML(brand))</Value>
+                </NameValueList>
+            </ItemSpecifics>
+            """
+        }
+
+        // Build XML from AI-extracted attributes
+        var nameValueLists = ""
+        for (name, value) in itemSpecifics.sorted(by: { $0.key < $1.key }) {
+            // Skip empty or "Unknown"/"Not Specified" values to keep listing clean
+            guard !value.isEmpty && value != "Unknown" && value != "Not Specified" else {
+                continue
+            }
+
+            nameValueLists += """
+                <NameValueList>
+                    <Name>\(escapeXML(name))</Name>
+                    <Value>\(escapeXML(value))</Value>
+                </NameValueList>
+
+            """
+        }
+
+        if debugMode {
+            print("Generated \(itemSpecifics.count) item specifics from AI data")
+        }
 
         return """
         <ItemSpecifics>
-            <NameValueList>
-                <Name>Brand</Name>
-                <Value>\(escapeXML(brand))</Value>
-            </NameValueList>
-            <NameValueList>
-                <Name>Type</Name>
-                <Value>Not Specified</Value>
-            </NameValueList>
-            <NameValueList>
-                <Name>Model</Name>
-                <Value>Generic</Value>
-            </NameValueList>
-            <NameValueList>
-                <Name>Color</Name>
-                <Value>Multicolor</Value>
-            </NameValueList>
-            <NameValueList>
-                <Name>Connectivity</Name>
-                <Value>Wireless</Value>
-            </NameValueList>
+        \(nameValueLists.trimmingCharacters(in: .whitespacesAndNewlines))
         </ItemSpecifics>
         """
     }

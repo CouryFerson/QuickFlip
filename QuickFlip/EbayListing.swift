@@ -22,6 +22,7 @@ struct EbayListing {
     var returnsAccepted: Bool
     var returnPeriod: Int
     var photos: [UIImage]
+    var itemSpecifics: [String: String]?
 
     // Computed properties for convenience
     var formattedPrice: String {
@@ -59,6 +60,7 @@ extension EbayListing {
         self.shippingCost = 0.0
         self.returnsAccepted = true
         self.returnPeriod = 30
+        self.itemSpecifics = scannedItem.itemSpecifics
 
 //        if let image = scannedItem.image {
 //            self.photos = [image]
@@ -80,6 +82,7 @@ extension EbayListing {
         self.shippingCost = 0.0
         self.returnsAccepted = true
         self.returnPeriod = 30
+        self.itemSpecifics = scannedItem.itemSpecifics
         self.photos = [image]
     }
 
@@ -205,7 +208,8 @@ extension EbayListing {
             shippingCost: 0.0,
             returnsAccepted: true,
             returnPeriod: 30,
-            photos: []
+            photos: [],
+            itemSpecifics: nil
         )
     }
 }

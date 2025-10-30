@@ -49,6 +49,7 @@ struct SingleItemRequester: SupabaseRequester {
         var description = ""
         var estimatedValue = ""
         var category = ""
+        var itemSpecifics: [String: String]?
 
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,6 +65,13 @@ struct SingleItemRequester: SupabaseRequester {
                 estimatedValue = String(cleanLine.dropFirst(6)).trimmingCharacters(in: .whitespacesAndNewlines)
             } else if cleanLine.hasPrefix("CATEGORY:") {
                 category = String(cleanLine.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if cleanLine.hasPrefix("ATTRIBUTES:") {
+                let attributesJSON = String(cleanLine.dropFirst(11)).trimmingCharacters(in: .whitespacesAndNewlines)
+                // Parse JSON string to dictionary
+                if let data = attributesJSON.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+                    itemSpecifics = json
+                }
             }
         }
 
@@ -72,7 +80,8 @@ struct SingleItemRequester: SupabaseRequester {
             condition: condition,
             description: description,
             estimatedValue: estimatedValue,
-            category: category
+            category: category,
+            itemSpecifics: itemSpecifics
         )
     }
 }

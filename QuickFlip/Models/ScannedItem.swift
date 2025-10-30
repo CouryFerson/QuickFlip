@@ -19,6 +19,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
     var listingStatus: ListingStatus
     var advancedAIAnalysis: StorableMarketplacePriceAnalysis?
     var aiAnalysisGeneratedAt: Date?
+    let itemSpecifics: [String: String]?
 
     // MARK: - Database CodingKeys (maps Swift names to database columns)
     enum CodingKeys: String, CodingKey {
@@ -37,6 +38,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         case listingStatus = "listing_status"
         case advancedAIAnalysis = "advanced_ai_analysis"
         case aiAnalysisGeneratedAt = "ai_analysis_generated_at"
+        case itemSpecifics = "item_specifics"
     }
 
     // MARK: - Standard Initializer (for creating new items)
@@ -53,7 +55,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         profitBreakdowns: [ProfitBreakdown]? = nil,
         listingStatus: ListingStatus? = nil,
         advancedAIAnalysis: MarketplacePriceAnalysis? = nil,
-        aiAnalysisGeneratedAt: Date? = nil
+        aiAnalysisGeneratedAt: Date? = nil,
+        itemSpecifics: [String: String]? = nil
     ) {
         self.id = UUID()
         self.itemName = itemName
@@ -70,6 +73,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.listingStatus = listingStatus ?? ListingStatus()
         self.advancedAIAnalysis = advancedAIAnalysis.map { StorableMarketplacePriceAnalysis(from: $0) }
         self.aiAnalysisGeneratedAt = aiAnalysisGeneratedAt
+        self.itemSpecifics = itemSpecifics
     }
 
     // MARK: - Database Initializer (for Supabase loading)
@@ -88,7 +92,8 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         profitBreakdowns: [StorableProfitBreakdown]?,
         listingStatus: ListingStatus?,
         advancedAIAnalysis: StorableMarketplacePriceAnalysis?,
-        aiAnalysisGeneratedAt: Date?
+        aiAnalysisGeneratedAt: Date?,
+        itemSpecifics: [String: String]?
     ) {
         self.id = id
         self.itemName = itemName
@@ -105,6 +110,7 @@ struct ScannedItem: Codable, Identifiable, Equatable {
         self.listingStatus = listingStatus ?? ListingStatus()
         self.advancedAIAnalysis = advancedAIAnalysis
         self.aiAnalysisGeneratedAt = aiAnalysisGeneratedAt
+        self.itemSpecifics = itemSpecifics
     }
 
     var formattedTimestamp: String {

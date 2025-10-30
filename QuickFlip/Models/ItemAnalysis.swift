@@ -12,4 +12,5 @@ struct ItemAnalysis: Equatable {
     let description: String
     let estimatedValue: String
     let category: String
+    let itemSpecifics: [String: String]?
 }
